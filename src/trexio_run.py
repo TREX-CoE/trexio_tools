@@ -17,19 +17,18 @@ def main(filename, args):
     print("File name: %s"%filename)
     print("File exists: ", os.path.exists(filename))
 
-    trexio_file = trexio.open(filename, 'r', trexio.TREXIO_TEXT)
-    print (trexio_file)
+    trexio_file = trexio.open(filename, 'r', trexio.TREXIO_HDF5)
     if trexio_file is None:
         raise IOError
 
-    if arguments["check-basis"]:
+    if args["check-basis"]:
         import check_basis
         check_basis.run(trexio_file)
 
     else:
         pass
 
-    trexio.close(filename)
+    trexio.close(trexio_file)
 
 
 if __name__ == '__main__':
