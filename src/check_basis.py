@@ -7,9 +7,9 @@ def read_nucleus(trexio_file):
     r = {}
 
     r["num"] =  trexio.read_nucleus_num(trexio_file)
-    r["charge"] =  trexio.read_nucleus_charge(trexio_file, dim=r["num"])
-    r["coord"] =  np.reshape(trexio.read_nucleus_coord(trexio_file, dim=r["num"]*3), (r["num"],3))
-    r["label"] =  trexio.read_nucleus_label(trexio_file, dim=r["num"])
+    r["charge"] =  trexio.read_nucleus_charge(trexio_file)
+    r["coord"] =  trexio.read_nucleus_coord(trexio_file)
+    r["label"] =  trexio.read_nucleus_label(trexio_file)
 
     return r
 
@@ -20,15 +20,15 @@ def read_basis(trexio_file):
     r["type"]               =  trexio.read_basis_type(trexio_file)
     r["num"]                =  trexio.read_basis_num(trexio_file)
     r["prim_num"]           =  trexio.read_basis_prim_num(trexio_file)
-    r["nucleus_index"]      =  trexio.read_basis_nucleus_index(trexio_file, dim=nucleus["num"])
-    r["nucleus_shell_num"]  =  trexio.read_basis_nucleus_shell_num(trexio_file, dim=nucleus["num"])
-    r["shell_ang_mom"]      =  trexio.read_basis_shell_ang_mom(trexio_file, dim=r["num"])
-    r["shell_prim_num"]     =  trexio.read_basis_shell_prim_num(trexio_file, dim=r["num"])
-    r["shell_factor"]       =  trexio.read_basis_shell_factor(trexio_file, dim=r["num"])
-    r["shell_prim_index"]   =  trexio.read_basis_shell_prim_index(trexio_file, dim=r["num"])
-    r["exponent"]           =  trexio.read_basis_exponent(trexio_file, dim=r["prim_num"])
-    r["coefficient"]        =  trexio.read_basis_coefficient(trexio_file, dim=r["prim_num"])
-    r["prim_factor"]        =  trexio.read_basis_prim_factor(trexio_file, dim=r["prim_num"])
+    r["nucleus_index"]      =  trexio.read_basis_nucleus_index(trexio_file)
+    r["nucleus_shell_num"]  =  trexio.read_basis_nucleus_shell_num(trexio_file)
+    r["shell_ang_mom"]      =  trexio.read_basis_shell_ang_mom(trexio_file)
+    r["shell_prim_num"]     =  trexio.read_basis_shell_prim_num(trexio_file)
+    r["shell_factor"]       =  trexio.read_basis_shell_factor(trexio_file)
+    r["shell_prim_index"]   =  trexio.read_basis_shell_prim_index(trexio_file)
+    r["exponent"]           =  trexio.read_basis_exponent(trexio_file)
+    r["coefficient"]        =  trexio.read_basis_coefficient(trexio_file)
+    r["prim_factor"]        =  trexio.read_basis_prim_factor(trexio_file)
 
     return r
 
@@ -37,8 +37,8 @@ def read_ao(trexio_file):
     r = {}
 
     r["num"]    = trexio.read_ao_num(trexio_file)
-    r["shell"]  = trexio.read_ao_shell(trexio_file, dim=r["num"])
-    r["factor"] = trexio.read_ao_normalization(trexio_file, dim=r["num"])
+    r["shell"]  = trexio.read_ao_shell(trexio_file)
+    r["factor"] = trexio.read_ao_normalization(trexio_file)
 
     return r
 
@@ -148,7 +148,7 @@ def run(trexio_file):
     print()
 
     ao_num = ao["num"]
-    S_ex = np.reshape(trexio.read_ao_1e_int_overlap(trexio_file, dim=ao_num**2), (ao_num,ao_num) )
+    S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
 
     for i in range(ao_num):
       for j in range(i,ao_num):

@@ -17,8 +17,7 @@ def main(filename, args):
     print("File name: %s"%filename)
     print("File exists: ", os.path.exists(filename))
 
-    #trexio_file = trexio.File(filename, 'r', back_end=trexio.TREXIO_HDF5)
-    trexio_file = trexio.open(filename, 'r', back_end=trexio.TREXIO_HDF5)
+    trexio_file = trexio.File(filename, 'r', back_end=trexio.TREXIO_HDF5)
     if trexio_file is None:
         raise IOError
 
@@ -29,8 +28,6 @@ def main(filename, args):
     else:
         pass
 
-    trexio.close(trexio_file)
-    #del trexio_file
 
 
 if __name__ == '__main__':
