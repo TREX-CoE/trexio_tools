@@ -22,8 +22,8 @@ def main(filename, args):
         raise IOError
 
     if args["check-basis"]:
-        import check_basis
-        check_basis.run(trexio_file)
+        from src.check_basis import run
+        run(trexio_file)
 
     else:
         pass
