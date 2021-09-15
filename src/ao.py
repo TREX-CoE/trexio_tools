@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+
+import trexio
+import numpy as np
+
+def read(trexio_file):
+    r = {}
+
+    r["num"]    = trexio.read_ao_num(trexio_file)
+    r["shell"]  = trexio.read_ao_shell(trexio_file)
+    r["factor"] = trexio.read_ao_normalization(trexio_file)
+
+    return r
+
+powers = [
+ [(0,0,0)],
+ [(1,0,0), (0,1,0), (0,0,1)],
+ [(2,0,0), (1,1,0), (1,0,1), (0,2,0), (0,1,1), (0,0,2)],
+ [(3,0,0), (2,1,0), (2,0,1), (1,2,0), (1,1,1), (1,0,2),
+  (0,3,0), (0,2,1), (0,1,2), (0,0,3)]
+  ]
+
+
+def value(r, nucleus, basis):
+    """
+    Evaluates all the radial parts of the basis functions at R=(x,y,z)
+    """
+
+    coord              =  nucleus["coord"]
+    nucleus_num        =  nucleus["num"]
+
+    basis_num          =  basis["num"]
+    prim_num           =  basis["prim_num"]
+    nucleus_shell_num  =  basis["nucleus_shell_num"]
+    nucleus_index      =  basis["nucleus_index"]
+    shell_ang_mom      =  basis["shell_ang_mom"]
+    shell_prim_num     =  basis["shell_prim_num"]
+    shell_prim_index   =  basis["shell_prim_index"]
+
+    coefficient = basis["coefficient"] * basis["prim_factor"]
+    exponent    = basis["exponent"]
+
+    # Compute all primitives and powers
+    prims = np.zeros(prim_num)
+    pows  = [ None for i in range(basis_num) ]
+
+    for i_nucl in range(nucleus_num):
+
+       i_shell = nucleus_index[i_nucl]
+       i_prim = shell_prim_index[i_shell]
+       istart = i_prim
+
+       try:
+         i_shell_end = nucleus_index[i_nucl+1]
+         i_prim = shell_prim_index[i_shell_end]
+         iend = i_prim
+       except IndexError:
+         iend = prim_num+1
+         i_shell_end = basis_num
+
+       dr = r - coord[i_nucl]
+       r2 = dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2]
+       expo_r = exponent[istart:iend] * r2
+       prims[istart:iend] = coefficient[istart:iend] * np.exp(-expo_r)
+
+       old = None
+       for i in range(i_shell,i_shell_end):
+         if shell_ang_mom[i] != old:
+            old = shell_ang_mom[i]
+            x = np.array([ np.power(dr, p) for p in powers[old] ])
+            x = np.prod(x,axis=1)
+         pows[i] = x
+
+    # Compute contractions
+    rr = np.zeros(basis_num)
+    for i_nucl in range(nucleus_num):
+       for i in range(nucleus_shell_num[i_nucl]):
+          i_shell = nucleus_index[i_nucl] + i
+          n_prim = shell_prim_num[i_shell]
+          i_prim = shell_prim_index[i_shell]
+          rr[i_shell] = sum(prims[i_prim:i_prim+n_prim])
+
+    result = np.concatenate( [ rr[i] * p for i,p in enumerate(pows) ] )
+
+    return result
+

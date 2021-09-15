@@ -3,10 +3,13 @@
 Set of tools to interact with trexio files.
 
 Usage:
-      trexio check-basis TREXIO_FILE
+      trexio check-basis [-n n_points]  TREXIO_FILE
 
+Options:
+      -n --n_points=n     Number of integration points. Default is 81.
 """
 
+from docopt import docopt
 import trexio
 import os
 
@@ -21,9 +24,13 @@ def main(filename, args):
     if trexio_file is None:
         raise IOError
 
-    if str(args[1])=="check-basis":
+    if args["check-basis"]:
         from src.check_basis import run
-        run(trexio_file)
+        if "--n_points" in args:
+           n_points = int(args["--n_points"])
+        else:
+           n_points = 81
+        run(trexio_file,n_points)
 
     else:
         pass
@@ -31,12 +38,8 @@ def main(filename, args):
 
 
 if __name__ == '__main__':
-    #from docopt import docopt
-    #args = docopt(__doc__)
-    #filename = args["TREXIO_FILE"]
-    import sys
-    args = sys.argv
-    filename = str(args[-1])
+    args = docopt(__doc__)
+    filename = args["TREXIO_FILE"]
     main(filename, args)
 
 
