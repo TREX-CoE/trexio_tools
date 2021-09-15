@@ -4,6 +4,7 @@ Set of tools to interact with trexio files.
 
 Usage:
       trexio check-basis [-n n_points]  TREXIO_FILE
+      trexio check-mos   [-n n_points]  TREXIO_FILE
 
 Options:
       -n --n_points=n     Number of integration points. Default is 81.
@@ -24,12 +25,17 @@ def main(filename, args):
     if trexio_file is None:
         raise IOError
 
+    if "--n_points" in args:
+       n_points = int(args["--n_points"])
+    else:
+       n_points = 81
+
     if args["check-basis"]:
         from src.check_basis import run
-        if "--n_points" in args:
-           n_points = int(args["--n_points"])
-        else:
-           n_points = 81
+        run(trexio_file,n_points)
+
+    elif args["check-mos"]:
+        from src.check_mos import run
         run(trexio_file,n_points)
 
     else:

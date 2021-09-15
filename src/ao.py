@@ -2,10 +2,12 @@
 
 import trexio
 import numpy as np
+import basis as trexio_basis
 
 def read(trexio_file):
     r = {}
 
+    r["basis"]  = trexio_basis.read(trexio_file)
     r["num"]    = trexio.read_ao_num(trexio_file)
     r["shell"]  = trexio.read_ao_shell(trexio_file)
     r["factor"] = trexio.read_ao_normalization(trexio_file)
@@ -21,11 +23,13 @@ powers = [
   ]
 
 
-def value(r, nucleus, basis):
+def value(ao,r):
     """
-    Evaluates all the radial parts of the basis functions at R=(x,y,z)
+    Evaluates all the basis functions at R=(x,y,z)
     """
 
+    basis              =  ao["basis"]
+    nucleus            =  basis["nucleus"]
     coord              =  nucleus["coord"]
     nucleus_num        =  nucleus["num"]
 
@@ -39,6 +43,8 @@ def value(r, nucleus, basis):
 
     coefficient = basis["coefficient"] * basis["prim_factor"]
     exponent    = basis["exponent"]
+
+    norm        = ao["factor"]
 
     # Compute all primitives and powers
     prims = np.zeros(prim_num)
@@ -82,5 +88,5 @@ def value(r, nucleus, basis):
 
     result = np.concatenate( [ rr[i] * p for i,p in enumerate(pows) ] )
 
-    return result
+    return result * norm
 

@@ -2,9 +2,12 @@
 
 import trexio
 import numpy as np
+import nucleus
 
 def read(trexio_file):
     r = {}
+
+    r["nucleus"]            =  nucleus.read(trexio_file)
 
     r["type"]               =  trexio.read_basis_type(trexio_file)
     r["num"]                =  trexio.read_basis_num(trexio_file)

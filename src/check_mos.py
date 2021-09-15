@@ -5,6 +5,7 @@ import numpy as np
 import nucleus as trexio_nucleus
 import basis as trexio_basis
 import ao as trexio_ao
+import mo as trexio_mo
 
 def run(trexio_file, n_points):
     """
@@ -12,7 +13,8 @@ def run(trexio_file, n_points):
     the matrix stored in the file.
     """
 
-    ao = trexio_ao.read(trexio_file)
+    mo = trexio_mo.read(trexio_file)
+    ao = mo["ao"]
     basis = ao["basis"]
     nucleus = basis["nucleus"]
     assert basis["type"] == "Gaussian"
@@ -28,23 +30,23 @@ def run(trexio_file, n_points):
     print (step)
     dv = step[0]*step[1]*step[2]
 
-    S = np.zeros( [ ao["num"], ao["num"]] )
+    mo_num = mo["num"]
+    S = np.zeros( [ mo_num, mo_num ] )
     for x in linspace[0]:
       print(".",end='',flush=True)
       for y in linspace[1]:
         for z in linspace[2]:
-           chi = trexio_ao.value(ao, np.array( [x,y,z] ) )
+           chi = trexio_mo.value(mo, np.array( [x,y,z] ) )
            S += np.outer(chi, chi)*dv
     print()
 
-    ao_num = ao["num"]
-    S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
+    S_ex = np.eye(mo_num)
     S_diff = S - S_ex
     print ("Norm of the error: %f"%(np.linalg.norm(S_diff)))
     print(S_diff)
 
-    for i in range(ao_num):
-      for j in range(i,ao_num):
+    for i in range(mo_num):
+      for j in range(i,mo_num):
         print("%3d %3d %15f %15f"%(i,j,S[i][j],S_ex[i,j]))
 
 
