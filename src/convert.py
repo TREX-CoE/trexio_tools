@@ -73,7 +73,7 @@ def run(trexio_filename,filename):
     trexio.write_nucleus_point_group(trexio_file, res.point_group)
 
 
-    # AO Basis
+    # Basis
 
     trexio.write_basis_type(trexio_file, "Gaussian")
 
@@ -87,6 +87,9 @@ def run(trexio_filename,filename):
     exponent = []
     coefficient = []
     prim_factor = []
+    curr_shell = -1
+    curr_shell_idx = 0
+    ao_shell = []
     prev_idx = None
     geom = [ a.coord for a in res.geometry ]
     for b in res.basis:
@@ -95,7 +98,9 @@ def run(trexio_filename,filename):
       else:
         basis.append(b)
         shell_ang_mom.append(b.sym.count("x"))
-        shell_prim_index.append(len(exponent))
+        curr_shell += 1
+        curr_shell_idx = len(exponent)
+        shell_prim_index.append(curr_shell_idx)
         shell_prim_num.append(len(b.prim))
         exponent += [x.expo for x in b.prim]
         coefficient += b.coef
@@ -107,6 +112,7 @@ def run(trexio_filename,filename):
            prev_idx = idx
            if len(nucleus_index) > 1:
              nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
+      ao_shell.append(curr_shell)
 
     nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
 
@@ -122,148 +128,62 @@ def run(trexio_filename,filename):
     trexio.write_basis_coefficient(trexio_file,coefficient)
     trexio.write_basis_prim_factor(trexio_file,prim_factor)
 
-    return
 
-def pouet():
-
-    at = []
-    num_prim = []
-    power_x = []
-    power_y = []
-    power_z = []
-    coefficient = []
-    exponent = []
+    # AO
+    # --
 
     res.convert_to_cartesian()
+    trexio.write_ao_cartesian(trexio_file, True)
+    trexio.write_ao_num(trexio_file, len(res.basis))
+    trexio.write_ao_shell(trexio_file, ao_shell)
 
-    for b in res.basis:
-        c = b.center
-        for i, atom in enumerate(res.geometry):
-            if atom.coord == c:
-                at.append(i + 1)
-        num_prim.append(len(b.prim))
-        s = b.sym
-        power_x.append(str.count(s, "x"))
-        power_y.append(str.count(s, "y"))
-        power_z.append(str.count(s, "z"))
-        coefficient.append(b.coef)
-        exponent.append([p.expo for p in b.prim])
+    ao_ordering = []
+    accu = []
+    normalization = []
+    prev_shell = None
+
+    # Re-order AOs (xx,xy,xz,yy,yz,zz)
+    for i,b in enumerate(res.basis):
+      shell = ao_shell[i]
+      if shell != prev_shell:
+          accu.sort()
+          ao_ordering += accu
+          accu = []
+      accu += [(b.sym, i)]
+      prev_shell = shell
+    accu.sort()
+    ao_ordering += accu
+
+    ao_ordering = [ i for (_,i) in ao_ordering ]
+
+    # Normalization
+    normalization = []
+    for i,k in enumerate(ao_ordering):
+      b = res.basis[k]
+      orig = res.basis[ao_shell.index(ao_shell[k])]
+      prim = b.prim
+      prim_norm = [ j.norm for j in prim ]
+      oprim = orig.prim
+      oprim_norm = [ j.norm for j in oprim ]
+      sum = 0.
+      for i, ci in enumerate(b.coef):
+         ci /= prim_norm[i]
+         for j, cj in enumerate(orig.coef):
+           cj /= oprim_norm[j]
+           sum += ci*cj * oprim[i].overlap(oprim[j])
+      sum /= orig.norm**2
+      normalization.append(sum)
+    trexio.write_ao_normalization(trexio_file, normalization)
 
 
-    trexio.write_ao_cartesian(trexio_file, true)
-    trexio.write_ao_num(len(res.basis))
-    trexio.write_ao_nucl(at)
-
-#    trexio.write_ao_prim_num(num_prim)
-#    trexio.write_ao_power(power_x + power_y + power_z)
-
-    prim_num_max = trexio.get_ao_basis_ao_prim_num_max()
-
-    for i in range(len(res.basis)):
-        coefficient[
-            i] += [0. for j in range(len(coefficient[i]), prim_num_max)]
-        exponent[i] += [0. for j in range(len(exponent[i]), prim_num_max)]
-
-    coefficient = reduce(lambda x, y: x + y, coefficient, [])
-    exponent = reduce(lambda x, y: x + y, exponent, [])
-
-    coef = []
-    expo = []
-    for i in range(prim_num_max):
-        for j in range(i, len(coefficient), prim_num_max):
-            coef.append(coefficient[j])
-            expo.append(exponent[j])
-
-    # ~#~#~#~#~ #
-    # W r i t e #
-    # ~#~#~#~#~ #
-
-    trexio.write_ao_basis_ao_coef(coef)
-    trexio.write_ao_basis_ao_expo(expo)
-    trexio.write_ao_basis_ao_basis("Read by resultsFile")
-
-    print("OK")
-
-    #   _
-    #  |_)  _.  _ o  _
-    #  |_) (_| _> | _>
-    #
-
-    print("Basis\t\t...\t", end=' ')
-    # ~#~#~#~ #
-    # I n i t #
-    # ~#~#~#~ #
-
-    coefficient = []
-    exponent = []
-
-    # ~#~#~#~#~#~#~ #
-    # P a r s i n g #
-    # ~#~#~#~#~#~#~ #
-
-    nbasis = 0
-    nucl_center = []
-    curr_center = -1
-    nucl_shell_num = []
-    ang_mom = []
-    nshell = 0
-    shell_prim_index = [1]
-    shell_prim_num = []
-    for b in res.basis:
-        s = b.sym
-        if str.count(s, "y") + str.count(s, "x") == 0:
-          c = b.center
-          nshell += 1
-          if c != curr_center:
-             curr_center = c
-             nucl_center.append(nbasis+1)
-             nucl_shell_num.append(nshell)
-             nshell = 0
-          nbasis += 1
-          coefficient += b.coef[:len(b.prim)]
-          exponent += [p.expo for p in b.prim]
-          ang_mom.append(str.count(s, "z"))
-          shell_prim_index.append(len(exponent)+1)
-          shell_prim_num.append(len(b.prim))
-
-    nucl_shell_num.append(nshell+1)
-    nucl_shell_num = nucl_shell_num[1:]
-
-    # ~#~#~#~#~ #
-    # W r i t e #
-    # ~#~#~#~#~ #
-
-    trexio.write_basis_basis("Read from ResultsFile")
-    trexio.write_basis_basis_nucleus_index(nucl_center)
-    trexio.write_basis_prim_num(len(coefficient))
-    trexio.write_basis_shell_num(len(ang_mom))
-    trexio.write_basis_nucleus_shell_num(nucl_shell_num)
-    trexio.write_basis_prim_coef(coefficient)
-    trexio.write_basis_prim_expo(exponent)
-    trexio.write_basis_shell_ang_mom(ang_mom)
-    trexio.write_basis_shell_prim_num(shell_prim_num)
-    trexio.write_basis_shell_prim_index(shell_prim_index)
-
-    print("OK")
-
-    #                _
-    # |\/|  _   _   |_)  _.  _ o  _
-    # |  | (_) _>   |_) (_| _> | _>
-    #
-
-    print("MOS\t\t...\t", end=' ')
-    # ~#~#~#~ #
-    # I n i t #
-    # ~#~#~#~ #
+    # MOs
+    # ---
 
     MoTag = res.determinants_mo_type
-    trexio.write_mo_basis_mo_label('Orthonormalized')
     MO_type = MoTag
     allMOs = res.mo_sets[MO_type]
 
-    # ~#~#~#~#~#~#~ #
-    # P a r s i n g #
-    # ~#~#~#~#~#~#~ #
+    trexio.write_mo_type(trexio_file, MO_type)
 
     try:
         closed = [(allMOs[i].eigenvalue, i) for i in res.closed_mos]
@@ -295,14 +215,6 @@ def pouet():
     for i in range(mo_num):
         energies.append(MOs[i].eigenvalue)
 
-    if res.occ_num is not None:
-        OccNum = []
-        for i in MOindices:
-            OccNum.append(res.occ_num[MO_type][i])
-
-        while len(OccNum) < mo_num:
-            OccNum.append(0.)
-
     MoMatrix = []
     sym0 = [i.sym for i in res.mo_sets[MO_type]]
     sym = [i.sym for i in res.mo_sets[MO_type]]
@@ -312,22 +224,31 @@ def pouet():
     MoMatrix = []
     for i in range(len(MOs)):
         m = MOs[i]
-        for coef in m.vector:
-            MoMatrix.append(coef)
+        for j in ao_ordering:
+            MoMatrix.append(m.vector[j])
 
     while len(MoMatrix) < len(MOs[0].vector)**2:
         MoMatrix.append(0.)
 
-    # ~#~#~#~#~ #
-    # W r i t e #
-    # ~#~#~#~#~ #
+    trexio.write_mo_num(trexio_file, mo_num)
+    trexio.write_mo_coefficient(trexio_file, MoMatrix)
 
-    trexio.write_mo_basis_mo_num(mo_num)
-    trexio.write_mo_basis_mo_occ(OccNum)
-    trexio.write_mo_basis_mo_coef(MoMatrix)
-    print("OK")
+#    print(res.occ_num)
+#    if res.occ_num is not None:
+#        OccNum = []
+#        for i in MOindices:
+#            OccNum.append(res.occ_num[MO_type][i])
+#
+#        while len(OccNum) < mo_num:
+#            OccNum.append(0.)
+#        trexio.write_mo_occupation(trexio_file, OccNum)
+
+    return
 
 
+
+
+def todo():
     print("Pseudos\t\t...\t", end=' ')
     try:
         lmax = 0
