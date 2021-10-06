@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
+
 """
 Trexio to CHAMP input converter
 """
 
+__author__ = "Ravindra Shinde <r.l.shinde@utwente.nl>"
+__date__   = "06 October 2021"
+
+
+
 import sys
 import os
 import numpy as np
+
 
 try:
     import trexio
@@ -13,9 +20,13 @@ except:
     print("Error: The TREXIO Python library is not installed")
     sys.exit(1)
 
+try:
+    import resultsFile
+except:
+    print("Error: The resultsFile Python library is not installed")
+    sys.exit(1)
 
-
-def run(trexio_filename,filename):
+def run(trexio_filename,filename, logfile='GAMESS_CAS.log'):
 
     trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_HDF5)
 
@@ -93,6 +104,17 @@ def run(trexio_filename,filename):
 
     # Write the .orb / .lcao file containing orbital information of MOs
     write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient)
+
+
+    ###### NOTE ######
+    # The following portion is written only to test few functionalities
+    # It will be replaced by the data stored by trexio library.
+
+    file = resultsFile.getFile(logfile)
+    print(file.get_det)
+    # Write the .orb / .lcao file containing orbital information of MOs
+    #write_champ_file_determinants(filename, )
+
 
 
     return
@@ -200,3 +222,5 @@ def write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient):
     # If filename is None, return a string representation of the output.
     else:
         return None
+
+
