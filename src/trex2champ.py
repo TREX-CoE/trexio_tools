@@ -5,6 +5,7 @@ Trexio to CHAMP input converter
 
 import sys
 import os
+import numpy as np
 
 try:
     import trexio
@@ -41,6 +42,7 @@ def run(trexio_filename,filename):
     nucleus_label = trexio.read_nucleus_label(trexio_file)
     nucleus_point_group = trexio.read_nucleus_point_group(trexio_file)
 
+    # Write the .xyz file containing cartesial coordinates (Bohr) of nuclei
     write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coord)
 
     # ECP
@@ -84,12 +86,18 @@ def run(trexio_filename,filename):
     mo_type = trexio.read_mo_type(trexio_file)
     mo_num = trexio.read_mo_num(trexio_file)
     mo_coefficient = trexio.read_mo_coefficient(trexio_file)
+    mo_symmetry = trexio.read_mo_symmetry(trexio_file)
+
+    # Write the .sym file containing symmetry information of MOs
+    write_champ_file_symmetry(filename,mo_num, mo_symmetry)
+
 
     return
 
 
-# Champ v2.0 format input files
+## Champ v2.0 format input files
 
+# Geometry
 def write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coord):
     """Writes the geometry data from the quantum
     chemistry calculation to a champ v2.0 format file.
@@ -101,7 +109,7 @@ def write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coor
     if filename is not None:
         if isinstance(filename, str):
             ## Write down a geometry file in the new champ v2.0 format
-            filename_geometry = os.path.splitext(filename)[0]+'_geom.xyz'
+            filename_geometry = os.path.splitext("champ_v2_" + filename)[0]+'_geom.xyz'
             with open(filename_geometry, 'w') as file:
 
                 file.write("{} \n".format(nucleus_num))
@@ -113,6 +121,49 @@ def write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coor
 
                 file.write("\n")
             file.close()
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+
+# Symmetry
+def write_champ_file_symmetry(filename,mo_num, mo_symmetry):
+    """Writes the symmetry information of molecular orbitals from the quantum
+    chemistry calculation to the new champ v2.0 input file format.
+
+    Returns:
+        None as a function value
+    """
+
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down a symmetry file in the new champ v2.0 format
+            filename_symmetry = os.path.splitext("champ_v2_" + filename)[0]+'_symmetry.sym'
+            with open(filename_symmetry, 'w') as file:
+
+                values, counts = np.unique(mo_symmetry, return_counts=True)
+                # point group symmetry independent line printed below
+                file.write("sym_labels " + str(len(counts)) + " " + str(mo_num)+"\n")
+                print("mo number, unique irrep ", str(len(counts)) + " " + str(mo_num) )
+
+                irrep_string = ""
+                irrep_correspondence = {}
+                for i, val in enumerate(values):
+                    irrep_correspondence[val] = i+1
+                    irrep_string += " " + str(i+1) + " " + str(val)
+
+                if all(irreps in mo_symmetry for irreps in values):
+                    file.write(f"{irrep_string} \n")   # This defines the rule
+
+                    for item in mo_symmetry:
+                        for key, val in irrep_correspondence.items():
+                            if item == key:
+                                file.write(str(val)+" ")
+                    file.write("\n")
+                file.write("end\n")
+            file.close()
+
         else:
             raise ValueError
     # If filename is None, return a string representation of the output.
