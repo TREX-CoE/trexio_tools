@@ -6,6 +6,8 @@ Usage:
       trexio check-basis [-n n_points]  TREXIO_FILE
       trexio check-mos   [-n n_points]  TREXIO_FILE
       trexio convert                    TEXT_FILE TREXIO_FILE
+      trexio convert2champ              TREXIO_FILE CHAMP_FILE
+
 
 Options:
       -n --n_points=n     Number of integration points. Default is 81.
@@ -47,6 +49,10 @@ def main(filename, args):
     elif args["convert"]:
         from src.convert import run
         run(args["TREXIO_FILE"], args["TEXT_FILE"])
+
+    elif args["convert2champ"]:
+        from src.trex2champ import run
+        run(args["TREXIO_FILE"], args["CHAMP_FILE"])
 
     else:
         pass

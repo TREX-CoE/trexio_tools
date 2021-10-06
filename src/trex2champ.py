@@ -5,17 +5,11 @@ Trexio to CHAMP input converter
 
 import sys
 import os
-from functools import reduce
+
 try:
     import trexio
 except:
     print("Error: The TREXIO Python library is not installed")
-    sys.exit(1)
-
-try:
-    from resultsFile import *
-except:
-    print("Error: The resultsFile Python library is not installed")
     sys.exit(1)
 
 
@@ -23,6 +17,7 @@ except:
 def run(trexio_filename,filename):
 
     trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_HDF5)
+
 
     # Metadata
     # --------
@@ -49,12 +44,12 @@ def run(trexio_filename,filename):
     # ECP
     # ------
 
-    ecp_z_core = trexio.read_ecp_z_core(trexio_file)
-    ecp_local_n = trexio.read_ecp_local_n(trexio_file)
-    ecp_local_num_n_max = trexio.read_ecp_local_num_n_max(trexio_file)
-    ecp_local_exponent = trexio.read_ecp_local_exponent(trexio_file)
-    ecp_local_coef = trexio.read_ecp_local_coef(trexio_file)
-    ecp_local_power = trexio.read_ecp_local_power(trexio_file)
+    # ecp_z_core = trexio.read_ecp_z_core(trexio_file)
+    # ecp_local_n = trexio.read_ecp_local_n(trexio_file)
+    # ecp_local_num_n_max = trexio.read_ecp_local_num_n_max(trexio_file)
+    # ecp_local_exponent = trexio.read_ecp_local_exponent(trexio_file)
+    # ecp_local_coef = trexio.read_ecp_local_coef(trexio_file)
+    # ecp_local_power = trexio.read_ecp_local_power(trexio_file)
 
 
     # Basis
