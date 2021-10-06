@@ -41,6 +41,8 @@ def run(trexio_filename,filename):
     nucleus_label = trexio.read_nucleus_label(trexio_file)
     nucleus_point_group = trexio.read_nucleus_point_group(trexio_file)
 
+    write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coord)
+
     # ECP
     # ------
 
@@ -85,3 +87,34 @@ def run(trexio_filename,filename):
 
     return
 
+
+# Champ v2.0 format input files
+
+def write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coord):
+    """Writes the geometry data from the quantum
+    chemistry calculation to a champ v2.0 format file.
+
+    Returns:
+        None as a function value
+    """
+
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down a geometry file in the new champ v2.0 format
+            filename_geometry = os.path.splitext(filename)[0]+'_geom.xyz'
+            with open(filename_geometry, 'w') as file:
+
+                file.write("{} \n".format(nucleus_num))
+                # header line printed below
+                file.write("# Converted from the trexio file \n")
+
+                for element in range(nucleus_num):
+                   file.write("{:5s} {: 0.6f} {: 0.6f} {: 0.6f} \n".format(nucleus_label[element], nucleus_coord[element][0], nucleus_coord[element][1], nucleus_coord[element][2]))
+
+                file.write("\n")
+            file.close()
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
