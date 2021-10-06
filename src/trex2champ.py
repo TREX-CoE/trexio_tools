@@ -28,7 +28,7 @@ except:
 
 def run(trexio_filename,filename, logfile='GAMESS_CAS.log'):
 
-    trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_HDF5)
+    trexio_file = trexio.File(trexio_filename,mode='r',back_end=back_end)
 
 
     # Metadata
