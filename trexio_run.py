@@ -6,6 +6,7 @@ Usage:
       trexio check-basis [-n n_points]  TREXIO_FILE             [-be back_end HDF5 | TEXT]
       trexio check-mos   [-n n_points]  TREXIO_FILE             [-be back_end HDF5 | TEXT]
       trexio convert                    TEXT_FILE TREXIO_FILE   [-be back_end HDF5 | TEXT]
+      trexio convert2champ              TREXIO_FILE CHAMP_FILE  [-be back_end HDF5 | TEXT]
 
 Options:
       -n --n_points=n     Number of integration points. Default is 81.
@@ -49,6 +50,10 @@ def main(filename, args):
     elif args["convert"]:
         from src.convert import run
         run(args["TREXIO_FILE"], args["TEXT_FILE"])
+
+    elif args["convert2champ"]:
+        from src.trex2champ import run
+        run(args["TREXIO_FILE"], args["CHAMP_FILE"])
 
     else:
         pass

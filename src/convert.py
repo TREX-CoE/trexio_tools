@@ -22,7 +22,7 @@ except:
 
 def run(trexio_filename,filename):
 
-    trexio_file = trexio.File(trexio_filename,mode='w',back_end=trexio.TREXIO_TEXT)
+    trexio_file = trexio.File(trexio_filename,mode='w',back_end=trexio.TREXIO_HDF5)
     try:
         res = getFile(filename)
     except:
