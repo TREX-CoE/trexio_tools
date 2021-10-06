@@ -26,9 +26,9 @@ except:
     print("Error: The resultsFile Python library is not installed")
     sys.exit(1)
 
-def run(trexio_filename,filename, logfile='GAMESS_CAS.log'):
+def run(trexio_filename, back_end, filename, logfile='GAMESS_CAS.log'):
 
-    trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_HDF5)
+    trexio_file = trexio.File(trexio_filename,mode='r',back_end=back_end)
 
 
     # Metadata
@@ -59,12 +59,12 @@ def run(trexio_filename,filename, logfile='GAMESS_CAS.log'):
     # ECP
     # ------
 
-    # ecp_z_core = trexio.read_ecp_z_core(trexio_file)
+    ecp_z_core = trexio.read_ecp_z_core(trexio_file)
     # ecp_local_n = trexio.read_ecp_local_n(trexio_file)
-    # ecp_local_num_n_max = trexio.read_ecp_local_num_n_max(trexio_file)
-    # ecp_local_exponent = trexio.read_ecp_local_exponent(trexio_file)
-    # ecp_local_coef = trexio.read_ecp_local_coef(trexio_file)
-    # ecp_local_power = trexio.read_ecp_local_power(trexio_file)
+    ecp_local_num_n_max = trexio.read_ecp_local_num_n_max(trexio_file)
+    ecp_local_exponent = trexio.read_ecp_local_exponent(trexio_file)
+    ecp_local_coef = trexio.read_ecp_local_coef(trexio_file)
+    ecp_local_power = trexio.read_ecp_local_power(trexio_file)
 
 
     # Basis
@@ -111,7 +111,12 @@ def run(trexio_filename,filename, logfile='GAMESS_CAS.log'):
     # It will be replaced by the data stored by trexio library.
 
     file = resultsFile.getFile(logfile)
-    print(file.get_det)
+    # print(len(file.det_coefficients[0]))
+    # print(file.det_coefficients)
+    # print("CSF")
+    # print(len(file.csf_coefficients[0]))
+    # print(file.csf_coefficients)
+
     # Write the .orb / .lcao file containing orbital information of MOs
     #write_champ_file_determinants(filename, )
 
