@@ -44,8 +44,9 @@ def run(trexio_filename, back_end, filename):
     # Electrons
     # ---------
 
-    trexio.write_electron_up_num(trexio_file,res.num_alpha)
-    trexio.write_electron_dn_num(trexio_file,res.num_beta)
+    # electrons_up|dn_num will be written later after removing core electrons
+    # trexio.write_electron_up_num(trexio_file,res.num_alpha)
+    # trexio.write_electron_dn_num(trexio_file,res.num_beta)
 
     # Nuclei
     # ------
@@ -61,8 +62,10 @@ def run(trexio_filename, back_end, filename):
             coord.append([a.coord[0], a.coord[1], a.coord[2]])
 
     trexio.write_nucleus_num(trexio_file, len(res.geometry))
-    trexio.write_nucleus_charge(trexio_file, charge)
     trexio.write_nucleus_coord(trexio_file, coord)
+    # nucleus_charge will be written later after removing core electrons
+    # trexio.write_nucleus_charge(trexio_file, charge)
+
 
     # Transformt H1 into H
     import re
@@ -243,12 +246,8 @@ def run(trexio_filename, back_end, filename):
 #            OccNum.append(0.)
 #        trexio.write_mo_occupation(trexio_file, OccNum)
 
-    return
+    print(res.pseudo)
 
-
-
-
-def todo():
     print("Pseudos\t\t...\t", end=' ')
     try:
         lmax = 0
@@ -256,29 +255,44 @@ def todo():
         klocmax = 0
         kmax = 0
         nucl_num = len(res.geometry)
+        lmax_per_atom = []
         for ecp in res.pseudo:
             lmax_local = ecp['lmax']
+            # TODO: check that lmax_local from resultsFile has to be incremented by 1
+            lmax_per_atom.append(lmax_local+1)
+            # =========================
             lmax = max(lmax_local, lmax)
             nucl_charge_remove.append(ecp['zcore'])
             klocmax = max(klocmax, len(ecp[str(lmax_local)]))
             for l in range(lmax_local):
                 kmax = max(kmax, len(ecp[str(l)]))
-        lmax = lmax-1
-        trexio.write_pseudo_pseudo_lmax(lmax)
-        trexio.write_pseudo_nucl_charge_remove(nucl_charge_remove)
-        trexio.write_pseudo_pseudo_klocmax(klocmax)
-        trexio.write_pseudo_pseudo_kmax(kmax)
+
+        # lmax above is the max of all local lmax (per atom)
+        trexio.write_ecp_lmax_plus_1(trexio_file, lmax_per_atom)
+
+        trexio.write_ecp_z_core(trexio_file, nucl_charge_remove)
+
+        # what are klocmax and kmax are local_num_n_max and non_local_num_n_max
+        trexio.write_ecp_local_num_n_max(trexio_file, klocmax)
+        trexio.write_ecp_non_local_num_n_max(trexio_file, kmax)
+
+        # local power, coefficient, exponent
         pseudo_n_k = [[0  for _ in range(nucl_num)] for _ in range(klocmax)]
         pseudo_v_k = [[0. for _ in range(nucl_num)] for _ in range(klocmax)]
         pseudo_dz_k = [[0. for _ in range(nucl_num)] for _ in range(klocmax)]
+        # non-local power, coefficient, exponent
         pseudo_n_kl = [[[0  for _ in range(nucl_num)] for _ in range(kmax)] for _ in range(lmax+1)]
         pseudo_v_kl = [[[0. for _ in range(nucl_num)] for _ in range(kmax)] for _ in range(lmax+1)]
         pseudo_dz_kl = [[[0. for _ in range(nucl_num)] for _ in range(kmax)] for _ in range(lmax+1)]
+
         for ecp in res.pseudo:
             lmax_local = ecp['lmax']
             klocmax = len(ecp[str(lmax_local)])
             atom = ecp['atom']-1
+
+            # derive local quantities
             for kloc in range(klocmax):
+                # DANGEROUS TRY/EXCEPT CLAUSE !
                 try:
                     v, n, dz = ecp[str(lmax_local)][kloc]
                     pseudo_n_k[kloc][atom] = n-2
@@ -286,8 +300,11 @@ def todo():
                     pseudo_dz_k[kloc][atom] = dz
                 except:
                     pass
+
+            # derive non-local quantities
             for l in range(lmax_local):
                 for k in range(kmax):
+                # DANGEROUS TRY/EXCEPT CLAUSE !
                     try:
                         v, n, dz = ecp[str(l)][k]
                         pseudo_n_kl[l][k][atom] = n-2
@@ -295,12 +312,17 @@ def todo():
                         pseudo_dz_kl[l][k][atom] = dz
                     except:
                         pass
-        trexio.write_pseudo_pseudo_n_k(pseudo_n_k)
-        trexio.write_pseudo_pseudo_v_k(pseudo_v_k)
-        trexio.write_pseudo_pseudo_dz_k(pseudo_dz_k)
-        trexio.write_pseudo_pseudo_n_kl(pseudo_n_kl)
-        trexio.write_pseudo_pseudo_v_kl(pseudo_v_kl)
-        trexio.write_pseudo_pseudo_dz_kl(pseudo_dz_kl)
+
+        # write local ECP quantities in the TREXIO file
+        trexio.write_ecp_local_power(trexio_file, pseudo_n_k)
+        trexio.write_ecp_local_coef(trexio_file, pseudo_v_k)
+        trexio.write_ecp_local_exponent(trexio_file, pseudo_dz_k)
+
+        # TODO: trexio 1.0 has wrong dimensions for non-local quantities, they should be 3D arrays and not 2D
+        # TODO: change it and release 1.1 and 0.2 for C and Python, respectively
+        #trexio.write_ecp_non_local_power(trexio_file, pseudo_n_kl)
+        #trexio.write_ecp_non_local_coef(trexio_file, pseudo_v_kl)
+        #trexio.write_ecp_non_local_exponent(trexio_file, pseudo_dz_kl)
 
         n_alpha = res.num_alpha
         n_beta = res.num_beta
@@ -308,18 +330,24 @@ def todo():
             charge[i] -= nucl_charge_remove[i]
             n_alpha -= nucl_charge_remove[i]/2
             n_beta -= nucl_charge_remove[i]/2
-        trexio.write_nuclei_nucl_charge(charge)
-        trexio.write_electrons_elec_alpha_num(n_alpha)
-        trexio.write_electrons_elec_beta_num(n_beta)
+            
+        trexio.write_nucleus_charge(trexio_file, charge)
+
+        # Electrons
+        # ---------
+
+        trexio.write_electron_up_num(trexio_file, int(n_alpha))
+        trexio.write_electron_dn_num(trexio_file, int(n_beta))
 
     except:
-        trexio.write_pseudo_do_pseudo(False)
-    else:
-        trexio.write_pseudo_do_pseudo(True)
+        raise
+        #trexio.write_pseudo_do_pseudo(False)
+    #else:
+    #    trexio.write_pseudo_do_pseudo(True)
 
     print("OK")
 
-
+    return
 
 
 
