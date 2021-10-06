@@ -235,6 +235,7 @@ def run(trexio_filename, back_end, filename):
 
     trexio.write_mo_num(trexio_file, mo_num)
     trexio.write_mo_coefficient(trexio_file, MoMatrix)
+    trexio.write_mo_symmetry(trexio_file, sym)
 
 #    print(res.occ_num)
 #    if res.occ_num is not None:
