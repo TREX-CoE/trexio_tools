@@ -3,12 +3,14 @@
 Set of tools to interact with trexio files.
 
 Usage:
-      trexio check-basis [-n n_points]  TREXIO_FILE
-      trexio check-mos   [-n n_points]  TREXIO_FILE
-      trexio convert                    TEXT_FILE TREXIO_FILE
+      trexio check-basis [-n n_points]  TREXIO_FILE             [-be back_end HDF5 | TEXT]
+      trexio check-mos   [-n n_points]  TREXIO_FILE             [-be back_end HDF5 | TEXT]
+      trexio convert                    TEXT_FILE TREXIO_FILE   [-be back_end HDF5 | TEXT]
 
 Options:
       -n --n_points=n     Number of integration points. Default is 81.
+      -be 
+
 """
 
 from docopt import docopt
