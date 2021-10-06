@@ -89,7 +89,10 @@ def run(trexio_filename,filename):
     mo_symmetry = trexio.read_mo_symmetry(trexio_file)
 
     # Write the .sym file containing symmetry information of MOs
-    write_champ_file_symmetry(filename,mo_num, mo_symmetry)
+    write_champ_file_symmetry(filename, mo_num, mo_symmetry)
+
+    # Write the .orb / .lcao file containing orbital information of MOs
+    write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient)
 
 
     return
@@ -145,7 +148,6 @@ def write_champ_file_symmetry(filename,mo_num, mo_symmetry):
                 values, counts = np.unique(mo_symmetry, return_counts=True)
                 # point group symmetry independent line printed below
                 file.write("sym_labels " + str(len(counts)) + " " + str(mo_num)+"\n")
-                print("mo number, unique irrep ", str(len(counts)) + " " + str(mo_num) )
 
                 irrep_string = ""
                 irrep_correspondence = {}
@@ -164,6 +166,35 @@ def write_champ_file_symmetry(filename,mo_num, mo_symmetry):
                 file.write("end\n")
             file.close()
 
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+
+
+# Orbitals / LCAO infomation
+
+def write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient):
+    """Writes the molecular orbitals coefficients from the quantum
+    chemistry calculation / trexio file to champ v2.0 input file format.
+
+    Returns:
+        None as a function value
+    """
+
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down an orbitals file in the new champ v2.0 format
+            filename_orbitals = os.path.splitext("champ_v2_" + filename)[0]+'_orbitals.orb'
+            with open(filename_orbitals, 'w') as file:
+
+                # header line printed below
+                file.write("# File created using the trex2champ converter \n")
+                file.write("lcao " + str(mo_num) + " " + str(ao_num) + " 1 " + "\n" )
+                np.savetxt(file, mo_coefficient)
+                file.write("end\n")
+            file.close()
         else:
             raise ValueError
     # If filename is None, return a string representation of the output.
