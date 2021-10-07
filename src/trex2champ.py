@@ -4,9 +4,13 @@
 Trexio to CHAMP input converter
 """
 
-__author__ = "Ravindra Shinde <r.l.shinde@utwente.nl>"
-__date__   = "06 October 2021"
-
+__author__ = "Ravindra Shinde, Evgeny Posenitskiy"
+__copyright__ = "Copyright 2021, The TREX Project"
+__license__ = "BSD"
+__version__ = "1.0.0"
+__maintainer__ = "Ravindra Shinde"
+__email__ = "r.l.shinde@utwente.nl"
+__status__ = "Development"
 
 
 import sys
@@ -111,11 +115,11 @@ def run(trexio_filename, back_end, filename, logfile='GAMESS_CAS.log'):
     # It will be replaced by the data stored by trexio library.
 
     file = resultsFile.getFile(logfile)
-    # print(len(file.det_coefficients[0]))
-    # print(file.det_coefficients)
-    # print("CSF")
-    # print(len(file.csf_coefficients[0]))
-    # print(file.csf_coefficients)
+    print(len(file.det_coefficients[0]))
+    print(file.det_coefficients)
+    print("CSF")
+    print(len(file.csf_coefficients))
+    print(file.csf_coefficients[0])
 
     # Write the .orb / .lcao file containing orbital information of MOs
     #write_champ_file_determinants(filename, )
