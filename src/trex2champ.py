@@ -63,12 +63,12 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # ECP
     # ------
 
-    # ecp_z_core = trexio.read_ecp_z_core(trexio_file)
+    ecp_z_core = trexio.read_ecp_z_core(trexio_file)
     # ecp_local_n = trexio.read_ecp_local_n(trexio_file)
-    # ecp_local_num_n_max = trexio.read_ecp_local_num_n_max(trexio_file)
-    # ecp_local_exponent = trexio.read_ecp_local_exponent(trexio_file)
-    # ecp_local_coef = trexio.read_ecp_local_coef(trexio_file)
-    # ecp_local_power = trexio.read_ecp_local_power(trexio_file)
+    ecp_local_num_n_max = trexio.read_ecp_local_num_n_max(trexio_file)
+    ecp_local_exponent = trexio.read_ecp_local_exponent(trexio_file)
+    ecp_local_coef = trexio.read_ecp_local_coef(trexio_file)
+    ecp_local_power = trexio.read_ecp_local_power(trexio_file)
 
 
     # Basis

@@ -13,7 +13,7 @@ except:
     sys.exit(1)
 
 try:
-    from resultsFile import *
+    from resultsFile import getFile, a0
 except:
     print("Error: The resultsFile Python library is not installed")
     sys.exit(1)
@@ -237,19 +237,19 @@ def run(trexio_filename, back_end, filename):
     trexio.write_mo_coefficient(trexio_file, MoMatrix)
     trexio.write_mo_symmetry(trexio_file, sym)
 
+    # TODO: check if this is correct
 #    print(res.occ_num)
 #    if res.occ_num is not None:
 #        OccNum = []
 #        for i in MOindices:
-#            OccNum.append(res.occ_num[MO_type][i])
-#
+#           OccNum.append(res.occ_num[MO_type][i])
+#    # Not sure about the part below as it might overwrite values from the previous step !
 #        while len(OccNum) < mo_num:
 #            OccNum.append(0.)
 #        trexio.write_mo_occupation(trexio_file, OccNum)
 
     print(res.pseudo)
 
-    print("Pseudos\t\t...\t", end=' ')
     try:
         lmax = 0
         nucl_charge_remove = []
@@ -257,6 +257,8 @@ def run(trexio_filename, back_end, filename):
         kmax = 0
         nucl_num = len(res.geometry)
         lmax_per_atom = []
+        local_n_per_atom = []
+        non_local_n_per_atom = []
         for ecp in res.pseudo:
             lmax_local = ecp['lmax']
             # TODO: check that lmax_local from resultsFile has to be incremented by 1
@@ -264,16 +266,26 @@ def run(trexio_filename, back_end, filename):
             # =========================
             lmax = max(lmax_local, lmax)
             nucl_charge_remove.append(ecp['zcore'])
-            klocmax = max(klocmax, len(ecp[str(lmax_local)]))
+            nloc = len(ecp[str(lmax_local)])
+            klocmax = max(klocmax, nloc)
             for l in range(lmax_local):
                 kmax = max(kmax, len(ecp[str(l)]))
+                non_local_n_per_atom.append(len(ecp[str(l)]))
+
+            local_n_per_atom.append(nloc)
+            # TODO: check that this is a proper way to get list of non_local_n !
+            #non_local_n_per_atom.append(kmax)
+
+        print("Local N per atom:", local_n_per_atom)
+        print("Non-local N per atom:", non_local_n_per_atom)
 
         # lmax above is the max of all local lmax (per atom)
         trexio.write_ecp_lmax_plus_1(trexio_file, lmax_per_atom)
 
+        # core charges to be removed
         trexio.write_ecp_z_core(trexio_file, nucl_charge_remove)
 
-        # what are klocmax and kmax are local_num_n_max and non_local_num_n_max
+        # klocmax and kmax are local_num_n_max and non_local_num_n_max
         trexio.write_ecp_local_num_n_max(trexio_file, klocmax)
         trexio.write_ecp_non_local_num_n_max(trexio_file, kmax)
 
@@ -331,7 +343,10 @@ def run(trexio_filename, back_end, filename):
             charge[i] -= nucl_charge_remove[i]
             n_alpha -= nucl_charge_remove[i]/2
             n_beta -= nucl_charge_remove[i]/2
-            
+
+        if not n_alpha.is_integer() or not n_beta.is_integer():
+            raise ValueError("Number of electrons cannot be fractional. Issue from removing core electrons ? ")
+
         trexio.write_nucleus_charge(trexio_file, charge)
 
         # Electrons
@@ -340,11 +355,10 @@ def run(trexio_filename, back_end, filename):
         trexio.write_electron_up_num(trexio_file, int(n_alpha))
         trexio.write_electron_dn_num(trexio_file, int(n_beta))
 
+        trexio_file.close()
+
     except:
         raise
-        #trexio.write_pseudo_do_pseudo(False)
-    #else:
-    #    trexio.write_pseudo_do_pseudo(True)
 
     print("OK")
 
