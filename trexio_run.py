@@ -6,7 +6,7 @@ Usage:
       trexio check-basis [-n n_points]  TREXIO_FILE             [-b back_end]
       trexio check-mos   [-n n_points]  TREXIO_FILE             [-b back_end]
       trexio convert                    TEXT_FILE TREXIO_FILE   [-b back_end]
-      trexio convert2champ              TREXIO_FILE CHAMP_FILE  [-b back_end]
+      trexio convert2champ              TREXIO_FILE GAMESS_FILE [-b back_end]
 
 Options:
       -n --n_points=n     Number of integration points. Default is 81.
@@ -64,7 +64,7 @@ def main(filename, args):
 
     elif args["convert2champ"]:
         from src.trex2champ import run
-        run(filename, back_end, args["CHAMP_FILE"])
+        run(filename, gamessfile = args["GAMESS_FILE"], back_end=back_end)
 
     else:
         pass

@@ -30,9 +30,9 @@ except:
     print("Error: The resultsFile Python library is not installed")
     sys.exit(1)
 
-def run(trexio_filename,filename, logfile='GAMESS_CAS.log'):
+def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
 
-    trexio_file = trexio.File(trexio_filename,mode='r',back_end=back_end)
+    trexio_file = trexio.File(filename, mode='r',back_end=trexio.TREXIO_HDF5)
 
 
     # Metadata
@@ -113,8 +113,7 @@ def run(trexio_filename,filename, logfile='GAMESS_CAS.log'):
     ###### NOTE ######
     # The following portion is written only to test few functionalities
     # It will be replaced by the data stored by trexio library.
-
-    file = resultsFile.getFile(logfile)
+    file = resultsFile.getFile(gamessfile)
     print(len(file.det_coefficients[0]))
     print(file.det_coefficients)
     print("CSF")
@@ -148,7 +147,7 @@ def write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coor
 
                 file.write("{} \n".format(nucleus_num))
                 # header line printed below
-                file.write("# Converted from the trexio file \n")
+                file.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
 
                 for element in range(nucleus_num):
                    file.write("{:5s} {: 0.6f} {: 0.6f} {: 0.6f} \n".format(nucleus_label[element], nucleus_coord[element][0], nucleus_coord[element][1], nucleus_coord[element][2]))
@@ -221,7 +220,7 @@ def write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient):
             with open(filename_orbitals, 'w') as file:
 
                 # header line printed below
-                file.write("# File created using the trex2champ converter \n")
+                file.write("# File created using the trex2champ converter https://github.com/TREX-CoE/trexio_tools  \n")
                 file.write("lcao " + str(mo_num) + " " + str(ao_num) + " 1 " + "\n" )
                 np.savetxt(file, mo_coefficient)
                 file.write("end\n")
