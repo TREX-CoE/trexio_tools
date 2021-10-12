@@ -114,14 +114,8 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # The following portion is written only to test few functionalities
     # It will be replaced by the data stored by trexio library.
     file = resultsFile.getFile(gamessfile)
-    print(len(file.det_coefficients[0]))
-    print(file.det_coefficients)
-    print("CSF")
-    print(len(file.csf_coefficients))
-    print(file.csf_coefficients[0])
 
-    [print(file.pseudo[i]) for i in range(len(file.pseudo))]
-
+    write_champ_file_determinants(filename, file)
     write_champ_file_ecp(filename, nucleus_num, nucleus_label, file.pseudo)
 
 
@@ -134,6 +128,66 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
 
 
 ## Champ v2.0 format input files
+
+def write_champ_file_determinants(filename, file):
+    """Writes the determinant data from the quantum
+    chemistry calculation to a champ v2.0 format file.
+
+    Returns:
+        None as a function value
+    """
+    det_coeff = file.det_coefficients
+    csf_coeff = file.csf_coefficients
+    num_csf = len(csf_coeff[0])
+    num_states = file.num_states
+    num_dets = len(det_coeff[0])
+    num_alpha = len(file.determinants[0].get("alpha"))
+    num_beta = len(file.determinants[0].get("beta"))
+
+
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down a determinant file in the new champ v2.0 format
+            filename_determinant = os.path.splitext("champ_v2_" + filename)[0]+'_determinants.det'
+            with open(filename_determinant, 'w') as f:
+                # header line printed below
+                f.write("# Determinants, CSF, and CSF mapping from the GAMESS output / TREXIO file. \n")
+                f.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
+                f.write("determinants {} {} \n".format(num_dets, num_states))
+
+                # print the determinant coefficients
+                for det in range(num_dets):
+                    f.write("{:.8f} ".format(det_coeff[0][det]))
+                f.write("\n")
+
+                # print the determinant orbital mapping
+                for det in range(num_dets):
+                    for num in range(num_alpha):
+                        f.write("{:4d} ".format(file.determinants[det].get("alpha")[num]+1))
+                    f.write("  ")
+                    for num in range(num_beta):
+                        f.write("{:4d} ".format(file.determinants[det].get("beta")[num]+1))
+                    f.write("\n")
+                f.write("end \n")
+
+                # print the CSF coefficients
+                f.write("csf {} {} \n".format(num_csf, num_states))
+                for state in range(num_states):
+                    for ccsf in range(num_csf):
+                        f.write("{:.8f} ".format(csf_coeff[state][ccsf]))
+                    f.write("\n")
+                f.write("end \n")
+
+                f.write("\n")
+            f.close()
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+
+
+
 
 # Geometry
 def write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coord):
@@ -272,14 +326,14 @@ def write_champ_file_ecp(filename, nucleus_num, nucleus_label, pseudo):
 
                     if pseudo[ind].get("zcore") >= 2:
                         for j in range(components):
-                            file.write( "{} {} {} \n" .format(pseudo[ind].get("1")[j][0], pseudo[ind].get("1")[j][1] , pseudo[ind].get("1")[j][2]))
+                            file.write( "{:.8f} {:.8f} {:.8f} \n" .format(pseudo[ind].get("1")[j][0], pseudo[ind].get("1")[j][1] , pseudo[ind].get("1")[j][2]))
 
                     if pseudo[ind].get("zcore") > 0 or pseudo[ind].get("lmax") >= 0:
                         components = len(pseudo[ind].get("0"))
                         file.write("{} \n".format(components))
 
                     for j in range(components):
-                        file.write( "{} {} {} \n" .format(pseudo[ind].get("0")[j][0], pseudo[ind].get("0")[j][1] , pseudo[ind].get("0")[j][2]))
+                        file.write( "{:.8f} {:.8f} {:.8f} \n" .format(pseudo[ind].get("0")[j][0], pseudo[ind].get("0")[j][1] , pseudo[ind].get("0")[j][2]))
 
                 file.close()
         else:
