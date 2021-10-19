@@ -253,89 +253,65 @@ def run(trexio_filename, back_end, filename):
     try:
         lmax = 0
         nucl_charge_remove = []
-        klocmax = 0
-        kmax = 0
+     
         nucl_num = len(res.geometry)
         lmax_per_atom = []
-        local_n_per_atom = []
-        non_local_n_per_atom = []
+
+        map_l = []
+        map_nucleus = []
+
+        ecp_num_total = 0
+        ecp_coef_total = []
+        ecp_exp_total = []
+        ecp_power_total = []
         for ecp in res.pseudo:
-            lmax_local = ecp['lmax']
-            # TODO: check that lmax_local from resultsFile has to be incremented by 1
-            lmax_per_atom.append(lmax_local+1)
-            # =========================
-            lmax = max(lmax_local, lmax)
+            lmax_atomic = ecp['lmax']
+            lmax_per_atom.append(lmax_atomic)
+
+            atom = ecp['atom']-1
             nucl_charge_remove.append(ecp['zcore'])
-            nloc = len(ecp[str(lmax_local)])
-            klocmax = max(klocmax, nloc)
-            for l in range(lmax_local):
-                kmax = max(kmax, len(ecp[str(l)]))
-                non_local_n_per_atom.append(len(ecp[str(l)]))
 
-            local_n_per_atom.append(nloc)
-            # TODO: check that this is a proper way to get list of non_local_n !
-            #non_local_n_per_atom.append(kmax)
+            for l in range(lmax_atomic+1):
+                l_str = str(l)
 
-        print("Local N per atom:", local_n_per_atom)
-        print("Non-local N per atom:", non_local_n_per_atom)
+                n_per_l = len(ecp[l_str])
+                
+                map_nucleus.extend([atom for _ in range(n_per_l) if n_per_l != 0])
+                map_l.extend([l for _ in range(n_per_l) if n_per_l != 0])
+
+                ecp_num_total += n_per_l
+
+                coef_per_l = [arr[0] for arr in ecp[l_str]]
+                # shift powers by 2 because of the format
+                power_per_l = [arr[1]-2 for arr in ecp[l_str]]
+                exp_per_l = [arr[2] for arr in ecp[l_str]]
+
+                ecp_coef_total.extend(coef_per_l)
+                ecp_power_total.extend(power_per_l)
+                ecp_exp_total.extend(exp_per_l)
+
 
         # lmax above is the max of all local lmax (per atom)
-        trexio.write_ecp_lmax_plus_1(trexio_file, lmax_per_atom)
-
+        trexio.write_ecp_max_ang_mom(trexio_file, lmax_per_atom)
         # core charges to be removed
         trexio.write_ecp_z_core(trexio_file, nucl_charge_remove)
 
-        # klocmax and kmax are local_num_n_max and non_local_num_n_max
-        trexio.write_ecp_local_num_n_max(trexio_file, klocmax)
-        trexio.write_ecp_non_local_num_n_max(trexio_file, kmax)
+        # write total num of ECP elements
+        trexio.write_ecp_num(trexio_file, ecp_num_total)
 
-        # local power, coefficient, exponent
-        pseudo_n_k = [[0  for _ in range(nucl_num)] for _ in range(klocmax)]
-        pseudo_v_k = [[0. for _ in range(nucl_num)] for _ in range(klocmax)]
-        pseudo_dz_k = [[0. for _ in range(nucl_num)] for _ in range(klocmax)]
-        # non-local power, coefficient, exponent
-        pseudo_n_kl = [[[0  for _ in range(nucl_num)] for _ in range(kmax)] for _ in range(lmax+1)]
-        pseudo_v_kl = [[[0. for _ in range(nucl_num)] for _ in range(kmax)] for _ in range(lmax+1)]
-        pseudo_dz_kl = [[[0. for _ in range(nucl_num)] for _ in range(kmax)] for _ in range(lmax+1)]
+        print(map_l)
+        print(map_nucleus)
+        print(ecp_coef_total)
 
-        for ecp in res.pseudo:
-            lmax_local = ecp['lmax']
-            klocmax = len(ecp[str(lmax_local)])
-            atom = ecp['atom']-1
+        # write 1-to-1 mapping needed to reconstruct ECPs
+        trexio.write_ecp_ang_mom(trexio_file, map_l)
+        trexio.write_ecp_nucleus_index(trexio_file, map_nucleus)
 
-            # derive local quantities
-            for kloc in range(klocmax):
-                # DANGEROUS TRY/EXCEPT CLAUSE !
-                try:
-                    v, n, dz = ecp[str(lmax_local)][kloc]
-                    pseudo_n_k[kloc][atom] = n-2
-                    pseudo_v_k[kloc][atom] = v
-                    pseudo_dz_k[kloc][atom] = dz
-                except:
-                    pass
+        # write ECP quantities in the TREXIO file
+        trexio.write_ecp_power(trexio_file, ecp_power_total)
+        trexio.write_ecp_coefficient(trexio_file, ecp_coef_total)
+        trexio.write_ecp_exponent(trexio_file, ecp_exp_total)
 
-            # derive non-local quantities
-            for l in range(lmax_local):
-                for k in range(kmax):
-                # DANGEROUS TRY/EXCEPT CLAUSE !
-                    try:
-                        v, n, dz = ecp[str(l)][k]
-                        pseudo_n_kl[l][k][atom] = n-2
-                        pseudo_v_kl[l][k][atom] = v
-                        pseudo_dz_kl[l][k][atom] = dz
-                    except:
-                        pass
-
-        # write local ECP quantities in the TREXIO file
-        trexio.write_ecp_local_power(trexio_file, pseudo_n_k)
-        trexio.write_ecp_local_coef(trexio_file, pseudo_v_k)
-        trexio.write_ecp_local_exponent(trexio_file, pseudo_dz_k)
-
-        # TODO: trexio 1.0 has wrong dimensions for non-local quantities, they should be 3D arrays and not 2D
-        # TODO: change it and release 1.1 and 0.2 for C and Python, respectively
-        #trexio.write_ecp_non_local_power(trexio_file, pseudo_n_kl)
-        #trexio.write_ecp_non_local_coef(trexio_file, pseudo_v_kl)
-        #trexio.write_ecp_non_local_exponent(trexio_file, pseudo_dz_kl)
 
         n_alpha = res.num_alpha
         n_beta = res.num_beta
