@@ -255,7 +255,7 @@ def run(trexio_filename, back_end, filename):
         nucl_charge_remove = []
      
         nucl_num = len(res.geometry)
-        lmax_per_atom = []
+        lmax_plus_1_per_atom = []
 
         map_l = []
         map_nucleus = []
@@ -266,9 +266,13 @@ def run(trexio_filename, back_end, filename):
         ecp_power_total = []
         for ecp in res.pseudo:
             lmax_atomic = ecp['lmax']
-            lmax_per_atom.append(lmax_atomic)
-
             atom = ecp['atom']-1
+
+            #if lmax_atomic == 0:
+            #    print(f"Note: lmax+1 is 0 for atom No. {atom}. Only local ECP channel will be stored.")
+
+            lmax_plus_1_per_atom.append(lmax_atomic)
+
             nucl_charge_remove.append(ecp['zcore'])
 
             for l in range(lmax_atomic+1):
@@ -292,7 +296,7 @@ def run(trexio_filename, back_end, filename):
 
 
         # lmax above is the max of all local lmax (per atom)
-        trexio.write_ecp_max_ang_mom(trexio_file, lmax_per_atom)
+        trexio.write_ecp_max_ang_mom_plus_1(trexio_file, lmax_plus_1_per_atom)
         # core charges to be removed
         trexio.write_ecp_z_core(trexio_file, nucl_charge_remove)
 
