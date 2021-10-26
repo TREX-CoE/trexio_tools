@@ -95,25 +95,24 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # ECP
     # ------
 
+    ecp_num = trexio.read_ecp_num(trexio_file)
     ecp_z_core = trexio.read_ecp_z_core(trexio_file)
-    ecp_lmax_plus_1 = trexio.read_ecp_lmax_plus_1(trexio_file)
-    # ecp_local_n = trexio.read_ecp_local_n(trexio_file)
-    ecp_local_num_n_max = trexio.read_ecp_local_num_n_max(trexio_file)
-    ecp_local_exponent = trexio.read_ecp_local_exponent(trexio_file)
-    ecp_local_coef = trexio.read_ecp_local_coef(trexio_file)
-    ecp_local_power = trexio.read_ecp_local_power(trexio_file)
+    ecp_max_ang_mom_plus_1 = trexio.read_ecp_max_ang_mom_plus_1(trexio_file)
+    ecp_ang_mom = trexio.read_ecp_ang_mom(trexio_file)
+    ecp_nucleus_index = trexio.read_ecp_nucleus_index(trexio_file)
+    ecp_exponent = trexio.read_ecp_exponent(trexio_file)
+    ecp_coefficient = trexio.read_ecp_coefficient(trexio_file)
+    ecp_power = trexio.read_ecp_power(trexio_file)
 
     # Basis
 
     basis_type = trexio.read_basis_type(trexio_file)
-    basis_num = trexio.read_basis_num(trexio_file)
+    basis_shell_num = trexio.read_basis_shell_num(trexio_file)
     basis_prim_num = trexio.read_basis_prim_num(trexio_file)
     basis_nucleus_index = trexio.read_basis_nucleus_index(trexio_file)
-    basis_nucleus_shell_num = trexio.read_basis_nucleus_shell_num(trexio_file)
     basis_shell_ang_mom = trexio.read_basis_shell_ang_mom(trexio_file)
-    basis_shell_prim_num = trexio.read_basis_shell_prim_num(trexio_file)
     basis_shell_factor = trexio.read_basis_shell_factor(trexio_file)
-    basis_shell_prim_index = trexio.read_basis_shell_prim_index(trexio_file)
+    basis_shell_index = trexio.read_basis_shell_index(trexio_file)
     basis_exponent = trexio.read_basis_exponent(trexio_file)
     basis_coefficient = trexio.read_basis_coefficient(trexio_file)
     basis_prim_factor = trexio.read_basis_prim_factor(trexio_file)
@@ -152,7 +151,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     write_champ_file_determinants(filename, file)
     write_champ_file_ecp(filename, nucleus_num, nucleus_label, file.pseudo)
 
-    write_champ_file_basis_numerical_grid(filename, file)
+    #write_champ_file_basis_numerical_grid(filename, file)
 
     # Write the .orb / .lcao file containing orbital information of MOs
     #write_champ_file_determinants(filename, )
