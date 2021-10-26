@@ -60,7 +60,7 @@ def main(filename, args):
 
     elif args["convert"]:
         from src.convert import run
-        run(filename, back_end, args["TEXT_FILE"])
+        run(args["TREXIO_FILE"], args["TEXT_FILE"], back_end=back_end)
 
     elif args["convert2champ"]:
         from src.trex2champ import run

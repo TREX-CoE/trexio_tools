@@ -20,7 +20,7 @@ except:
 
 
 
-def run(trexio_filename, back_end, filename):
+def run(trexio_filename, filename, back_end):
 
     trexio_file = trexio.File(trexio_filename,mode='w',back_end=back_end)
     try:
@@ -131,14 +131,14 @@ def run(trexio_filename, back_end, filename):
     # convert from [shell index per atom] representation into [atom index per shell] representation
     for list_ind, ind in enumerate(nucleus_index):
         # skip the first element because it is 0
-        if list_ind==0: 
+        if list_ind==0:
             continue
 
         for j in range(ind_prev,ind+1):
             nucleus_index_per_shell[j] = list_ind-1
 
         ind_prev = ind
-    
+
     # separate loop for the last atom because nucleus_index list does not include last index
     for j in range(nucleus_index[-1],shell_num):
         nucleus_index_per_shell[j] = nucleus_num-1
@@ -149,14 +149,14 @@ def run(trexio_filename, back_end, filename):
     ind_prev = 0
     for list_ind, ind in enumerate(shell_prim_index):
         # skip the first element because it is 0
-        if list_ind==0: 
+        if list_ind==0:
             continue
 
         for j in range(ind_prev,ind+1):
             shell_index_per_prim[j] = list_ind-1
 
         ind_prev = ind
-    
+
     # separate loop for the last atom because shell_prim_index list does not include last index
     for j in range(shell_prim_index[-1],prim_num):
         shell_index_per_prim[j] = shell_num-1
@@ -318,7 +318,7 @@ def run(trexio_filename, back_end, filename):
             l_str = str(l)
 
             n_per_l = len(ecp[l_str])
-            
+
             map_nucleus.extend([atom for _ in range(n_per_l) if n_per_l != 0])
             map_l.extend([l for _ in range(n_per_l) if n_per_l != 0])
 
@@ -372,6 +372,5 @@ def run(trexio_filename, back_end, filename):
     print("Conversion to TREXIO format has been completed.")
 
     return
-
 
 
