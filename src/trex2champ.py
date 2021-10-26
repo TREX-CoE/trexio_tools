@@ -87,6 +87,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     nucleus_charge = trexio.read_nucleus_charge(trexio_file)
     nucleus_coord = trexio.read_nucleus_coord(trexio_file)
     nucleus_label = trexio.read_nucleus_label(trexio_file)
+    print ("nucleus charge and label ", nucleus_charge, nucleus_label)
     nucleus_point_group = trexio.read_nucleus_point_group(trexio_file)
 
     # Write the .xyz file containing cartesial coordinates (Bohr) of nuclei
@@ -140,13 +141,14 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # Write the .orb / .lcao file containing orbital information of MOs
     write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient)
 
+    write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power)
 
     ###### NOTE ######
     # The following portion is written only to test few functionalities
     # It will be replaced by the data stored by trexio library.
     file = resultsFile.getFile(gamessfile)
 
-    print(file.get_basis())
+    #print(file.get_basis())
 
     write_champ_file_determinants(filename, file)
     write_champ_file_ecp(filename, nucleus_num, nucleus_label, file.pseudo)
@@ -465,56 +467,59 @@ def write_champ_file_ecp(filename, nucleus_num, nucleus_label, pseudo):
 
 
 
-# # ECP / Pseudopotential files using the trexio file
-# def write_champ_file_ecp(filename, nucleus_num, nucleus_label, ecp_z_core, ecp_local_num_n_max, ecp_local_exponent, ecp_local_coef, ecp_local_power, ecp_lmax_plus_1):
-#     """Writes the Gaussian - effective core potential / pseudopotential data from
-#     the quantum chemistry calculation to a champ v2.0 format file.
+# ECP / Pseudopotential files using the trexio file
+def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power):
+    """Writes the Gaussian - effective core potential / pseudopotential data from
+    the quantum chemistry calculation to a champ v2.0 format file.
 
-#     Returns:
-#         None as a function value
-#     """
+    Returns:
+        None as a function value
+    """
 
-#     if filename is not None:
-#         if isinstance(filename, str):
-#             unique_elements, indices = np.unique(nucleus_label, return_index=True)
-#             for i in range(len(unique_elements)):
-#                 # Write down an ECP file in the new champ v2.0 format for each nucleus
-#                 filename_ecp = "BFD." + 'gauss_ecp.dat.' + unique_elements[i]
-#                 with open(filename_ecp, 'w') as file:
-#                     file.write("BFD {:s} pseudo \n".format(unique_elements[i]))
-#                     file.write("{:d} \n".format(ecp_local_num_n_max))
+    if filename is not None:
+        if isinstance(filename, str):
+            unique_elements, indices = np.unique(nucleus_label, return_index=True)
+            for i in range(len(unique_elements)):
+                # Write down an ECP file in the new champ v2.0 format for each nucleus
+                filename_ecp = "trexBFD." + 'gauss_ecp.dat.' + unique_elements[i]
+                with open(filename_ecp, 'w') as file:
+                    file.write("BFD {:s} pseudo \n".format(unique_elements[i]))
+                    file.write("{:d} \n".format(ecp_num))
 
-#                     flattened_ecp_local_coef = ecp_local_coef.flatten()
-#                     flattened_ecp_local_power = ecp_local_power.flatten()
-#                     flattened_ecp_local_exponent = ecp_local_exponent.flatten()
+                    counter = 0
+                    dict_ecp={}
+                    for ind, val in enumerate(ecp_nucleus_index):
+                        if val == indices[i]:
+                            dict_ecp[ind] = [ecp_ang_mom[ind], ecp_coefficient[val+counter], ecp_power[val+counter], ecp_exponent[val+counter]]
+                            counter += 1
 
-#                     for j in range(len(indices)):
-#                         file.write("{:.8f} ".format(flattened_ecp_local_coef[j*nucleus_num]))
-#                         file.write("{} ".format(flattened_ecp_local_power[j*nucleus_num]+2))
-#                         file.write("{:.8f} \n".format(flattened_ecp_local_exponent[j*nucleus_num]))
+                    print ("whole dict", dict_ecp)
+                        # for j in indices:
+                        # file.write("{:.8f} ".format(ecp_coefficient[j]))
+                        # file.write("{} ".format(ecp_power[j]+2))
+                        # file.write("{:.8f} \n".format(ecp_exponent[j]))
 
-#                     # file.write("{} ".format(ecp_local_coef))
-#                     # file.write("{} \n".format(ecp_local_power))
-#                     # file.write("{} \n".format(ecp_local_exponent))
-#                     # file.write("{} \n".format(ecp_lmax_plus_1))
+                    # file.write("{} ".format(ecp_local_coef))
+                    # file.write("{} \n".format(ecp_local_power))
+                    # file.write("{} \n".format(ecp_local_exponent))
+                    # file.write("{} \n".format(ecp_lmax_plus_1))
+                file.close()
 
-#                 file.close()
+            # ## Write down a geometry file in the new champ v2.0 format
+            # filename_ecp = os.path.splitext("champ_v2_" + filename)[0]+'_geom.xyz'
+            # with open(filename_ecp, 'w') as file:
 
-#             # ## Write down a geometry file in the new champ v2.0 format
-#             # filename_ecp = os.path.splitext("champ_v2_" + filename)[0]+'_geom.xyz'
-#             # with open(filename_ecp, 'w') as file:
+            #     file.write("{} \n".format(nucleus_num))
+            #     # header line printed below
+            #     file.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
 
-#             #     file.write("{} \n".format(nucleus_num))
-#             #     # header line printed below
-#             #     file.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
+            #     for element in range(nucleus_num):
+            #        file.write("{:5s} {: 0.6f} {: 0.6f} {: 0.6f} \n".format(nucleus_label[element], nucleus_coord[element][0], nucleus_coord[element][1], nucleus_coord[element][2]))
 
-#             #     for element in range(nucleus_num):
-#             #        file.write("{:5s} {: 0.6f} {: 0.6f} {: 0.6f} \n".format(nucleus_label[element], nucleus_coord[element][0], nucleus_coord[element][1], nucleus_coord[element][2]))
-
-#             #     file.write("\n")
-#             # file.close()
-#         else:
-#             raise ValueError
-#     # If filename is None, return a string representation of the output.
-#     else:
-#         return None
+            #     file.write("\n")
+            # file.close()
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
