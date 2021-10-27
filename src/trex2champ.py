@@ -105,6 +105,10 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     ecp_coefficient = trexio.read_ecp_coefficient(trexio_file)
     ecp_power = trexio.read_ecp_power(trexio_file)
 
+    print ("ecp coeff as it gets ", ecp_coefficient)
+    print ("ecp ang mom as it gets ", ecp_ang_mom)
+    print ("ecp nucleus index as it gets ", ecp_nucleus_index)
+
     # Basis
 
     basis_type = trexio.read_basis_type(trexio_file)
@@ -486,38 +490,24 @@ def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, e
                     file.write("BFD {:s} pseudo \n".format(unique_elements[i]))
                     file.write("{:d} \n".format(ecp_num))
 
-                    counter = 0
                     dict_ecp={}
+                    counter = np.zeros(shape=(len(unique_elements)), dtype=int)
                     for ind, val in enumerate(ecp_nucleus_index):
                         if val == indices[i]:
-                            dict_ecp[ind] = [ecp_ang_mom[ind], ecp_coefficient[val+counter], ecp_power[val+counter], ecp_exponent[val+counter]]
-                            counter += 1
+                            dict_ecp[ind] = [ecp_ang_mom[ind], ecp_coefficient[ind], ecp_power[ind], ecp_exponent[ind]]
+                            counter[i] += 1
 
-                    print ("whole dict", dict_ecp)
-                        # for j in indices:
-                        # file.write("{:.8f} ".format(ecp_coefficient[j]))
-                        # file.write("{} ".format(ecp_power[j]+2))
-                        # file.write("{:.8f} \n".format(ecp_exponent[j]))
+                    print ("counter ", counter[i])
+                    ecp_array =  np.array(list(dict_ecp.values()))
+                    ecp_array = ecp_array[np.argsort(ecp_array[:,0])]
+                    print ("ecp_array ", ecp_array[:,0])
 
-                    # file.write("{} ".format(ecp_local_coef))
-                    # file.write("{} \n".format(ecp_local_power))
-                    # file.write("{} \n".format(ecp_local_exponent))
-                    # file.write("{} \n".format(ecp_lmax_plus_1))
+
+                    [print ("l = 1 ", ecp_array[x:,1:]) for x in [1]]
+                    [print ("l = 0 ", ecp_array[x:,1:]) for x in [0]]
+
                 file.close()
 
-            # ## Write down a geometry file in the new champ v2.0 format
-            # filename_ecp = os.path.splitext("champ_v2_" + filename)[0]+'_geom.xyz'
-            # with open(filename_ecp, 'w') as file:
-
-            #     file.write("{} \n".format(nucleus_num))
-            #     # header line printed below
-            #     file.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
-
-            #     for element in range(nucleus_num):
-            #        file.write("{:5s} {: 0.6f} {: 0.6f} {: 0.6f} \n".format(nucleus_label[element], nucleus_coord[element][0], nucleus_coord[element][1], nucleus_coord[element][2]))
-
-            #     file.write("\n")
-            # file.close()
         else:
             raise ValueError
     # If filename is None, return a string representation of the output.
