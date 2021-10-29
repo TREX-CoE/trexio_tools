@@ -87,7 +87,6 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     nucleus_charge = trexio.read_nucleus_charge(trexio_file)
     nucleus_coord = trexio.read_nucleus_coord(trexio_file)
     nucleus_label = trexio.read_nucleus_label(trexio_file)
-    print ("nucleus charge and label ", nucleus_charge, nucleus_label)
     nucleus_point_group = trexio.read_nucleus_point_group(trexio_file)
 
     # Write the .xyz file containing cartesial coordinates (Bohr) of nuclei
@@ -105,9 +104,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     ecp_coefficient = trexio.read_ecp_coefficient(trexio_file)
     ecp_power = trexio.read_ecp_power(trexio_file)
 
-    print ("ecp coeff as it gets ", ecp_coefficient)
-    print ("ecp ang mom as it gets ", ecp_ang_mom)
-    print ("ecp nucleus index as it gets ", ecp_nucleus_index)
+    write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power)
 
     # Basis
 
@@ -145,115 +142,21 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # Write the .orb / .lcao file containing orbital information of MOs
     write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient)
 
-    write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power)
+
 
     ###### NOTE ######
     # The following portion is written only to test few functionalities
     # It will be replaced by the data stored by trexio library.
     file = resultsFile.getFile(gamessfile)
 
-    #print(file.get_basis())
-
     write_champ_file_determinants(filename, file)
+
     write_champ_file_ecp(filename, nucleus_num, nucleus_label, file.pseudo)
-
-    #write_champ_file_basis_numerical_grid(filename, file)
-
-    # Write the .orb / .lcao file containing orbital information of MOs
-    #write_champ_file_determinants(filename, )
-
-
 
     return
 
 
 ## Champ v2.0 format input files
-
-# def write_champ_file_basis_numerical_grid(filename, file):
-#     """Writes the basis set data on a numerical grid from the quantum
-#     chemistry calculation to a champ v2.0 format file.
-
-#     Returns:
-#         None as a function value
-#     """
-#     from math import pi, sqrt
-#     gridtype   = 3
-#     gridpoints = 2000
-#     gridarg    = 1.003
-#     gridr0     = 20.0
-#     icusp      = 0
-
-# # some constants
-#     d3b4=0.75
-#     pi4i=1.0/(pi**(1.0/4.0))
-#     d5b4=5.0/4.0
-#     sq8b3=sqrt(8.0/3.0)
-#     d7b4=7.0/4.0
-#     sq16b15=sqrt(16.0/15.0)
-#     d9b4=9.0/4.0
-#     sq32b105=sqrt(32.0/105.0)
-
-# # some helper functions
-#     def gnorm(exponent, l):
-#         # compute norm prefactor
-#         norm=1.0
-#         if l==0:
-#             norm=(2.0*exponent)**d3b4*2.0*pi4i
-#         elif l==1:
-#             norm=(2.0*exponent)**d5b4*sq8b3*pi4i
-#         elif l==2:
-#             norm=(2.0*exponent)**d7b4*sq16b15*pi4i
-#         elif l==3:
-#             norm=(2.0*exponent)**d9b4*sq32b105*pi4i
-#         return norm
-
-#     def function_on_a_grid(type,ex,co,grid):
-#         # grid,lbas,type,,r2,ex,value,r3,verbose
-#         # put a new function on the grid
-
-#         for k in range(len(grid)):
-#             r=grid[k][0]
-#             r2=r**2
-#             r3=r**3
-#             value=0
-#             for ib in range(0,(len()-1)ex):
-#                 z=gnorm(ex[ib],l)*co[ib]*exp(-1.0*ex[ib]*r2)
-#                 value+=z
-#             if l==1:
-#                 value*=r
-#             elif l==2:
-#                 value*=r2
-#             elif l==3:
-#                 value*=r3
-#             if abs(value)>1.0 E-15:
-#                 grid[k]]
-#             else:
-#                 grid[k]]
-
-
-#     if filename is not None:
-#         if isinstance(filename, str):
-#             ## Write down a determinant file in the new champ v2.0 format
-#             filename_determinant = os.path.splitext("champ_v2_" + filename)[0]+'_determinants.det'
-#             with open(filename_determinant, 'w') as f:
-#                 # header line printed below
-
-#                 f.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
-#                 # f.write("determinants {} {} \n".format(num_dets, num_states))
-
-#                 # print the determinant coefficients
-#                 # for det in range(num_dets):
-#                 #     f.write("{:.8f} ".format(det_coeff[0][det]))
-#                 # f.write("\n")
-
-
-#                 f.write("\n")
-#             f.close()
-#         else:
-#             raise ValueError
-#     # If filename is None, return a string representation of the output.
-#     else:
-#         return None
 
 def write_champ_file_determinants(filename, file):
     """Writes the determinant data from the quantum
@@ -488,23 +391,27 @@ def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, e
                 filename_ecp = "trexBFD." + 'gauss_ecp.dat.' + unique_elements[i]
                 with open(filename_ecp, 'w') as file:
                     file.write("BFD {:s} pseudo \n".format(unique_elements[i]))
-                    file.write("{:d} \n".format(ecp_num))
 
                     dict_ecp={}
-                    counter = np.zeros(shape=(len(unique_elements)), dtype=int)
+                    # get the indices of the ecp data for each atom
                     for ind, val in enumerate(ecp_nucleus_index):
                         if val == indices[i]:
-                            dict_ecp[ind] = [ecp_ang_mom[ind], ecp_coefficient[ind], ecp_power[ind], ecp_exponent[ind]]
-                            counter[i] += 1
+                            dict_ecp[ind] = [ecp_ang_mom[ind], ecp_coefficient[ind], ecp_power[ind]+2, ecp_exponent[ind]]
 
-                    print ("counter ", counter[i])
                     ecp_array =  np.array(list(dict_ecp.values()))
                     ecp_array = ecp_array[np.argsort(ecp_array[:,0])]
-                    print ("ecp_array ", ecp_array[:,0])
 
+                    sorted_list = np.sort(ecp_array[:,0])[::-1]
 
-                    [print ("l = 1 ", ecp_array[x:,1:]) for x in [1]]
-                    [print ("l = 0 ", ecp_array[x:,1:]) for x in [0]]
+                    np.savetxt(file, [len(np.unique(sorted_list))], fmt='%d')
+                    # loop over ang mom for a given atom
+                    for l in np.sort(np.unique(sorted_list))[::-1]:
+                        # loop and if condition to choose the correct components
+                        for x in np.unique(np.sort(ecp_array[:,0])[::-1]):
+                            if ecp_array[int(x):,0:][0][0] == l:
+                                count = np.count_nonzero(sorted_list == l)
+                                np.savetxt(file, [count], fmt='%d')
+                                np.savetxt(file, ecp_array[int(x):count+int(x),1:], fmt='%.8f')
 
                 file.close()
 
