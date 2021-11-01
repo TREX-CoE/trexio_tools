@@ -151,8 +151,6 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
 
     write_champ_file_determinants(filename, file)
 
-    write_champ_file_ecp(filename, nucleus_num, nucleus_label, file.pseudo)
-
     return
 
 
@@ -320,60 +318,6 @@ def write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient):
         return None
 
 
-# ECP / Pseudopotential files
-def write_champ_file_ecp(filename, nucleus_num, nucleus_label, pseudo):
-    """Writes the Gaussian - effective core potential / pseudopotential data from
-    the quantum chemistry calculation to a champ v2.0 format file.
-
-    Returns:
-        None as a function value
-    """
-
-    if filename is not None:
-        if isinstance(filename, str):
-            unique_elements, indices = np.unique(nucleus_label, return_index=True)
-            # Find the pseudos for unique elements
-            ind = next((index for (index, d) in enumerate(pseudo) if d["atom"] == indices[2]), None)
-            # if pseudo["atom"] == int(indices[2]):
-
-            for ind in indices:
-                atom_index = pseudo[ind].get("atom")
-
-                # Write down an ECP file in the new champ v2.0 format for each nucleus
-                filename_ecp = "BFD." + 'gauss_ecp.dat.' + nucleus_label[ind]
-
-                with open(filename_ecp, 'w') as file:
-                    file.write("BFD {:s} pseudo \n".format(nucleus_label[ind]))
-
-                    lmax_plus_one = pseudo[ind].get("lmax") + 1
-                    file.write("{} \n".format(lmax_plus_one))
-
-                    # Write down the pseudopotential data
-                    if pseudo[ind].get("zcore") >= 2:
-                        components = len(pseudo[ind].get("1"))
-                        file.write("{} \n".format(components))
-
-                    if pseudo[ind].get("zcore") >= 2:
-                        for j in range(components):
-                            file.write( "{:.8f} {:.8f} {:.8f} \n" .format(pseudo[ind].get("1")[j][0], pseudo[ind].get("1")[j][1] , pseudo[ind].get("1")[j][2]))
-
-                    if pseudo[ind].get("zcore") > 0 or pseudo[ind].get("lmax") >= 0:
-                        components = len(pseudo[ind].get("0"))
-                        file.write("{} \n".format(components))
-
-                    for j in range(components):
-                        file.write( "{:.8f} {:.8f} {:.8f} \n" .format(pseudo[ind].get("0")[j][0], pseudo[ind].get("0")[j][1] , pseudo[ind].get("0")[j][2]))
-
-                file.close()
-        else:
-            raise ValueError
-    # If filename is None, return a string representation of the output.
-    else:
-        return None
-
-
-
-
 # ECP / Pseudopotential files using the trexio file
 def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power):
     """Writes the Gaussian - effective core potential / pseudopotential data from
@@ -388,7 +332,7 @@ def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, e
             unique_elements, indices = np.unique(nucleus_label, return_index=True)
             for i in range(len(unique_elements)):
                 # Write down an ECP file in the new champ v2.0 format for each nucleus
-                filename_ecp = "trexBFD." + 'gauss_ecp.dat.' + unique_elements[i]
+                filename_ecp = "BFD." + 'gauss_ecp.dat.' + unique_elements[i]
                 with open(filename_ecp, 'w') as file:
                     file.write("BFD {:s} pseudo \n".format(unique_elements[i]))
 
