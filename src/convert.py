@@ -13,7 +13,7 @@ except:
     sys.exit(1)
 
 try:
-    from resultsFile import getFile, a0
+    from resultsFile import getFile, a0, get_lm
 except:
     print("Error: The resultsFile Python library is not installed")
     sys.exit(1)
@@ -81,7 +81,38 @@ def run(trexio_filename, filename, back_end):
 
     trexio.write_basis_type(trexio_file, "Gaussian")
 
+    cartesian = True
+    # check whether the basis is Spherical and re-order if it is (resultsFile provides d+0,d+-1,d+-2 etc.)
     basis = []
+    dict_tmp = {}
+    spheric_max_m = {   'd' : 5,
+                        'f' : 7,
+                        'g' : 9,
+                        'h' : 11,
+                        'i' : 13
+                    }
+    for b in res.basis:
+      if b.sym in ['s','x','y','z']:
+        basis.append(b)
+      else:
+        # check whether the basis is spherical or cartesian
+        if "d+0" in b.sym and cartesian:
+            print("Spherical basis detected.")
+            cartesian = False
+        if not cartesian:
+            spheric_letter = b.sym[0]
+            _, m = get_lm(b.sym)
+            if len(dict_tmp) < spheric_max_m[spheric_letter]:
+                dict_tmp[m] = b
+            if len(dict_tmp) == spheric_max_m[spheric_letter]:
+                sorted_sub_basis = [dict_tmp[k] for k in sorted(dict_tmp)]
+                for sub_basis in sorted_sub_basis:
+                    basis.append(sub_basis)
+                    dict_tmp = {}
+        else:
+            basis.append(b)  
+
+    basis_tmp = []
     nucleus_index = []
     nucl_shell_num = []
     shell_ang_mom = []
@@ -96,23 +127,32 @@ def run(trexio_filename, filename, back_end):
     ao_shell = []
     prev_idx = None
     geom = [ a.coord for a in res.geometry ]
-    for b in res.basis:
+    for b in basis:
       if "y" in b.sym or "z" in b.sym:
         pass
       else:
-        basis.append(b)
-        shell_ang_mom.append(b.sym.count("x"))
+        basis_tmp.append(666)
+        # count the max_and_mom of a given shell
+        if cartesian:
+            shell_ang_mom.append(b.sym.count("x"))
+        else:
+            shell_ang_mom.append(b.sym.count("d+0"))
         curr_shell += 1
         curr_shell_idx = len(exponent)
         shell_prim_index.append(curr_shell_idx)
         shell_prim_num.append(len(b.prim))
         exponent += [x.expo for x in b.prim]
         coefficient += b.coef
-        prim_factor += [1./x.norm for x in b.prim]
+        # compute the renormalization factors for Cartesian
+        if cartesian:
+            prim_factor += [1./x.norm for x in b.prim]
+            shell_factor.append(1./b.norm)
+        else:
+            prim_factor += [1. for _ in b.prim]
+            shell_factor.append(1.)
         idx = geom.index(b.center)
-        shell_factor.append(1./b.norm)
         if idx != prev_idx:
-           nucleus_index.append(len(basis)-1)
+           nucleus_index.append(len(basis_tmp)-1)
            prev_idx = idx
            if len(nucleus_index) > 1:
              nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
@@ -120,7 +160,7 @@ def run(trexio_filename, filename, back_end):
 
     nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
 
-    shell_num = len(basis)
+    shell_num = len(basis_tmp)
     prim_num = len(exponent)
 
     # ============================================================================================== #
@@ -180,7 +220,7 @@ def run(trexio_filename, filename, back_end):
     # AO
     # --
 
-    res.convert_to_cartesian()
+    #res.convert_to_cartesian()
     trexio.write_ao_cartesian(trexio_file, True)
     trexio.write_ao_num(trexio_file, len(res.basis))
     trexio.write_ao_shell(trexio_file, ao_shell)
@@ -191,36 +231,45 @@ def run(trexio_filename, filename, back_end):
     prev_shell = None
 
     # Re-order AOs (xx,xy,xz,yy,yz,zz)
-    for i,b in enumerate(res.basis):
-      shell = ao_shell[i]
-      if shell != prev_shell:
-          accu.sort()
-          ao_ordering += accu
-          accu = []
-      accu += [(b.sym, i)]
-      prev_shell = shell
-    accu.sort()
-    ao_ordering += accu
+    if cartesian:
+        for i,b in enumerate(res.basis):
+            shell = ao_shell[i]
+            if shell != prev_shell:
+                accu.sort()
+                ao_ordering += accu
+                accu = []
+            accu += [(b.sym, i)]
+            prev_shell = shell
+        accu.sort()
+        ao_ordering += accu
 
-    ao_ordering = [ i for (_,i) in ao_ordering ]
+        ao_ordering = [ i for (_,i) in ao_ordering ]
+        #print(res.basis)
+        #print(ao_ordering)
+        #print(len(ao_ordering), len(res.basis))
+    else:
+        ao_ordering = [ i for i in range(len(res.basis))]
+        print(len(ao_ordering))
+
+
 
     # Normalization
     normalization = []
     for i,k in enumerate(ao_ordering):
-      b = res.basis[k]
-      orig = res.basis[ao_shell.index(ao_shell[k])]
-      prim = b.prim
-      prim_norm = [ j.norm for j in prim ]
-      oprim = orig.prim
-      oprim_norm = [ j.norm for j in oprim ]
-      sum = 0.
-      for i, ci in enumerate(b.coef):
-         ci /= prim_norm[i]
-         for j, cj in enumerate(orig.coef):
-           cj /= oprim_norm[j]
-           sum += ci*cj * oprim[i].overlap(oprim[j])
-      sum /= orig.norm**2
-      normalization.append(sum)
+        b = res.basis[k]
+        orig = res.basis[ao_shell.index(ao_shell[k])]
+        prim = b.prim
+        prim_norm = [ j.norm for j in prim ]
+        oprim = orig.prim
+        oprim_norm = [ j.norm for j in oprim ]
+        accum = 0.
+        for i, ci in enumerate(b.coef):
+            ci /= prim_norm[i]
+            for j, cj in enumerate(orig.coef):
+                cj /= oprim_norm[j]
+                accum += ci*cj * oprim[i].overlap(oprim[j])
+        accum /= orig.norm**2
+        normalization.append(accum)
     trexio.write_ao_normalization(trexio_file, normalization)
 
 
