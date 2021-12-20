@@ -5,15 +5,17 @@ Set of tools to interact with trexio files.
 Usage:
       trexio check-basis   [-b back_end] [-n n_points]  TREXIO_FILE          
       trexio check-mos     [-b back_end] [-n n_points]  TREXIO_FILE          
-      trexio convert-from  [-b back_end]  -t type       TREXIO_FILE TEXT_FILE 
-      trexio convert-to    [-b back_end]  -t type       TREXIO_FILE TEXT_FILE 
-      trexio convert2champ [-b back_end]                TREXIO_FILE GAMESS_FILE
+      trexio convert-from  [-b back_end]  -t type -i input_file   TREXIO_FILE 
+      trexio convert-to    [-b back_end]  -t type -o output_file  TREXIO_FILE 
+      trexio convert2champ [-b back_end]  -i input_file           TREXIO_FILE 
 
 Options:
-      -n --n_points=n     Number of integration points. Default is 81.
-      -b --back_end=b     The TREXIO back end (HDF5 or TEXT). Default is HDF5.
-      -t --type=[gaussian | gamess | fcidump | molden]
-                          File format
+      -n --n_points=n              Number of integration points. Default is 81.
+      -i --input=input_file        Name of the input file 
+      -o --output=output_file      Name of the output file 
+      -b --back_end=[hdf5 | text]  The TREXIO back end. Default is hdf5.
+      -t --type=[gaussian | gamess | fcidump | molden | champ]
+                                   File format
 """
 
 from docopt import docopt
@@ -34,9 +36,9 @@ def main(filename, args):
        n_points = 81
 
     if args["--back_end"] is not None:
-        if str(args["--back_end"]) == "HDF5":
+        if str(args["--back_end"]).lower() == "hdf5":
             back_end = trexio.TREXIO_HDF5
-        elif str(args["--back_end"]) == "TEXT":
+        elif str(args["--back_end"]).lower() == "text":
             back_end = trexio.TREXIO_TEXT
         else:
             raise ValueError
@@ -62,11 +64,11 @@ def main(filename, args):
 
     elif args["convert2champ"]:
         from src.trex2champ import run
-        run(filename, gamessfile = args["GAMESS_FILE"], back_end=back_end)
+        run(filename, gamessfile = args["--input"], back_end=back_end)
 
     elif args["convert-from"]:
         from src.convert_from import run
-        run(args["TREXIO_FILE"], args["TEXT_FILE"], args["--type"])
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end)
 
 #    elif args["convert-to"]:
 #        from src.convert_to import run

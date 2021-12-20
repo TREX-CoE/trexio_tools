@@ -423,13 +423,15 @@ def run_resultsFile(trexio_filename, filename, back_end):
     return
 
 
-def run(trexio_filename, filename, back_end, filetype):
-    if filetype == "Gaussian":
+def run(trexio_filename, filename, filetype, back_end):
+    if filetype.lower() == "gaussian":
         run_resultsFile(trexio_filename, filename, back_end)
-    elif filetype == "Gamess":
+    elif filetype.lower() == "gamess":
         run_resultsFile(trexio_filename, filename, back_end)
-    elif filetype == "Fcidump":
+    elif filetype.lower() == "fcidump":
         run_fcidump(trexio_filename, filename, back_end)
-    elif filetype == "Molden":
+    elif filetype.lower() == "molden":
         run_fcidump(trexio_filename, filename, back_end)
+    else:
+        raise TypeError("Unknown file type")
 
