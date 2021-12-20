@@ -20,7 +20,7 @@ except:
 
 
 
-def run(trexio_filename, filename, back_end):
+def run_resultsFile(trexio_filename, filename, back_end):
 
     trexio_file = trexio.File(trexio_filename,mode='w',back_end=back_end)
     try:
@@ -422,4 +422,14 @@ def run(trexio_filename, filename, back_end):
 
     return
 
+
+def run(trexio_filename, filename, back_end, filetype):
+    if filetype == "Gaussian":
+        run_resultsFile(trexio_filename, filename, back_end)
+    elif filetype == "Gamess":
+        run_resultsFile(trexio_filename, filename, back_end)
+    elif filetype == "Fcidump":
+        run_fcidump(trexio_filename, filename, back_end)
+    elif filetype == "Molden":
+        run_fcidump(trexio_filename, filename, back_end)
 

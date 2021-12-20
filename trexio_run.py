@@ -3,15 +3,17 @@
 Set of tools to interact with trexio files.
 
 Usage:
-      trexio check-basis [-n n_points]  TREXIO_FILE             [-b back_end]
-      trexio check-mos   [-n n_points]  TREXIO_FILE             [-b back_end]
-      trexio convert                    TEXT_FILE TREXIO_FILE   [-b back_end]
-      trexio convert2champ              TREXIO_FILE GAMESS_FILE [-b back_end]
+      trexio check-basis   [-b back_end] [-n n_points]  TREXIO_FILE          
+      trexio check-mos     [-b back_end] [-n n_points]  TREXIO_FILE          
+      trexio convert-from  [-b back_end]  -t type       TREXIO_FILE TEXT_FILE 
+      trexio convert-to    [-b back_end]  -t type       TREXIO_FILE TEXT_FILE 
+      trexio convert2champ [-b back_end]                TREXIO_FILE GAMESS_FILE
 
 Options:
       -n --n_points=n     Number of integration points. Default is 81.
       -b --back_end=b     The TREXIO back end (HDF5 or TEXT). Default is HDF5.
-
+      -t --type=[gaussian | gamess | fcidump | molden]
+                          File format
 """
 
 from docopt import docopt
@@ -58,13 +60,17 @@ def main(filename, args):
         from src.check_mos import run
         run(trexio_file,n_points)
 
-    elif args["convert"]:
-        from src.convert import run
-        run(args["TREXIO_FILE"], args["TEXT_FILE"], back_end=back_end)
-
     elif args["convert2champ"]:
         from src.trex2champ import run
         run(filename, gamessfile = args["GAMESS_FILE"], back_end=back_end)
+
+    elif args["convert-from"]:
+        from src.convert_from import run
+        run(args["TREXIO_FILE"], args["TEXT_FILE"], args["--type"])
+
+#    elif args["convert-to"]:
+#        from src.convert_to import run
+#        run(args["TREXIO_FILE"], args["TEXT_FILE"], args["--type"])
 
     else:
         pass
