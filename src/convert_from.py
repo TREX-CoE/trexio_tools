@@ -400,11 +400,6 @@ def run_resultsFile(trexio_filename, filename, back_end):
     n_beta = res.num_beta
     for i in range(nucl_num):
         charge[i] -= nucl_charge_remove[i]
-        n_alpha -= nucl_charge_remove[i]/2
-        n_beta -= nucl_charge_remove[i]/2
-
-    if not n_alpha.is_integer() or not n_beta.is_integer():
-        raise ValueError("Number of electrons cannot be fractional. Issue from removing core electrons ? ")
 
     trexio.write_nucleus_charge(trexio_file, charge)
 
