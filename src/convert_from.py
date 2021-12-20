@@ -324,8 +324,6 @@ def run_resultsFile(trexio_filename, filename, back_end):
         for j in ao_ordering:
             MoMatrix.append(m.vector[j])
 
-    while len(MoMatrix) < len(MOs[0].vector)**2:
-        MoMatrix.append(0.)
 
     trexio.write_mo_num(trexio_file, mo_num)
     trexio.write_mo_coefficient(trexio_file, MoMatrix)
