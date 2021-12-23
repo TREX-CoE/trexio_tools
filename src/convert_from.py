@@ -221,7 +221,7 @@ def run_resultsFile(trexio_filename, filename, back_end):
     # --
 
     #res.convert_to_cartesian()
-    trexio.write_ao_cartesian(trexio_file, True)
+    trexio.write_ao_cartesian(trexio_file, cartesian)
     trexio.write_ao_num(trexio_file, len(res.basis))
     trexio.write_ao_shell(trexio_file, ao_shell)
 
@@ -245,12 +245,8 @@ def run_resultsFile(trexio_filename, filename, back_end):
 
         ao_ordering = [ i for (_,i) in ao_ordering ]
         #print(res.basis)
-        #print(ao_ordering)
-        #print(len(ao_ordering), len(res.basis))
     else:
         ao_ordering = [ i for i in range(len(res.basis))]
-        print(len(ao_ordering))
-
 
 
     # Normalization
