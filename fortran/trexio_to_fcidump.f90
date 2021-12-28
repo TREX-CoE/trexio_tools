@@ -12,12 +12,12 @@ program trexio_to_fcidump
 
   character(64)    :: argument
   character(256)   :: trexio_filename
-  integer          :: i,j,k,l,m
+  integer          :: i,j,k,l
   integer          :: ii,jj,kk,ll
   integer          :: istart, iend, iunit
   double precision :: e0
   character(2)    , allocatable :: A(:)
-  double precision, allocatable :: h0(:,:), int2(:,:,:), int3(:,:,:,:)
+  double precision, allocatable :: h0(:,:), int2(:,:,:), int3(:,:,:)
 
   integer(8) :: trexio_file
   integer    :: rc
@@ -25,7 +25,7 @@ program trexio_to_fcidump
   integer    :: mo_num, n_act
 
   integer(8), parameter    :: BUFSIZE = 100000_8
-  integer(8)               :: offset, icount, size_max
+  integer(8)               :: offset, icount, size_max, m
   integer                  :: buffer_index(4,BUFSIZE)
   double precision         :: buffer_values(BUFSIZE)
 
@@ -65,12 +65,12 @@ program trexio_to_fcidump
   end if
 
   if (istart > mo_num) then
-     print *, 'Error: istart should be < mo_num'
+     print *, 'Error: istart should be < ', mo_num
      call exit(-1)
   end if
 
   if (iend > mo_num) then
-     print *, 'Error: iend should be < mo_num'
+     print *, 'Error: iend should be < ', mo_num
      call exit(-1)
   end if
 
@@ -110,7 +110,7 @@ program trexio_to_fcidump
      call check_error(rc)
   end if
 
-  allocate(h0(n_act,n_act), int3(istart,2,n_act,n_act), int2(istart,istart,2))
+  allocate(h0(mo_num,mo_num), int3(n_act,n_act,2), int2(istart,istart,2))
   int3 = 0.d0
   int2 = 0.d0
 
@@ -137,44 +137,73 @@ program trexio_to_fcidump
       jj = buffer_index(2,m)
       kk = buffer_index(3,m)
       ll = buffer_index(4,m)
+
       i = ii - istart + 1
       j = jj - istart + 1
       k = kk - istart + 1
       l = ll - istart + 1
+
       if (i > 0 .and. i <= n_act .and. &
           j > 0 .and. j <= n_act .and. &
           k > 0 .and. k <= n_act .and. &
           l > 0 .and. l <= n_act) then
          write(iunit, '(E24.15, X, 4(I6, X))') buffer_values(m), i, j, k, l
-      else if (i > 0 .and. i <= n_act .and. &
-               k > 0 .and. k <= n_act .and. &
-               jj < istart .and. jj == ll) then
-         int3(jj,1,i,k) = buffer_values(m)
-         int3(jj,1,k,i) = buffer_values(m)
-      else if (i > 0 .and. i <= n_act .and. &
-               l > 0 .and. l <= n_act .and. &
-               jj < istart .and. jj == kk) then
-         int3(jj,2,i,l) = buffer_values(m)
-         int3(jj,2,l,i) = buffer_values(m)
-      else if (j > 0 .and. j <= n_act .and. &
-               l > 0 .and. l <= n_act .and. &
-               ii < istart .and. ii == kk) then
-         int3(ii,1,j,l) = buffer_values(m)
-         int3(ii,1,l,j) = buffer_values(m)
-      else if (j > 0 .and. j <= n_act .and. &
-               k > 0 .and. k <= n_act .and. &
-               ii < istart .and. ii == ll) then
-         int3(jj,2,j,k) = buffer_values(m)
-         int3(jj,2,k,j) = buffer_values(m)
-      else if (ii < istart .and. ii == kk .and. &
-               jj < istart .and. jj == ll) then
-         int2(ii,jj,1) = buffer_values(m)
-         int2(jj,ii,1) = buffer_values(m)
-      else if (ii < istart .and. ii == ll .and. &
-               jj < istart .and. jj == kk) then
-         int2(ii,jj,2) = buffer_values(m)
-         int2(jj,ii,2) = buffer_values(m)
       end if
+
+      if (i > 0 .and. i <= n_act .and. &
+          k > 0 .and. k <= n_act .and. &
+          jj < istart .and. jj == ll) then
+         int3(i,k,1) = buffer_values(m)
+         int3(k,i,1) = int3(i,k,1)
+      end if
+
+      if (i > 0 .and. i <= n_act .and. &
+          l > 0 .and. l <= n_act .and. &
+          jj < istart .and. jj == kk) then
+         int3(i,l,2) = buffer_values(m)
+         int3(l,i,2) = int3(i,l,2)
+      else if (i > 0 .and. i <= n_act .and. &
+               j > 0 .and. j <= n_act .and. &
+               ll < istart .and. ll == kk) then
+         int3(i,j,2) = buffer_values(m)
+         int3(j,i,2) = int3(i,j,2)
+      end if
+
+      if (j > 0 .and. j <= n_act .and. &
+          l > 0 .and. l <= n_act .and. &
+          ii < istart .and. ii == kk) then
+         int3(j,l,1) = buffer_values(m)
+         int3(l,j,1) = int3(j,l,1)
+      end if
+
+      if (j > 0 .and. j <= n_act .and. &
+          k > 0 .and. k <= n_act .and. &
+          ii < istart .and. ii == ll) then
+         int3(j,k,2) = buffer_values(m)
+         int3(k,j,2) = int3(j,k,2)
+      else if (l > 0 .and. l <= n_act .and. &
+               k > 0 .and. k <= n_act .and. &
+               ii < istart .and. ii == jj) then
+         int3(l,k,2) = buffer_values(m)
+         int3(k,l,2) = int3(l,k,2)
+      end if
+
+      if (ii < istart .and. ii == kk .and. &
+          jj < istart .and. jj == ll) then
+         int2(ii,jj,1) = buffer_values(m)
+         int2(jj,ii,1) = int2(ii,jj,1)
+      end if
+
+      if (ii < istart .and. ii == ll .and. &
+          jj < istart .and. jj == kk) then
+         int2(ii,jj,2) = buffer_values(m)
+         int2(jj,ii,2) = int2(ii,jj,2)
+      else if (ii < istart .and. ii == jj .and. &
+               kk < istart .and. kk == ll) then
+         int2(ii,kk,2) = buffer_values(m)
+         int2(kk,ii,2) = int2(ii,kk,2)
+      end if
+
     end do
 
   end do
@@ -184,37 +213,34 @@ program trexio_to_fcidump
   rc = trexio_read_mo_1e_int_core_hamiltonian(trexio_file, h0)
   call check_error(rc)
 
-
+  ! Add core Fock operator
   do j=1,n_act
      jj = j + istart - 1
      do i=1,n_act
         ii = i + istart - 1
-        do k=1,istart-1
-           h0(ii,jj) = h0(ii,jj) + 2.d0*int3(k,1,i,j) - int3(k,2,i,j)
-        end do
+        int3(i,j,1) = h0(ii,jj) + 2.d0*int3(i,j,1) - int3(i,j,2)
      end do
   end do
-  deallocate(int3)
 
+  ! One-e integrals
   do j=1,n_act
-     jj = j + istart - 1
-     do i=1,n_act
-        ii = i + istart - 1
-        if (h0(ii,jj) /= 0.d0) then
-           write(iunit, '(E24.15, X, 4(I6, X))') h0(ii,jj), i, j, 0, 0
+     do i=j,n_act
+        if (int3(i,j,1) /= 0.d0) then
+           write(iunit, '(E24.15, X, 4(I6, X))') int3(i,j,1), i, j, 0, 0
         end if
      end do
   end do
 
+  e0 = 0.d0
   rc = trexio_read_nucleus_repulsion(trexio_file, e0)
-  do i=1,istart
-     e0 = e0 + 2.d0 * h0(i,i) + int2(i,i,1) + int2(i,i,2)
-     do j=i+1,istart
-        e0 = e0 + 2.d0 * ( &
-             2.d0 * int2(i,j,1) - int2(i,j,2) )
+  call check_error(rc)
+  do i=1,istart-1
+     e0 = e0 + 2.d0*h0(i,i)
+     do j=1,istart-1
+        e0 = e0 + 2.d0*int2(i,j,1) - int2(i,j,2)
      end do
   end do
-  deallocate(int2)
+  deallocate(int2,int3)
 
   write(iunit, '(E24.15, X, 4(I6, X))') e0, 0, 0, 0, 0
 

@@ -1,6 +1,6 @@
 .SUFFIXES: .f90
 
-FC=gfortran -g
+FC=ifort 
 LIBS=-ltrexio
 
 .f90.o:
@@ -15,5 +15,5 @@ trexio_to_fcidump: trexio_to_fcidump.o trexio_f.o
 	$(FC) $^ -o $@ $(LIBS)
 
 trexio_f.o: trexio_f.f90
-trexio_to_fcidump.o: trexio_to_fcidump.f90 
+trexio_to_fcidump.o: trexio_to_fcidump.f90 trexio_f.o
 
