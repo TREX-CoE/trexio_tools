@@ -6,11 +6,13 @@ convert output of GAMESS/GAU$$IAN to trexio
 import sys
 import os
 from functools import reduce
+
 try:
     import trexio
 except:
     print("Error: The TREXIO Python library is not installed")
     sys.exit(1)
+
 
 try:
     from resultsFile import getFile, a0, get_lm
@@ -20,7 +22,12 @@ except:
 
 
 
+
+
 def run_resultsFile(trexio_filename, filename, back_end):
+
+    if os.path.exists(filename):
+        os.system("rm -rf -- "+trexio_filename)
 
     trexio_file = trexio.File(trexio_filename,mode='w',back_end=back_end)
     try:
@@ -36,7 +43,8 @@ def run_resultsFile(trexio_filename, filename, back_end):
     # --------
 
     trexio.write_metadata_code_num(trexio_file, 1)
-    trexio.write_metadata_code(trexio_file, [str(res).split('.')[-1].split()[0].replace("File","")])
+    trexio.write_metadata_code(trexio_file,
+               [str(res).split('.')[-1].split()[0].replace("File","")] )
     trexio.write_metadata_author_num(trexio_file, 1)
     trexio.write_metadata_author(trexio_file, [res.author])
     trexio.write_metadata_description(trexio_file, res.title)
@@ -44,9 +52,8 @@ def run_resultsFile(trexio_filename, filename, back_end):
     # Electrons
     # ---------
 
-    # electrons_up|dn_num will be written later after removing core electrons
-    # trexio.write_electron_up_num(trexio_file,res.num_alpha)
-    # trexio.write_electron_dn_num(trexio_file,res.num_beta)
+    trexio.write_electron_up_num(trexio_file,res.num_alpha)
+    trexio.write_electron_dn_num(trexio_file,res.num_beta)
 
     # Nuclei
     # ------
@@ -64,7 +71,7 @@ def run_resultsFile(trexio_filename, filename, back_end):
 
     trexio.write_nucleus_num(trexio_file, nucleus_num)
     trexio.write_nucleus_coord(trexio_file, coord)
-    # nucleus_charge will be written later after removing core electrons
+    # nucleus_charge will be written later after removing core electrons with ECP
     # trexio.write_nucleus_charge(trexio_file, charge)
 
 
@@ -81,38 +88,17 @@ def run_resultsFile(trexio_filename, filename, back_end):
 
     trexio.write_basis_type(trexio_file, "Gaussian")
 
-    cartesian = True
-    # check whether the basis is Spherical and re-order if it is (resultsFile provides d+0,d+-1,d+-2 etc.)
-    basis = []
-    dict_tmp = {}
-    spheric_max_m = {   'd' : 5,
-                        'f' : 7,
-                        'g' : 9,
-                        'h' : 11,
-                        'i' : 13
-                    }
-    for b in res.basis:
-      if b.sym in ['s','x','y','z']:
-        basis.append(b)
-      else:
-        # check whether the basis is spherical or cartesian
-        if "d+0" in b.sym and cartesian:
-            print("Spherical basis detected.")
-            cartesian = False
-        if not cartesian:
-            spheric_letter = b.sym[0]
-            _, m = get_lm(b.sym)
-            if len(dict_tmp) < spheric_max_m[spheric_letter]:
-                dict_tmp[m] = b
-            if len(dict_tmp) == spheric_max_m[spheric_letter]:
-                sorted_sub_basis = [dict_tmp[k] for k in sorted(dict_tmp)]
-                for sub_basis in sorted_sub_basis:
-                    basis.append(sub_basis)
-                    dict_tmp = {}
-        else:
-            basis.append(b)  
+    # Check whether the basis is Spherical or Cartesian
 
-    basis_tmp = []
+    cartesian = True
+    for b in res.basis:
+        if "d+0" in b.sym:
+            cartesian = False
+            break
+        elif "xx" in b.sym:
+            break
+
+    # Build basis set
     nucleus_index = []
     nucl_shell_num = []
     shell_ang_mom = []
@@ -127,48 +113,64 @@ def run_resultsFile(trexio_filename, filename, back_end):
     ao_shell = []
     prev_idx = None
     geom = [ a.coord for a in res.geometry ]
-    for b in basis:
-      if "y" in b.sym or "z" in b.sym:
-        pass
-      else:
-        basis_tmp.append(666)
-        # count the max_and_mom of a given shell
-        if cartesian:
-            shell_ang_mom.append(b.sym.count("x"))
+    for b in res.basis:
+        # Warning: assumes +0 is always 1st of spherical functions
+        if ("y" in b.sym) or ("z" in b.sym):
+            pass
+        elif (b.sym not in ["s", "x"]) and ("0" not in b.sym):
+            pass
         else:
-            shell_ang_mom.append(b.sym.count("d+0"))
-        curr_shell += 1
-        curr_shell_idx = len(exponent)
-        shell_prim_index.append(curr_shell_idx)
-        shell_prim_num.append(len(b.prim))
-        exponent += [x.expo for x in b.prim]
-        coefficient += b.coef
-        # compute the renormalization factors for Cartesian
-        if cartesian:
+            curr_shell += 1
+            # count the max_ang_mom of a given shell
+            if cartesian:
+                shell_ang_mom.append(b.sym.count("x"))
+            elif b.sym == "s":
+                shell_ang_mom.append(0)
+            elif b.sym == "x":
+                shell_ang_mom.append(1)
+            elif "0" in b.sym:
+                l, _ = get_lm(b.sym)
+                shell_ang_mom.append(l)
+            curr_shell_idx = len(exponent)
+            shell_prim_index.append(curr_shell_idx)
+            shell_prim_num.append(len(b.prim))
+            exponent += [x.expo for x in b.prim]
+            coefficient += b.coef
             prim_factor += [1./x.norm for x in b.prim]
             shell_factor.append(1./b.norm)
-        else:
-            prim_factor += [1. for _ in b.prim]
-            shell_factor.append(1.)
-        idx = geom.index(b.center)
-        if idx != prev_idx:
-           nucleus_index.append(len(basis_tmp)-1)
-           prev_idx = idx
-           if len(nucleus_index) > 1:
-             nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
-      ao_shell.append(curr_shell)
+            idx = geom.index(b.center)
+            if idx != prev_idx:
+                nucleus_index.append(curr_shell)
+            prev_idx = idx
+            if len(nucleus_index) > 1:
+                nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
+        ao_shell.append(curr_shell)
 
     nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
 
-    shell_num = len(basis_tmp)
+    shell_num = curr_shell+1
     prim_num = len(exponent)
 
-    # ============================================================================================== #
-    # Conversion below is needed to convert arrays according to TREXIO format corresponding to v.2.0
+    # Fix x,y,z in Spherical (don't move this before basis set detection!)
+    if cartesian:
+        pass
+    else:
+        for b in res.basis:
+            if b.sym == 'z':
+               b.sym = 'p+0'
+            elif b.sym == 'x':
+               b.sym = 'p+1'
+            elif b.sym == 'y':
+               b.sym = 'p-1'
+
+    # ========================================================================== #
+    # Conversion below is needed to convert arrays according to TREXIO format
+    # v.2.0
 
     nucleus_index_per_shell = [0 for _ in range(shell_num)]
     ind_prev = 0
-    # convert from [shell index per atom] representation into [atom index per shell] representation
+    # convert from [shell index per atom] representation into [atom index per
+    # shell] representation
     for list_ind, ind in enumerate(nucleus_index):
         # skip the first element because it is 0
         if list_ind==0:
@@ -179,12 +181,14 @@ def run_resultsFile(trexio_filename, filename, back_end):
 
         ind_prev = ind
 
-    # separate loop for the last atom because nucleus_index list does not include last index
+    # separate loop for the last atom because nucleus_index list does not
+    # include last index
     for j in range(nucleus_index[-1],shell_num):
         nucleus_index_per_shell[j] = nucleus_num-1
 
 
-    # convert from [prim index per shel] representation into [shell index per prim] representation
+    # convert from [prim index per shel] representation into [shell index per
+    # prim] representation
     shell_index_per_prim = [0 for _ in range(prim_num)]
     ind_prev = 0
     for list_ind, ind in enumerate(shell_prim_index):
@@ -197,10 +201,11 @@ def run_resultsFile(trexio_filename, filename, back_end):
 
         ind_prev = ind
 
-    # separate loop for the last atom because shell_prim_index list does not include last index
+    # separate loop for the last atom because shell_prim_index list does not
+    # include last index
     for j in range(shell_prim_index[-1],prim_num):
         shell_index_per_prim[j] = shell_num-1
-    # ============================================================================================== #
+    # ========================================================================= #
 
     # write total number of shell and primitives
     trexio.write_basis_shell_num(trexio_file,shell_num)
@@ -230,24 +235,29 @@ def run_resultsFile(trexio_filename, filename, back_end):
     normalization = []
     prev_shell = None
 
-    # Re-order AOs (xx,xy,xz,yy,yz,zz)
-    if cartesian:
-        for i,b in enumerate(res.basis):
-            shell = ao_shell[i]
-            if shell != prev_shell:
-                accu.sort()
-                ao_ordering += accu
-                accu = []
-            accu += [(b.sym, i)]
-            prev_shell = shell
-        accu.sort()
-        ao_ordering += accu
+    # Re-order AOs (xx,xy,xz,yy,yz,zz) or (d+0,+1,-2,+2,-2,...)
+    def f_sort(x):
+        if '+' in x or '-' in x:
+            l, m = get_lm(x)
+            if m>=0:
+                return 2*m
+            else:
+                return -2*m+1
+        else:
+            return x
 
-        ao_ordering = [ i for (_,i) in ao_ordering ]
-        #print(res.basis)
-    else:
-        ao_ordering = [ i for i in range(len(res.basis))]
+    for i,b in enumerate(res.basis):
+        shell = ao_shell[i]
+        if shell != prev_shell:
+            accu.sort(key=f_sort)
+            ao_ordering += accu
+            accu = []
+        accu += [(b.sym, i)]
+        prev_shell = shell
+    accu.sort(key=f_sort)
+    ao_ordering += accu
 
+    ao_ordering = [ i for (_,i) in ao_ordering ]
 
     # Normalization
     normalization = []
@@ -331,8 +341,8 @@ def run_resultsFile(trexio_filename, filename, back_end):
 #        OccNum = []
 #        for i in MOindices:
 #           OccNum.append(res.occ_num[MO_type][i])
-#    # Not sure about the part below as it might overwrite values from the previous step !
-#        while len(OccNum) < mo_num:
+#    # Not sure about the part below as it might overwrite values from the
+#    # previous step !  while len(OccNum) < mo_num:
 #            OccNum.append(0.)
 #        trexio.write_mo_occupation(trexio_file, OccNum)
 
@@ -345,65 +355,63 @@ def run_resultsFile(trexio_filename, filename, back_end):
     map_l = []
     map_nucleus = []
 
-    ecp_num_total = 0
-    ecp_coef_total = []
-    ecp_exp_total = []
-    ecp_power_total = []
-    for ecp in res.pseudo:
-        lmax_atomic = ecp['lmax']
-        atom = ecp['atom']-1
+    if res.pseudo:
+      ecp_num_total = 0
+      ecp_coef_total = []
+      ecp_exp_total = []
+      ecp_power_total = []
+      for ecp in res.pseudo:
+          lmax_atomic = ecp['lmax']
+          atom = ecp['atom']-1
 
-        lmax_plus_1_per_atom.append(lmax_atomic)
+          lmax_plus_1_per_atom.append(lmax_atomic)
 
-        nucl_charge_remove.append(ecp['zcore'])
+          nucl_charge_remove.append(ecp['zcore'])
 
-        for l in range(lmax_atomic+1):
-            l_str = str(l)
+          for l in range(lmax_atomic+1):
+              l_str = str(l)
 
-            n_per_l = len(ecp[l_str])
+              n_per_l = len(ecp[l_str])
 
-            map_nucleus.extend([atom for _ in range(n_per_l) if n_per_l != 0])
-            map_l.extend([l for _ in range(n_per_l) if n_per_l != 0])
+              map_nucleus.extend([atom for _ in range(n_per_l) if n_per_l != 0])
+              map_l.extend([l for _ in range(n_per_l) if n_per_l != 0])
 
-            ecp_num_total += n_per_l
+              ecp_num_total += n_per_l
 
-            coef_per_l = [arr[0] for arr in ecp[l_str]]
-            # shift powers by 2 because of the format
-            power_per_l = [arr[1]-2 for arr in ecp[l_str]]
-            exp_per_l = [arr[2] for arr in ecp[l_str]]
+              coef_per_l = [arr[0] for arr in ecp[l_str]]
+              # shift powers by 2 because of the format
+              power_per_l = [arr[1]-2 for arr in ecp[l_str]]
+              exp_per_l = [arr[2] for arr in ecp[l_str]]
 
-            ecp_coef_total.extend(coef_per_l)
-            ecp_power_total.extend(power_per_l)
-            ecp_exp_total.extend(exp_per_l)
-
-
-    # lmax+1 is one higher that the max angular momentum of the core orbital to be removed (per atom)
-    trexio.write_ecp_max_ang_mom_plus_1(trexio_file, lmax_plus_1_per_atom)
-    # write core charges to be removed
-    trexio.write_ecp_z_core(trexio_file, nucl_charge_remove)
-    # write total num of ECP elements
-    trexio.write_ecp_num(trexio_file, ecp_num_total)
-    # write 1-to-1 mapping needed to reconstruct ECPs
-    trexio.write_ecp_ang_mom(trexio_file, map_l)
-    trexio.write_ecp_nucleus_index(trexio_file, map_nucleus)
-    # write ECP quantities in the TREXIO file
-    trexio.write_ecp_power(trexio_file, ecp_power_total)
-    trexio.write_ecp_coefficient(trexio_file, ecp_coef_total)
-    trexio.write_ecp_exponent(trexio_file, ecp_exp_total)
+              ecp_coef_total.extend(coef_per_l)
+              ecp_power_total.extend(power_per_l)
+              ecp_exp_total.extend(exp_per_l)
 
 
-    n_alpha = res.num_alpha
-    n_beta = res.num_beta
-    for i in range(nucl_num):
-        charge[i] -= nucl_charge_remove[i]
+      # lmax+1 is one higher that the max angular momentum of the core orbital
+      # to be removed (per atom)
+      trexio.write_ecp_max_ang_mom_plus_1(trexio_file, lmax_plus_1_per_atom)
+      # write core charges to be removed
+      trexio.write_ecp_z_core(trexio_file, nucl_charge_remove)
+      # write total num of ECP elements
+      trexio.write_ecp_num(trexio_file, ecp_num_total)
+      # write 1-to-1 mapping needed to reconstruct ECPs
+      trexio.write_ecp_ang_mom(trexio_file, map_l)
+      trexio.write_ecp_nucleus_index(trexio_file, map_nucleus)
+      # write ECP quantities in the TREXIO file
+      trexio.write_ecp_power(trexio_file, ecp_power_total)
+      trexio.write_ecp_coefficient(trexio_file, ecp_coef_total)
+      trexio.write_ecp_exponent(trexio_file, ecp_exp_total)
 
+
+      for i in range(nucl_num):
+          charge[i] -= nucl_charge_remove[i]
+
+    # end if res.pseudo:
     trexio.write_nucleus_charge(trexio_file, charge)
 
     # Electrons
     # ---------
-
-    trexio.write_electron_up_num(trexio_file, int(n_alpha))
-    trexio.write_electron_dn_num(trexio_file, int(n_beta))
 
     trexio_file.close()
 

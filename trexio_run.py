@@ -26,10 +26,6 @@ import os
 def main(filename, args):
     """Main entry point"""
 
-    print("File name: %s"%filename)
-    print("File exists: ", os.path.exists(filename))
-    print(args)
-
     if args["--n_points"] is not None:
        n_points = int(args["--n_points"])
     else:
