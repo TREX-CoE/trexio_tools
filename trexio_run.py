@@ -3,11 +3,11 @@
 Set of tools to interact with trexio files.
 
 Usage:
-      trexio check-basis   [-b back_end] [-n n_points]  TREXIO_FILE          
-      trexio check-mos     [-b back_end] [-n n_points]  TREXIO_FILE          
-      trexio convert-from  [-b back_end]  -t type -i input_file   TREXIO_FILE 
-      trexio convert-to    [-b back_end]  -t type -o output_file  TREXIO_FILE 
-      trexio convert2champ [-b back_end]  -i input_file           TREXIO_FILE 
+      trexio check-basis   [-n n_points]           [-b back_end]  TREXIO_FILE          
+      trexio check-mos     [-n n_points]           [-b back_end]  TREXIO_FILE          
+      trexio convert2champ  -i input_file          [-b back_end]  TREXIO_FILE 
+      trexio convert-from   -t type -i input_file  [-b back_end]  TREXIO_FILE 
+      trexio convert-to     -t type -o output_file                TREXIO_FILE 
 
 Options:
       -n --n_points=n              Number of integration points. Default is 81.
@@ -66,9 +66,9 @@ def main(filename, args):
         from src.convert_from import run
         run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end)
 
-#    elif args["convert-to"]:
-#        from src.convert_to import run
-#        run(args["TREXIO_FILE"], args["TEXT_FILE"], args["--type"])
+    elif args["convert-to"]:
+        from src.convert_to import run
+        run(args["TREXIO_FILE"], args["--output"], args["--type"])
 
     else:
         pass
