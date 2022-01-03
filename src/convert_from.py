@@ -117,7 +117,7 @@ def run_resultsFile(trexio_filename, filename, back_end):
         # Warning: assumes +0 is always 1st of spherical functions
         if ("y" in b.sym) or ("z" in b.sym):
             pass
-        elif (b.sym not in ["s", "x"]) and ("0" not in b.sym):
+        elif (not cartesian) and (b.sym not in ["s", "x"]) and ("0" not in b.sym):
             pass
         else:
             curr_shell += 1
@@ -210,12 +210,15 @@ def run_resultsFile(trexio_filename, filename, back_end):
     # write total number of shell and primitives
     trexio.write_basis_shell_num(trexio_file,shell_num)
     trexio.write_basis_prim_num(trexio_file,prim_num)
+
     # write mappings to reconstruct per-atom and per-shell quantities
     trexio.write_basis_nucleus_index(trexio_file,nucleus_index_per_shell)
     trexio.write_basis_shell_ang_mom(trexio_file,shell_ang_mom)
     trexio.write_basis_shell_index(trexio_file,shell_index_per_prim)
+    
     # write normalization factor for each shell
     trexio.write_basis_shell_factor(trexio_file,shell_factor)
+
     # write parameters of the primitives
     trexio.write_basis_exponent(trexio_file,exponent)
     trexio.write_basis_coefficient(trexio_file,coefficient)
@@ -289,16 +292,16 @@ def run_resultsFile(trexio_filename, filename, back_end):
     trexio.write_mo_type(trexio_file, MO_type)
 
     try:
-        closed = [(allMOs[i].eigenvalue, i) for i in res.closed_mos]
-        active = [(allMOs[i].eigenvalue, i) for i in res.active_mos]
+        closed  = [(allMOs[i].eigenvalue, i) for i in res.closed_mos]
         virtual = [(allMOs[i].eigenvalue, i) for i in res.virtual_mos]
+        active  = [(allMOs[i].eigenvalue, i) for i in res.active_mos]
     except:
-        closed = []
+        closed  = []
         virtual = []
-        active = [(allMOs[i].eigenvalue, i) for i in range(len(allMOs))]
+        active  = [(allMOs[i].eigenvalue, i) for i in range(len(allMOs))]
 
-    closed = [x[1] for x in closed]
-    active = [x[1] for x in active]
+    closed  = [x[1] for x in closed]
+    active  = [x[1] for x in active]
     virtual = [x[1] for x in virtual]
     MOindices = closed + active + virtual
 
