@@ -325,7 +325,10 @@ def run_resultsFile(trexio_filename, filename, back_end):
     sym0 = [i.sym for i in res.mo_sets[MO_type]]
     sym = [i.sym for i in res.mo_sets[MO_type]]
     for i in range(len(sym)):
-        sym[MOmap[i]] = sym0[i]
+        if sym0[i] is None:
+            sym[MOmap[i]] = 'A'
+        else:
+            sym[MOmap[i]] = sym0[i]
 
     MoMatrix = []
     for i in range(len(MOs)):
