@@ -165,11 +165,46 @@ def write_champ_file_determinants(filename, file):
     """
     det_coeff = file.det_coefficients
     csf_coeff = file.csf_coefficients
+    # determinants_per_csf, csf_det_coeff = file.get_dets_per_csf()
+    # print ("determinants_per_csf: write module ", determinants_per_csf)
     num_csf = len(csf_coeff[0])
     num_states = file.num_states
     num_dets = len(det_coeff[0])
     num_alpha = len(file.determinants[0].get("alpha"))
     num_beta = len(file.determinants[0].get("beta"))
+
+    alpha_orbitals = np.sort(file.determinants[0].get("alpha"))
+    beta_orbitals = np.sort(file.determinants[0].get("beta"))
+
+    DET_coefficients = file.get_det_coefficients()
+    CSF_coefficients = file.get_csf_coefficients()
+
+    ## Do the preprocessing to reduce the number of determinants and get the CSF mapping
+    reduced_det_coefficients = []
+    csf = file.csf
+    reduced_list_determintants = []
+    copy_list_determintants = []
+    for state_coef in file.csf_coefficients:
+        vector = []
+        counter = 0; counter2 = 0       # Counter2 is required for keeping correspondence of determinants in the reduced list
+        for i,c in enumerate(state_coef):
+            for d in csf[i].coefficients:
+                temp = 0.0
+                indices = [i for i, x in enumerate(file.determinants) if x == file.determinants[counter]]
+                if counter == indices[0]:
+                    counter2 += 1
+                    copy_list_determintants.append(counter2)
+                    reduced_list_determintants.append(indices[0])
+                    for index in indices:
+                        if len(indices) == 1:
+                            temp =  c * d
+                        else:
+                            temp += c * d
+                    vector.append(temp)
+                else:
+                    copy_list_determintants.append(indices[0])
+                counter += 1
+        reduced_det_coefficients.append(vector)
 
 
     if filename is not None:
@@ -180,20 +215,23 @@ def write_champ_file_determinants(filename, file):
                 # header line printed below
                 f.write("# Determinants, CSF, and CSF mapping from the GAMESS output / TREXIO file. \n")
                 f.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
-                f.write("determinants {} {} \n".format(num_dets, num_states))
+                f.write("determinants {} {} \n".format(len(reduced_list_determintants), num_states))
 
                 # print the determinant coefficients
-                for det in range(num_dets):
-                    f.write("{:.8f} ".format(det_coeff[0][det]))
-                f.write("\n")
+                for state in range(num_states):
+                    for det in range(len(reduced_list_determintants)):
+                        f.write("{:.8f} ".format(reduced_det_coefficients[state][det]))
+                    f.write("\n")
 
                 # print the determinant orbital mapping
-                for det in range(num_dets):
+                for det in reduced_list_determintants:
                     for num in range(num_alpha):
-                        f.write("{:4d} ".format(file.determinants[det].get("alpha")[num]+1))
+                        alpha_orbitals = np.sort(file.determinants[det].get("alpha"))[num]+1
+                        f.write("{:4d} ".format(alpha_orbitals))
                     f.write("  ")
                     for num in range(num_beta):
-                        f.write("{:4d} ".format(file.determinants[det].get("beta")[num]+1))
+                        beta_orbitals = np.sort(file.determinants[det].get("beta"))[num]+1
+                        f.write("{:4d} ".format(beta_orbitals))
                     f.write("\n")
                 f.write("end \n")
 
@@ -203,6 +241,27 @@ def write_champ_file_determinants(filename, file):
                     for ccsf in range(num_csf):
                         f.write("{:.8f} ".format(csf_coeff[state][ccsf]))
                     f.write("\n")
+                f.write("end \n")
+
+                # print the CSFMAP information
+                f.write("csfmap \n")
+                f.write("{} {} {} \n".format(num_csf,  len(reduced_list_determintants), len(DET_coefficients[0])))
+
+                determinants_per_csf = []
+                csf_det_coeff = []
+                for state_coef in file.csf_coefficients:
+                    for i,c in enumerate(state_coef):
+                        determinants_per_csf.append(len(csf[i].coefficients))
+                        for d in csf[i].coefficients:
+                            csf_det_coeff.append(d)
+
+                for state in range(num_states):
+                    i = 0
+                    for csf in range(num_csf):
+                        f.write(f"{determinants_per_csf[csf]:d} \n")
+                        for num in range(determinants_per_csf[csf]):
+                            f.write(f"  {copy_list_determintants[i]}  {csf_det_coeff[i]:.6f} \n")
+                            i += 1
                 f.write("end \n")
 
                 f.write("\n")
