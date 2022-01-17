@@ -5,7 +5,7 @@ on:
     types:
       - published
 
-name: Publish Python 🐍 distributions 📦 to PyPI
+name: Publish Python distributions to PyPI
 jobs:
 
   get_commit_message:
@@ -35,32 +35,32 @@ jobs:
       github.event_name == 'release'
     runs-on: ubuntu-20.04
 
-   steps:
-     - uses: actions/checkout@master
+    steps:
+      - uses: actions/checkout@master
 
-     - name: Set up Python 3.9
-       uses: actions/setup-python@v1
-       with:
-         python-version: 3.9
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.9
 
-     - name: Install PyPA build and setuptools
-       run: python -m pip install -U setuptools build --user
+      - name: Install PyPA build and setuptools
+        run: python -m pip install -U setuptools build --user
 
-     - name: Build a binary wheel and a source tarball
-       run: python -m build --sdist --wheel --outdir dist/ .
-         
-     - name: List all produced packages and wheels
-       run: ls -sh -w 1
-       working-directory: dist
+      - name: Build a binary wheel and a source tarball
+        run: python -m build --sdist --wheel --outdir dist/ .
+          
+      - name: List all produced packages and wheels
+        run: ls -sh -w 1
+        working-directory: dist
 
-     - name: Publish distribution 📦 to Test PyPI
-       uses: pypa/gh-action-pypi-publish@master
-       with:
-         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-         repository_url: https://test.pypi.org/legacy/
+      - name: Publish distribution 📦 to Test PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
 
-         # - name: Publish distribution 📦 to PyPI
-         #   uses: pypa/gh-action-pypi-publish@master
-         #   with:
-         #     password: ${{ secrets.PYPI_API_TOKEN }}
+          # - name: Publish distribution 📦 to PyPI
+          #   uses: pypa/gh-action-pypi-publish@master
+          #   with:
+          #     password: ${{ secrets.PYPI_API_TOKEN }}
 
