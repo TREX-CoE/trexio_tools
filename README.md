@@ -1,5 +1,7 @@
 # TREXIO tools
 
+[![PyPI version](https://badge.fury.io/py/trexio-tools.svg)](https://badge.fury.io/py/trexio-tools)
+
 Set of tools for TREXIO files.
 
 
