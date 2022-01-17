@@ -30,6 +30,9 @@ jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to PyPI
     needs: get_commit_message
+    # The Python package will be published to PyPI only if commit contains
+    # [pypi release] trigger in its message or if there is a release on GitHub.
+    # NOTE: do not forget to update the `version` parameter in `setup.cfg` before pushing !
     if: >-
       contains(needs.get_commit_message.outputs.message, '[pypi release]') ||
       github.event_name == 'release'
@@ -53,14 +56,14 @@ jobs:
         run: ls -sh -w 1
         working-directory: dist
 
-      - name: Publish distribution 📦 to Test PyPI
+        #- name: Publish distribution 📦 to Test PyPI
+        #  uses: pypa/gh-action-pypi-publish@master
+        #  with:
+        #    password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        #    repository_url: https://test.pypi.org/legacy/
+
+      - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
-
-          # - name: Publish distribution 📦 to PyPI
-          #   uses: pypa/gh-action-pypi-publish@master
-          #   with:
-          #     password: ${{ secrets.PYPI_API_TOKEN }}
-
+          password: ${{ secrets.PYPI_API_TOKEN }}
+     
