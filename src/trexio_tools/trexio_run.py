@@ -52,7 +52,7 @@ def main(filename=None, args=None):
         if trexio_file is None:
             raise IOError
 
-        from tools.check_basis import run
+        from group_tools.check_basis import run
         run(trexio_file,n_points)
 
     elif args["check-mos"]:
@@ -60,19 +60,19 @@ def main(filename=None, args=None):
         if trexio_file is None:
             raise IOError
 
-        from tools.check_mos import run
+        from group_tools.check_mos import run
         run(trexio_file,n_points)
 
     elif args["convert2champ"]:
-        from tools.trex2champ import run
+        from converters.trex2champ import run
         run(filename, gamessfile = args["--input"], back_end=back_end)
 
     elif args["convert-from"]:
-        from tools.convert_from import run
+        from converters.convert_from import run
         run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end)
 
     elif args["convert-to"]:
-        from tools.convert_to import run
+        from converters.convert_to import run
         run(args["TREXIO_FILE"], args["--output"], args["--type"])
 
     else:
