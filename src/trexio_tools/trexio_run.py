@@ -23,8 +23,13 @@ import trexio
 import os
 
 
-def main(filename, args):
+def main(filename=None, args=None):
     """Main entry point"""
+
+    if filename is None and args is None:
+        args = docopt(__doc__)
+        filename = args["TREXIO_FILE"]
+
 
     if args["--n_points"] is not None:
        n_points = int(args["--n_points"])
@@ -47,7 +52,7 @@ def main(filename, args):
         if trexio_file is None:
             raise IOError
 
-        from src.check_basis import run
+        from tools.check_basis import run
         run(trexio_file,n_points)
 
     elif args["check-mos"]:
@@ -55,19 +60,19 @@ def main(filename, args):
         if trexio_file is None:
             raise IOError
 
-        from src.check_mos import run
+        from tools.check_mos import run
         run(trexio_file,n_points)
 
     elif args["convert2champ"]:
-        from src.trex2champ import run
+        from tools.trex2champ import run
         run(filename, gamessfile = args["--input"], back_end=back_end)
 
     elif args["convert-from"]:
-        from src.convert_from import run
+        from tools.convert_from import run
         run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end)
 
     elif args["convert-to"]:
-        from src.convert_to import run
+        from tools.convert_to import run
         run(args["TREXIO_FILE"], args["--output"], args["--type"])
 
     else:
