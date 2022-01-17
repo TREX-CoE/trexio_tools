@@ -3,7 +3,7 @@
 Set of tools for TREXIO files.
 
 
-## Requirements:
+## Requirements
 
 - python3 (>=3.6)
 - trexio (>=1.0.0) [Python API]
@@ -12,7 +12,7 @@ Set of tools for TREXIO files.
 - docopt [for CLI]
 
 
-## Installation:
+## Installation
 
 0. Clone the repository
 - `git clone https://github.com/TREX-CoE/trexio_tools.git`
@@ -32,11 +32,18 @@ Only the last step has to be repeated to upgrade the `trexio-tools` package.
 This means that the virtual environment can stay the same, unless there have been
 critical updates in `trexio` or `resultsFile` packages.
 
-## How-To
 
-Once installed, `trexio-tools` will provide an entry-point, which can be accessed via CLI:
+## Instructions for users
+
+After installation, `trexio-tools` provides an entry point, which can be accessed via CLI:
 
 `trexio --help`
 
-This will list currently supported command line arguments.
+This will list all currently supported command line arguments. For example,
+
+`trexio convert-from -t gamess -i data/GAMESS_CAS.log -b hdf5 trexio_cas.hdf5`
+
+converts data from the `GAMESS_CAS.log` output file of the GAMESS code
+(note also `-t gamess` argument) into the TREXIO file called `trexio_cas.hdf5`
+using `-b hdf5` back end of TREXIO. 
 
