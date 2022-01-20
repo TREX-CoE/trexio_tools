@@ -108,16 +108,17 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
 
     # Basis
 
-    basis_type = trexio.read_basis_type(trexio_file)
-    basis_shell_num = trexio.read_basis_shell_num(trexio_file)
-    basis_prim_num = trexio.read_basis_prim_num(trexio_file)
-    basis_nucleus_index = trexio.read_basis_nucleus_index(trexio_file)
-    basis_shell_ang_mom = trexio.read_basis_shell_ang_mom(trexio_file)
-    basis_shell_factor = trexio.read_basis_shell_factor(trexio_file)
-    basis_shell_index = trexio.read_basis_shell_index(trexio_file)
-    basis_exponent = trexio.read_basis_exponent(trexio_file)
-    basis_coefficient = trexio.read_basis_coefficient(trexio_file)
-    basis_prim_factor = trexio.read_basis_prim_factor(trexio_file)
+    dict_basis = {}
+    dict_basis["basis_type"] = trexio.read_basis_type(trexio_file)
+    dict_basis["basis_shell_num"] = trexio.read_basis_shell_num(trexio_file)
+    dict_basis["basis_prim_num"] = trexio.read_basis_prim_num(trexio_file)
+    dict_basis["basis_nucleus_index"] = trexio.read_basis_nucleus_index(trexio_file)
+    dict_basis["basis_shell_ang_mom"] = trexio.read_basis_shell_ang_mom(trexio_file)
+    dict_basis["basis_shell_factor"] = trexio.read_basis_shell_factor(trexio_file)
+    dict_basis["basis_shell_index"] = trexio.read_basis_shell_index(trexio_file)
+    dict_basis["basis_exponent"] = trexio.read_basis_exponent(trexio_file)
+    dict_basis["basis_coefficient"] = trexio.read_basis_coefficient(trexio_file)
+    dict_basis["basis_prim_factor"] = trexio.read_basis_prim_factor(trexio_file)
 
     # AO
     # --
@@ -148,20 +149,21 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # The following portion is written only to test few functionalities
     # It will be replaced by the data stored by trexio library.
     file = resultsFile.getFile(gamessfile)
+    ## Champ-specific file basis on the grid
+    write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucleus_num)
 
     write_champ_file_determinants(filename, file)
 
-    ## Champ-specific file basis on the grid
-    write_champ_file_basis_grid(filename, nucleus_label, nucleus_num, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power)
-
+    # read_basis(gamessfile)
 
     return
+
 
 
 ## Champ v2.0 format input files
 
 # Radial basis on the grid
-def write_champ_file_basis_grid(filename, nucleus_label, nucleus_num, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power):
+def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucleus_num):
     """Writes the radial basis data onto a grid for champ calculation.
 
     Returns:
@@ -173,27 +175,61 @@ def write_champ_file_basis_grid(filename, nucleus_label, nucleus_num, ecp_num, e
     gridr0=20.0
     gridr0_save = gridr0
 
-    # some constants
-    d3b4=0.75
-    pi4i=1.0/(np.pi**(1.0/4.0))
-    d5b4=5.0/4.0
-    sq8b3=np.sqrt(8.0/3.0)
-    d7b4=7.0/4.0
-    sq16b15=np.sqrt(16.0/15.0)
-    d9b4=9.0/4.0
-    sq32b105=np.sqrt(32.0/105.0)
-    lcao_cs=np.sqrt(5.0)
-    lcao_cd=1.0/np.sqrt(3.0)
+    # print ("basis dict ", dict_basis)
+
+    # Gaussian normalization
+    def gnorm(alp,l):
+        norm = 1.0          # default normalization
+        if l == 0:
+            norm = (2.0*alp)**(3.0/4.0)*2.0*(1.0/(np.pi**(1.0/4.0)))
+        elif l == 1:
+            norm = (2.0*alp)**(5.0/4.0)*np.sqrt(8.0/3.0)*(1.0/(np.pi**(1.0/4.0)))
+        elif l == 2:
+            norm = (2.0*alp)**(7.0/4.0)*np.sqrt(16.0/15.0)*(1.0/(np.pi**(1.0/4.0)))
+        elif l == 3:
+            norm = (2.0*alp)**(9.0/4.0)*np.sqrt(32.0/105.0)*(1.0/(np.pi**(1.0/4.0)))
+        return norm
+
+    def compute_grid():
+        # Compute the radial grid r for a given number of grid points
+        # and grid type
+        bgrid = np.zeros(gridpoints)
+        for i in range(gridpoints):
+            if gridtype == 1:
+                r = gridr0 + i*gridarg
+            elif gridtype == 2:
+                r = gridr0 * gridarg**i
+            elif gridtype == 3:
+                r = gridr0 * gridarg**i - gridr0
+            bgrid[i] = r
+        return bgrid
 
 
     if filename is not None:
         if isinstance(filename, str):
             unique_elements, indices = np.unique(nucleus_label, return_index=True)
+
+            c = 0
+            radial_ptr = 1
+
+            # print ("unique elements ", unique_elements, indices)
+
             for i in range(len(unique_elements)):
                 # Write down an radial basis grid file in the new champ v2.0 format for each unique atom type
                 filename_basis_grid = "BFD-Q." + 'basis.' + unique_elements[i]
                 with open(filename_basis_grid, 'w') as file:
                     file.write(f" {'bgrid[0]'} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
+
+                    ## The main part of the file starts here
+                    gridr0_save = gridr0
+                    if gridtype == 3:
+                        gridr0 = gridr0/(gridarg**(gridpoints-1)-1)
+
+                    c += 1
+                    bgrid = compute_grid()
+                    lbas = []
+
+
 
 
                 file.close()
