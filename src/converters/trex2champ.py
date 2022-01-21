@@ -47,6 +47,7 @@ __status__ = "Development"
 
 import sys
 import os
+from tkinter import E
 import numpy as np
 
 
@@ -109,16 +110,16 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # Basis
 
     dict_basis = {}
-    dict_basis["basis_type"] = trexio.read_basis_type(trexio_file)
-    dict_basis["basis_shell_num"] = trexio.read_basis_shell_num(trexio_file)
-    dict_basis["basis_prim_num"] = trexio.read_basis_prim_num(trexio_file)
-    dict_basis["basis_nucleus_index"] = trexio.read_basis_nucleus_index(trexio_file)
-    dict_basis["basis_shell_ang_mom"] = trexio.read_basis_shell_ang_mom(trexio_file)
-    dict_basis["basis_shell_factor"] = trexio.read_basis_shell_factor(trexio_file)
-    dict_basis["basis_shell_index"] = trexio.read_basis_shell_index(trexio_file)
-    dict_basis["basis_exponent"] = trexio.read_basis_exponent(trexio_file)
-    dict_basis["basis_coefficient"] = trexio.read_basis_coefficient(trexio_file)
-    dict_basis["basis_prim_factor"] = trexio.read_basis_prim_factor(trexio_file)
+    dict_basis["type"] = trexio.read_basis_type(trexio_file)
+    dict_basis["shell_num"] = trexio.read_basis_shell_num(trexio_file)
+    dict_basis["prim_num"] = trexio.read_basis_prim_num(trexio_file)
+    dict_basis["nucleus_index"] = trexio.read_basis_nucleus_index(trexio_file)
+    dict_basis["shell_ang_mom"] = trexio.read_basis_shell_ang_mom(trexio_file)
+    dict_basis["shell_factor"] = trexio.read_basis_shell_factor(trexio_file)
+    dict_basis["shell_index"] = trexio.read_basis_shell_index(trexio_file)
+    dict_basis["exponent"] = trexio.read_basis_exponent(trexio_file)
+    dict_basis["coefficient"] = trexio.read_basis_coefficient(trexio_file)
+    dict_basis["prim_factor"] = trexio.read_basis_prim_factor(trexio_file)
 
     # AO
     # --
@@ -175,7 +176,13 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
     gridr0=20.0
     gridr0_save = gridr0
 
-    # print ("basis dict ", dict_basis)
+    # Get the number of shells per atom
+    list_shell, list_nshells = np.unique(dict_basis["nucleus_index"], return_counts=True)
+
+
+
+    bgrid = np.zeros(gridpoints)
+
 
     # Gaussian normalization
     def gnorm(alp,l):
@@ -193,7 +200,6 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
     def compute_grid():
         # Compute the radial grid r for a given number of grid points
         # and grid type
-        bgrid = np.zeros(gridpoints)
         for i in range(gridpoints):
             if gridtype == 1:
                 r = gridr0 + i*gridarg
@@ -204,6 +210,26 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
             bgrid[i] = r
         return bgrid
 
+    def add_function(shell_ang_mom, exponent, coefficient, bgrid):
+        # put a new function on the grid
+        # The function is defined by the exponent, coefficient and type
+        for i in range(gridpoints):
+            r = bgrid[i]
+            r2 = r*r
+            r3 = r2*r
+            value = gnorm(exponent, shell_ang_mom) * coefficient * np.exp(-exponent*r2)
+
+            if shell_ang_mom == 1:
+                value *= r
+            elif shell_ang_mom == 2:
+                value *= r2
+            elif shell_ang_mom == 3:
+                value *= r3
+
+            if (abs(value) > 1e-15):
+                bgrid[i] += value
+
+        return
 
     if filename is not None:
         if isinstance(filename, str):
@@ -211,14 +237,12 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
 
             c = 0
             radial_ptr = 1
-
-            # print ("unique elements ", unique_elements, indices)
+            prim_radial = []
 
             for i in range(len(unique_elements)):
                 # Write down an radial basis grid file in the new champ v2.0 format for each unique atom type
                 filename_basis_grid = "BFD-Q." + 'basis.' + unique_elements[i]
                 with open(filename_basis_grid, 'w') as file:
-                    file.write(f" {'bgrid[0]'} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
 
                     ## The main part of the file starts here
                     gridr0_save = gridr0
@@ -226,14 +250,24 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                         gridr0 = gridr0/(gridarg**(gridpoints-1)-1)
 
                     c += 1
-                    bgrid = compute_grid()
-                    lbas = []
+                    bgrid = compute_grid()  # Compute the grid, store the results in bgrid
 
+                    # get the exponents and coefficients of unique atom types
+                    for ind, val in enumerate(dict_basis["nucleus_index"]):
+                        if val == indices[i]:
+                            # use ind to access all the shells of unique atom type
+                            add_function(dict_basis["shell_ang_mom"][ind], dict_basis["exponent"][ind], dict_basis["coefficient"][ind], bgrid)
 
+                    prim_radial.append(radial_ptr)
+                    radial_ptr += bgrid[0]
 
+                    # file writing part
+                    number_of_shells_per_atom = list_nshells[indices[i]]
+                    file.write(f" {number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
+                    file.write(f" \n")
+                    np.savetxt(file, bgrid, fmt='%.8f')
 
                 file.close()
-
         else:
             raise ValueError
     # If filename is None, return a string representation of the output.
