@@ -238,7 +238,7 @@ def run_resultsFile(trexio_filename, filename, back_end):
     normalization = []
     prev_shell = None
 
-    # Re-order AOs (xx,xy,xz,yy,yz,zz) or (d+0,+1,-2,+2,-2,...)
+    # Re-order AOs (xx,xy,xz,yy,yz,zz) or (d+0,+1,-1,-2,+2,-2,...)
     def f_sort(x):
         if '+' in x or '-' in x:
             l, m = get_lm(x)
@@ -252,15 +252,16 @@ def run_resultsFile(trexio_filename, filename, back_end):
     for i,b in enumerate(res.basis):
         shell = ao_shell[i]
         if shell != prev_shell:
-            accu.sort(key=f_sort)
+            accu.sort()
             ao_ordering += accu
             accu = []
-        accu += [(b.sym, i)]
+        accu += [(f_sort(b.sym), i, b.sym )]
         prev_shell = shell
-    accu.sort(key=f_sort)
+    accu.sort()
     ao_ordering += accu
 
-    ao_ordering = [ i for (_,i) in ao_ordering ]
+    print(ao_ordering)
+    ao_ordering = [ i for (_,i,_) in ao_ordering ]
 
     # Normalization
     normalization = []
