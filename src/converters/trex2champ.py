@@ -182,7 +182,7 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
 
 
 
-    # bgrid = np.zeros(gridpoints)
+    print ("dict basis ", dict_basis)
 
 
     # Gaussian normalization
@@ -208,17 +208,18 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                 r = gridr0 * gridarg**i
             elif gridtype == 3:
                 r = gridr0 * gridarg**i - gridr0
-            bgrid[0,i] = r
-            bgrid[1:,i] = r
+            bgrid[:,i] = r
         return bgrid
 
     def add_function(shell_ang_mom, exponent, coefficient, shell, bgrid):
         # put a new function on the grid
         # The function is defined by the exponent, coefficient and type
+        print ("coefficient exponent value inside add function", coefficient, exponent )
         for i in range(gridpoints):
             r = bgrid[shell, i]
             r2 = r*r
             r3 = r2*r
+            value = 0.0
             value = gnorm(exponent, shell_ang_mom) * coefficient * np.exp(-exponent*r2)
 
             if shell_ang_mom == 1:
@@ -228,8 +229,9 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
             elif shell_ang_mom == 3:
                 value *= r3
 
-            if (abs(value) > 1e-15):
-                bgrid[shell,i] += value
+            bgrid[shell,i] += value
+            # if (abs(value) > 1e-15):
+            #     bgrid[shell,i] += value
 
         return
 
@@ -278,6 +280,10 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                     c += 1
                     bgrid = compute_grid()  # Compute the grid, store the results in bgrid
 
+                    for ind, val in enumerate(dict_basis["shell_index"]):
+                        if val == indices[i]:
+                            print ("nucleus index ", val, " and index ", indices[i], "ind ", ind)
+
                     # get the exponents and coefficients of unique atom types
                     shell = 1
                     for ind, val in enumerate(dict_basis["nucleus_index"]):
@@ -286,8 +292,8 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                             add_function(dict_basis["shell_ang_mom"][ind], dict_basis["exponent"][ind], dict_basis["coefficient"][ind], shell, bgrid)
                             shell += 1
 
-                    # prim_radial.append(radial_ptr)
-                    # radial_ptr += bgrid[0]
+                    prim_radial.append(radial_ptr)
+                    radial_ptr += bgrid[0]
 
                     # file writing part
                     file.write(f" {number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
