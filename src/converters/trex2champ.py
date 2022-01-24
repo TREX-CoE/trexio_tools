@@ -49,7 +49,7 @@ import sys
 import os
 from tkinter import E
 import numpy as np
-
+from collections import Counter
 
 try:
     import trexio
@@ -181,7 +181,7 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
 
 
 
-    bgrid = np.zeros(gridpoints)
+    # bgrid = np.zeros(gridpoints)
 
 
     # Gaussian normalization
@@ -207,14 +207,14 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                 r = gridr0 * gridarg**i
             elif gridtype == 3:
                 r = gridr0 * gridarg**i - gridr0
-            bgrid[i] = r
+            bgrid[:,i] = r
         return bgrid
 
-    def add_function(shell_ang_mom, exponent, coefficient, bgrid):
+    def add_function(shell_ang_mom, exponent, coefficient, shell, bgrid):
         # put a new function on the grid
         # The function is defined by the exponent, coefficient and type
         for i in range(gridpoints):
-            r = bgrid[i]
+            r = bgrid[shell, i]
             r2 = r*r
             r3 = r2*r
             value = gnorm(exponent, shell_ang_mom) * coefficient * np.exp(-exponent*r2)
@@ -227,7 +227,7 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                 value *= r3
 
             if (abs(value) > 1e-15):
-                bgrid[i] += value
+                bgrid[shell,i] += value
 
         return
 
@@ -244,6 +244,23 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                 filename_basis_grid = "BFD-Q." + 'basis.' + unique_elements[i]
                 with open(filename_basis_grid, 'w') as file:
 
+                    number_of_shells_per_atom = list_nshells[indices[i]]
+
+                    shell_ang_mom_per_atom_list = []
+                    for ind, val in enumerate(dict_basis["nucleus_index"]):
+                        if val == indices[i]:
+                            shell_ang_mom_per_atom_list.append(dict_basis["shell_ang_mom"][ind])
+
+                    shell_ang_mom_per_atom_count = Counter(shell_ang_mom_per_atom_list)
+
+                    # total_shells = sum(shell_ang_mom_per_atom_count.values())
+                    # for count in shell_ang_mom_per_atom_count:
+                    #     print ("Number of shells of angular momentum ", count, ": ", shell_ang_mom_per_atom_count[count])
+
+
+                    bgrid = np.zeros((number_of_shells_per_atom, gridpoints))
+
+
                     ## The main part of the file starts here
                     gridr0_save = gridr0
                     if gridtype == 3:
@@ -253,19 +270,19 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                     bgrid = compute_grid()  # Compute the grid, store the results in bgrid
 
                     # get the exponents and coefficients of unique atom types
+                    shell = 0
                     for ind, val in enumerate(dict_basis["nucleus_index"]):
                         if val == indices[i]:
                             # use ind to access all the shells of unique atom type
-                            add_function(dict_basis["shell_ang_mom"][ind], dict_basis["exponent"][ind], dict_basis["coefficient"][ind], bgrid)
+                            add_function(dict_basis["shell_ang_mom"][ind], dict_basis["exponent"][ind], dict_basis["coefficient"][ind], shell, bgrid)
+                            shell += 1
 
                     prim_radial.append(radial_ptr)
                     radial_ptr += bgrid[0]
 
                     # file writing part
-                    number_of_shells_per_atom = list_nshells[indices[i]]
                     file.write(f" {number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
-                    file.write(f" \n")
-                    np.savetxt(file, bgrid, fmt='%.8f')
+                    np.savetxt(file, np.transpose(bgrid), fmt='%.8f')
 
                 file.close()
         else:
