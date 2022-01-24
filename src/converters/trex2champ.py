@@ -47,6 +47,7 @@ __status__ = "Development"
 
 import sys
 import os
+from tkinter import E
 import numpy as np
 
 
@@ -108,16 +109,17 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
 
     # Basis
 
-    basis_type = trexio.read_basis_type(trexio_file)
-    basis_shell_num = trexio.read_basis_shell_num(trexio_file)
-    basis_prim_num = trexio.read_basis_prim_num(trexio_file)
-    basis_nucleus_index = trexio.read_basis_nucleus_index(trexio_file)
-    basis_shell_ang_mom = trexio.read_basis_shell_ang_mom(trexio_file)
-    basis_shell_factor = trexio.read_basis_shell_factor(trexio_file)
-    basis_shell_index = trexio.read_basis_shell_index(trexio_file)
-    basis_exponent = trexio.read_basis_exponent(trexio_file)
-    basis_coefficient = trexio.read_basis_coefficient(trexio_file)
-    basis_prim_factor = trexio.read_basis_prim_factor(trexio_file)
+    dict_basis = {}
+    dict_basis["type"] = trexio.read_basis_type(trexio_file)
+    dict_basis["shell_num"] = trexio.read_basis_shell_num(trexio_file)
+    dict_basis["prim_num"] = trexio.read_basis_prim_num(trexio_file)
+    dict_basis["nucleus_index"] = trexio.read_basis_nucleus_index(trexio_file)
+    dict_basis["shell_ang_mom"] = trexio.read_basis_shell_ang_mom(trexio_file)
+    dict_basis["shell_factor"] = trexio.read_basis_shell_factor(trexio_file)
+    dict_basis["shell_index"] = trexio.read_basis_shell_index(trexio_file)
+    dict_basis["exponent"] = trexio.read_basis_exponent(trexio_file)
+    dict_basis["coefficient"] = trexio.read_basis_coefficient(trexio_file)
+    dict_basis["prim_factor"] = trexio.read_basis_prim_factor(trexio_file)
 
     # AO
     # --
@@ -148,13 +150,131 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # The following portion is written only to test few functionalities
     # It will be replaced by the data stored by trexio library.
     file = resultsFile.getFile(gamessfile)
+    ## Champ-specific file basis on the grid
+    write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucleus_num)
 
     write_champ_file_determinants(filename, file)
+
+    # read_basis(gamessfile)
 
     return
 
 
+
 ## Champ v2.0 format input files
+
+# Radial basis on the grid
+def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucleus_num):
+    """Writes the radial basis data onto a grid for champ calculation.
+
+    Returns:
+        None
+    """
+    gridtype=3
+    gridpoints=2000
+    gridarg=1.003
+    gridr0=20.0
+    gridr0_save = gridr0
+
+    # Get the number of shells per atom
+    list_shell, list_nshells = np.unique(dict_basis["nucleus_index"], return_counts=True)
+
+
+
+    bgrid = np.zeros(gridpoints)
+
+
+    # Gaussian normalization
+    def gnorm(alp,l):
+        norm = 1.0          # default normalization
+        if l == 0:
+            norm = (2.0*alp)**(3.0/4.0)*2.0*(1.0/(np.pi**(1.0/4.0)))
+        elif l == 1:
+            norm = (2.0*alp)**(5.0/4.0)*np.sqrt(8.0/3.0)*(1.0/(np.pi**(1.0/4.0)))
+        elif l == 2:
+            norm = (2.0*alp)**(7.0/4.0)*np.sqrt(16.0/15.0)*(1.0/(np.pi**(1.0/4.0)))
+        elif l == 3:
+            norm = (2.0*alp)**(9.0/4.0)*np.sqrt(32.0/105.0)*(1.0/(np.pi**(1.0/4.0)))
+        return norm
+
+    def compute_grid():
+        # Compute the radial grid r for a given number of grid points
+        # and grid type
+        for i in range(gridpoints):
+            if gridtype == 1:
+                r = gridr0 + i*gridarg
+            elif gridtype == 2:
+                r = gridr0 * gridarg**i
+            elif gridtype == 3:
+                r = gridr0 * gridarg**i - gridr0
+            bgrid[i] = r
+        return bgrid
+
+    def add_function(shell_ang_mom, exponent, coefficient, bgrid):
+        # put a new function on the grid
+        # The function is defined by the exponent, coefficient and type
+        for i in range(gridpoints):
+            r = bgrid[i]
+            r2 = r*r
+            r3 = r2*r
+            value = gnorm(exponent, shell_ang_mom) * coefficient * np.exp(-exponent*r2)
+
+            if shell_ang_mom == 1:
+                value *= r
+            elif shell_ang_mom == 2:
+                value *= r2
+            elif shell_ang_mom == 3:
+                value *= r3
+
+            if (abs(value) > 1e-15):
+                bgrid[i] += value
+
+        return
+
+    if filename is not None:
+        if isinstance(filename, str):
+            unique_elements, indices = np.unique(nucleus_label, return_index=True)
+
+            c = 0
+            radial_ptr = 1
+            prim_radial = []
+
+            for i in range(len(unique_elements)):
+                # Write down an radial basis grid file in the new champ v2.0 format for each unique atom type
+                filename_basis_grid = "BFD-Q." + 'basis.' + unique_elements[i]
+                with open(filename_basis_grid, 'w') as file:
+
+                    ## The main part of the file starts here
+                    gridr0_save = gridr0
+                    if gridtype == 3:
+                        gridr0 = gridr0/(gridarg**(gridpoints-1)-1)
+
+                    c += 1
+                    bgrid = compute_grid()  # Compute the grid, store the results in bgrid
+
+                    # get the exponents and coefficients of unique atom types
+                    for ind, val in enumerate(dict_basis["nucleus_index"]):
+                        if val == indices[i]:
+                            # use ind to access all the shells of unique atom type
+                            add_function(dict_basis["shell_ang_mom"][ind], dict_basis["exponent"][ind], dict_basis["coefficient"][ind], bgrid)
+
+                    prim_radial.append(radial_ptr)
+                    radial_ptr += bgrid[0]
+
+                    # file writing part
+                    number_of_shells_per_atom = list_nshells[indices[i]]
+                    file.write(f" {number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
+                    file.write(f" \n")
+                    np.savetxt(file, bgrid, fmt='%.8f')
+
+                file.close()
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+
+
 
 def write_champ_file_determinants(filename, file):
     """Writes the determinant data from the quantum
@@ -165,11 +285,46 @@ def write_champ_file_determinants(filename, file):
     """
     det_coeff = file.det_coefficients
     csf_coeff = file.csf_coefficients
+    # determinants_per_csf, csf_det_coeff = file.get_dets_per_csf()
+    # print ("determinants_per_csf: write module ", determinants_per_csf)
     num_csf = len(csf_coeff[0])
     num_states = file.num_states
     num_dets = len(det_coeff[0])
     num_alpha = len(file.determinants[0].get("alpha"))
     num_beta = len(file.determinants[0].get("beta"))
+
+    alpha_orbitals = np.sort(file.determinants[0].get("alpha"))
+    beta_orbitals = np.sort(file.determinants[0].get("beta"))
+
+    DET_coefficients = file.get_det_coefficients()
+    CSF_coefficients = file.get_csf_coefficients()
+
+    ## Do the preprocessing to reduce the number of determinants and get the CSF mapping
+    reduced_det_coefficients = []
+    csf = file.csf
+    reduced_list_determintants = []
+    copy_list_determintants = []
+    for state_coef in file.csf_coefficients:
+        vector = []
+        counter = 0; counter2 = 0       # Counter2 is required for keeping correspondence of determinants in the reduced list
+        for i,c in enumerate(state_coef):
+            for d in csf[i].coefficients:
+                temp = 0.0
+                indices = [i for i, x in enumerate(file.determinants) if x == file.determinants[counter]]
+                if counter == indices[0]:
+                    counter2 += 1
+                    copy_list_determintants.append(counter2)
+                    reduced_list_determintants.append(indices[0])
+                    for index in indices:
+                        if len(indices) == 1:
+                            temp =  c * d
+                        else:
+                            temp += c * d
+                    vector.append(temp)
+                else:
+                    copy_list_determintants.append(indices[0])
+                counter += 1
+        reduced_det_coefficients.append(vector)
 
 
     if filename is not None:
@@ -180,20 +335,23 @@ def write_champ_file_determinants(filename, file):
                 # header line printed below
                 f.write("# Determinants, CSF, and CSF mapping from the GAMESS output / TREXIO file. \n")
                 f.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
-                f.write("determinants {} {} \n".format(num_dets, num_states))
+                f.write("determinants {} {} \n".format(len(reduced_list_determintants), num_states))
 
                 # print the determinant coefficients
-                for det in range(num_dets):
-                    f.write("{:.8f} ".format(det_coeff[0][det]))
-                f.write("\n")
+                for state in range(num_states):
+                    for det in range(len(reduced_list_determintants)):
+                        f.write("{:.8f} ".format(reduced_det_coefficients[state][det]))
+                    f.write("\n")
 
                 # print the determinant orbital mapping
-                for det in range(num_dets):
+                for det in reduced_list_determintants:
                     for num in range(num_alpha):
-                        f.write("{:4d} ".format(file.determinants[det].get("alpha")[num]+1))
+                        alpha_orbitals = np.sort(file.determinants[det].get("alpha"))[num]+1
+                        f.write("{:4d} ".format(alpha_orbitals))
                     f.write("  ")
                     for num in range(num_beta):
-                        f.write("{:4d} ".format(file.determinants[det].get("beta")[num]+1))
+                        beta_orbitals = np.sort(file.determinants[det].get("beta"))[num]+1
+                        f.write("{:4d} ".format(beta_orbitals))
                     f.write("\n")
                 f.write("end \n")
 
@@ -203,6 +361,27 @@ def write_champ_file_determinants(filename, file):
                     for ccsf in range(num_csf):
                         f.write("{:.8f} ".format(csf_coeff[state][ccsf]))
                     f.write("\n")
+                f.write("end \n")
+
+                # print the CSFMAP information
+                f.write("csfmap \n")
+                f.write("{} {} {} \n".format(num_csf,  len(reduced_list_determintants), len(DET_coefficients[0])))
+
+                determinants_per_csf = []
+                csf_det_coeff = []
+                for state_coef in file.csf_coefficients:
+                    for i,c in enumerate(state_coef):
+                        determinants_per_csf.append(len(csf[i].coefficients))
+                        for d in csf[i].coefficients:
+                            csf_det_coeff.append(d)
+
+                for state in range(num_states):
+                    i = 0
+                    for csf in range(num_csf):
+                        f.write(f"{determinants_per_csf[csf]:d} \n")
+                        for num in range(determinants_per_csf[csf]):
+                            f.write(f"  {copy_list_determintants[i]}  {csf_det_coeff[i]:.6f} \n")
+                            i += 1
                 f.write("end \n")
 
                 f.write("\n")
@@ -308,7 +487,7 @@ def write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient):
                 # header line printed below
                 file.write("# File created using the trex2champ converter https://github.com/TREX-CoE/trexio_tools  \n")
                 file.write("lcao " + str(mo_num) + " " + str(ao_num) + " 1 " + "\n" )
-                np.savetxt(file, mo_coefficient)
+                np.savetxt(file, mo_coefficient, fmt='%.8f')
                 file.write("end\n")
             file.close()
         else:
