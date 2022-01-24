@@ -50,6 +50,7 @@ import os
 from tkinter import E
 import numpy as np
 from collections import Counter
+import copy
 
 try:
     import trexio
@@ -207,7 +208,8 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                 r = gridr0 * gridarg**i
             elif gridtype == 3:
                 r = gridr0 * gridarg**i - gridr0
-            bgrid[:,i] = r
+            bgrid[0,i] = r
+            bgrid[1:,i] = r
         return bgrid
 
     def add_function(shell_ang_mom, exponent, coefficient, shell, bgrid):
@@ -244,6 +246,12 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                 filename_basis_grid = "BFD-Q." + 'basis.' + unique_elements[i]
                 with open(filename_basis_grid, 'w') as file:
 
+                    # Common numbers
+                    gridtype=3
+                    gridpoints=2000
+                    gridarg=1.003
+                    gridr0=20.0
+
                     number_of_shells_per_atom = list_nshells[indices[i]]
 
                     shell_ang_mom_per_atom_list = []
@@ -258,7 +266,8 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                     #     print ("Number of shells of angular momentum ", count, ": ", shell_ang_mom_per_atom_count[count])
 
 
-                    bgrid = np.zeros((number_of_shells_per_atom, gridpoints))
+                    # bgrid = np.zeros((1, gridpoints))
+                    bgrid = np.zeros((number_of_shells_per_atom+1, gridpoints))
 
 
                     ## The main part of the file starts here
@@ -270,15 +279,15 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                     bgrid = compute_grid()  # Compute the grid, store the results in bgrid
 
                     # get the exponents and coefficients of unique atom types
-                    shell = 0
+                    shell = 1
                     for ind, val in enumerate(dict_basis["nucleus_index"]):
                         if val == indices[i]:
                             # use ind to access all the shells of unique atom type
                             add_function(dict_basis["shell_ang_mom"][ind], dict_basis["exponent"][ind], dict_basis["coefficient"][ind], shell, bgrid)
                             shell += 1
 
-                    prim_radial.append(radial_ptr)
-                    radial_ptr += bgrid[0]
+                    # prim_radial.append(radial_ptr)
+                    # radial_ptr += bgrid[0]
 
                     # file writing part
                     file.write(f" {number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
