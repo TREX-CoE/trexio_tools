@@ -152,12 +152,9 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # It will be replaced by the data stored by trexio library.
     file = resultsFile.getFile(gamessfile)
     ## Champ-specific file basis on the grid
-    write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucleus_num)
-    write_champ_file_bfinfo(filename)
-
+    write_champ_file_basis_grid(filename, dict_basis, nucleus_label)
+    write_champ_file_bfinfo(filename, dict_basis,nucleus_label)
     write_champ_file_determinants(filename, file)
-
-    # read_basis(gamessfile)
 
     return
 
@@ -166,7 +163,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
 ## Champ v2.0 format input files
 
 # Radial basis on the grid
-def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucleus_num):
+def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
     """Writes the radial basis data onto a grid for champ calculation.
 
     Returns:
@@ -183,7 +180,7 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
 
 
 
-    # print ("dict basis ", dict_basis)
+    print ("dict basis ", dict_basis)
 
     contr = [ { "exponent"      : [],
                 "coefficient"   : [],
@@ -308,13 +305,29 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
 
 
 # Symmetry
-def write_champ_file_bfinfo(filename):
+def write_champ_file_bfinfo(filename,dict_basis,nucleus_label):
     """Writes the basis information of molecular orbitals from the quantum
     chemistry calculation to the new champ v2.0 input file format.
 
     Returns:
         None as a function value
     """
+    ## Cartesian Ordering
+    basis_order = ['S','X','Y','Z','XX','XY','XZ','YY','YZ','ZZ','XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
+    # sequence of flags in qmc input
+    label_ang_mom = {0:'S', 1:'P', 2:'D', 3:'F', 4:'G', 5:'H'}
+
+    shells = {}
+    shells[0] = ['S']
+    shells[1] = ['X','Y','Z']
+    shells[2] = ['XX','XY','XZ','YY','YZ','ZZ']
+    shells[3] = ['XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
+
+
+
+    unique_elements, indices = np.unique(nucleus_label, return_index=True)
+
+
 
     if filename is not None:
         if isinstance(filename, str):
@@ -325,6 +338,21 @@ def write_champ_file_bfinfo(filename):
                 # qmc bfinfo line printed below
                 file.write("qmc_bf_info 1 \n")
 
+                # pointers to the basis functions
+                for i in range(len(unique_elements)):
+                    shell_ang_mom_per_atom_list = []
+                    for ind, val in enumerate(dict_basis["nucleus_index"]):
+                        if val == indices[i]:
+                            shell_ang_mom_per_atom_list.append(dict_basis["shell_ang_mom"][ind])
+
+                    list_shells_per_atom = []
+                    for shell in shell_ang_mom_per_atom_list:
+                        for i in range(len(shells[shell])):
+                            list_shells_per_atom.append(i)
+
+                    for pointer in list_shells_per_atom:
+                        file.write(f"{pointer} ")
+                    file.write(f"\n")
 
             file.close()
 
