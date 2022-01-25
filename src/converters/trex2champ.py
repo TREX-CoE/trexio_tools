@@ -230,7 +230,7 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
             value = 0.0
             for j in range(len(exponents)):
                 value += gnorm(exponents[j], shell_ang_mom) * coefficients[j] * np.exp(-exponents[j]*r2)
-                # print ("each value k, ib", i ,j , value)
+                # print ("each value k, ib,", i ,j , value)
             if shell_ang_mom == 1:
                 value *= r
             elif shell_ang_mom == 2:
@@ -239,18 +239,12 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                 value *= r3
 
             bgrid[shell,i] = value
-            # if (abs(value) > 1e-15):
-            #     bgrid[shell,i] += value
 
         return
 
     if filename is not None:
         if isinstance(filename, str):
             unique_elements, indices = np.unique(nucleus_label, return_index=True)
-
-            c = 0
-            radial_ptr = 1
-            prim_radial = []
 
             for i in range(len(unique_elements)):
                 # Write down an radial basis grid file in the new champ v2.0 format for each unique atom type
@@ -286,7 +280,7 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                     if gridtype == 3:
                         gridr0 = gridr0/(gridarg**(gridpoints-1)-1)
 
-                    c += 1
+
                     bgrid = compute_grid()  # Compute the grid, store the results in bgrid
 
 
@@ -301,7 +295,7 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
 
 
                     # file writing part
-                    file.write(f" {number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
+                    file.write(f"{number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f} {0}\n")
                     np.savetxt(file, np.transpose(bgrid), fmt='%.8f')
 
                 file.close()
