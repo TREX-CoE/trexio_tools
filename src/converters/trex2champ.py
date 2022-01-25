@@ -182,7 +182,16 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
 
 
 
-    print ("dict basis ", dict_basis)
+    # print ("dict basis ", dict_basis)
+
+    contr = [ { "exponent"      : [],
+                "coefficient"   : [],
+                "prim_factor"   : []  }  for _ in range(dict_basis["shell_num"]) ]
+    for j in range(dict_basis["shell_num"]):
+        i = dict_basis["shell_index"][j]
+        contr[i]["exponent"]    += [ dict_basis["exponent"][j] ]
+        contr[i]["coefficient"] += [ dict_basis["coefficient"][j] ]
+        contr[i]["prim_factor"] += [ dict_basis["prim_factor"][j] ]
 
 
     # Gaussian normalization
@@ -211,17 +220,17 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
             bgrid[:,i] = r
         return bgrid
 
-    def add_function(shell_ang_mom, exponent, coefficient, shell, bgrid):
+    def add_function(shell_ang_mom, exponents, coefficients, shell, bgrid):
         # put a new function on the grid
         # The function is defined by the exponent, coefficient and type
-        print ("coefficient exponent value inside add function", coefficient, exponent )
         for i in range(gridpoints):
             r = bgrid[shell, i]
             r2 = r*r
             r3 = r2*r
             value = 0.0
-            value = gnorm(exponent, shell_ang_mom) * coefficient * np.exp(-exponent*r2)
-
+            for j in range(len(exponents)):
+                value += gnorm(exponents[j], shell_ang_mom) * coefficients[j] * np.exp(-exponents[j]*r2)
+                # print ("each value k, ib", i ,j , value)
             if shell_ang_mom == 1:
                 value *= r
             elif shell_ang_mom == 2:
@@ -229,7 +238,7 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
             elif shell_ang_mom == 3:
                 value *= r3
 
-            bgrid[shell,i] += value
+            bgrid[shell,i] = value
             # if (abs(value) > 1e-15):
             #     bgrid[shell,i] += value
 
@@ -263,12 +272,12 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
 
                     shell_ang_mom_per_atom_count = Counter(shell_ang_mom_per_atom_list)
 
-                    # total_shells = sum(shell_ang_mom_per_atom_count.values())
-                    # for count in shell_ang_mom_per_atom_count:
-                    #     print ("Number of shells of angular momentum ", count, ": ", shell_ang_mom_per_atom_count[count])
+                    total_shells = sum(shell_ang_mom_per_atom_count.values())
 
+                    shells_per_atom = {}
+                    for count in shell_ang_mom_per_atom_count:
+                        shells_per_atom[count] = shell_ang_mom_per_atom_count[count]
 
-                    # bgrid = np.zeros((1, gridpoints))
                     bgrid = np.zeros((number_of_shells_per_atom+1, gridpoints))
 
 
@@ -280,17 +289,18 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                     c += 1
                     bgrid = compute_grid()  # Compute the grid, store the results in bgrid
 
-                    for ind, val in enumerate(dict_basis["shell_index"]):
-                        if val == indices[i]:
-                            print ("nucleus index ", val, " and index ", indices[i], "ind ", ind)
 
                     # get the exponents and coefficients of unique atom types
-                    shell = 1
+                    shell = 1; temp_index = 0
                     for ind, val in enumerate(dict_basis["nucleus_index"]):
                         if val == indices[i]:
-                            # use ind to access all the shells of unique atom type
-                            add_function(dict_basis["shell_ang_mom"][ind], dict_basis["exponent"][ind], dict_basis["coefficient"][ind], shell, bgrid)
-                            shell += 1
+                            list_contracted_exponents =  contr[temp_index]["exponent"]
+                            list_contracted_coefficients =  contr[temp_index]["coefficient"]
+                            # print ("countracted list exponent ", list_contracted_exponents)
+                            # print ("countracted list coefficent ", list_contracted_coefficients)
+                            add_function(dict_basis["shell_ang_mom"][ind], list_contracted_exponents, list_contracted_coefficients, shell, bgrid)
+                            shell += 1; temp_index += 1
+
 
                     prim_radial.append(radial_ptr)
                     radial_ptr += bgrid[0]
