@@ -296,14 +296,9 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                         if val == indices[i]:
                             list_contracted_exponents =  contr[temp_index]["exponent"]
                             list_contracted_coefficients =  contr[temp_index]["coefficient"]
-                            # print ("countracted list exponent ", list_contracted_exponents)
-                            # print ("countracted list coefficent ", list_contracted_coefficients)
                             add_function(dict_basis["shell_ang_mom"][ind], list_contracted_exponents, list_contracted_coefficients, shell, bgrid)
                             shell += 1; temp_index += 1
 
-
-                    prim_radial.append(radial_ptr)
-                    radial_ptr += bgrid[0]
 
                     # file writing part
                     file.write(f" {number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f}\n")
