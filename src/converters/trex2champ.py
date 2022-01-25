@@ -153,6 +153,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     file = resultsFile.getFile(gamessfile)
     ## Champ-specific file basis on the grid
     write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucleus_num)
+    write_champ_file_bfinfo(filename)
 
     write_champ_file_determinants(filename, file)
 
@@ -299,6 +300,34 @@ def write_champ_file_basis_grid(filename, file, dict_basis, nucleus_label, nucle
                     np.savetxt(file, np.transpose(bgrid), fmt='%.8f')
 
                 file.close()
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+
+
+# Symmetry
+def write_champ_file_bfinfo(filename):
+    """Writes the basis information of molecular orbitals from the quantum
+    chemistry calculation to the new champ v2.0 input file format.
+
+    Returns:
+        None as a function value
+    """
+
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down a symmetry file in the new champ v2.0 format
+            filename_bfinfo = os.path.splitext("champ_v2_" + filename)[0]+'.bfinfo'
+            with open(filename_bfinfo, 'w') as file:
+
+                # qmc bfinfo line printed below
+                file.write("qmc_bf_info 1 \n")
+
+
+            file.close()
+
         else:
             raise ValueError
     # If filename is None, return a string representation of the output.
