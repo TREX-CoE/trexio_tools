@@ -133,17 +133,17 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
 
     # MOs
     # ---
-
-    mo_type = trexio.read_mo_type(trexio_file)
-    mo_num = trexio.read_mo_num(trexio_file)
-    mo_coefficient = trexio.read_mo_coefficient(trexio_file)
-    mo_symmetry = trexio.read_mo_symmetry(trexio_file)
+    dict_mo = {}
+    dict_mo["type"] = trexio.read_mo_type(trexio_file)
+    dict_mo["num"] = trexio.read_mo_num(trexio_file)
+    dict_mo["coefficient"] = trexio.read_mo_coefficient(trexio_file)
+    dict_mo["symmetry"] = trexio.read_mo_symmetry(trexio_file)
 
     # Write the .sym file containing symmetry information of MOs
-    write_champ_file_symmetry(filename, mo_num, mo_symmetry)
+    write_champ_file_symmetry(filename, dict_mo)
 
     # Write the .orb / .lcao file containing orbital information of MOs
-    write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient)
+    write_champ_file_orbitals(filename, dict_mo, ao_num)
 
 
 
@@ -180,7 +180,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
 
 
 
-    print ("dict basis ", dict_basis)
+    # print ("dict basis ", dict_basis)
 
     contr = [ { "exponent"      : [],
                 "coefficient"   : [],
@@ -350,7 +350,7 @@ def write_champ_file_bfinfo(filename,dict_basis,nucleus_label):
                         for i in range(len(shells[shell])):
                             k += 1
                             list_shells_per_atom.append(i)
-                            print ("i, k ", i, k)
+                            # print ("i, k ", i, k)
 
                     for pointer in list_shells_per_atom:
                         file.write(f"{pointer} ")
@@ -516,7 +516,7 @@ def write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coor
         return None
 
 # Symmetry
-def write_champ_file_symmetry(filename,mo_num, mo_symmetry):
+def write_champ_file_symmetry(filename, dict_mo):
     """Writes the symmetry information of molecular orbitals from the quantum
     chemistry calculation to the new champ v2.0 input file format.
 
@@ -530,9 +530,9 @@ def write_champ_file_symmetry(filename,mo_num, mo_symmetry):
             filename_symmetry = os.path.splitext("champ_v2_" + filename)[0]+'_symmetry.sym'
             with open(filename_symmetry, 'w') as file:
 
-                values, counts = np.unique(mo_symmetry, return_counts=True)
+                values, counts = np.unique(dict_mo["symmetry"], return_counts=True)
                 # point group symmetry independent line printed below
-                file.write("sym_labels " + str(len(counts)) + " " + str(mo_num)+"\n")
+                file.write("sym_labels " + str(len(counts)) + " " + str(dict_mo["num"])+"\n")
 
                 irrep_string = ""
                 irrep_correspondence = {}
@@ -540,10 +540,10 @@ def write_champ_file_symmetry(filename,mo_num, mo_symmetry):
                     irrep_correspondence[val] = i+1
                     irrep_string += " " + str(i+1) + " " + str(val)
 
-                if all(irreps in mo_symmetry for irreps in values):
+                if all(irreps in dict_mo["symmetry"] for irreps in values):
                     file.write(f"{irrep_string} \n")   # This defines the rule
 
-                    for item in mo_symmetry:
+                    for item in dict_mo["symmetry"]:
                         for key, val in irrep_correspondence.items():
                             if item == key:
                                 file.write(str(val)+" ")
@@ -560,7 +560,7 @@ def write_champ_file_symmetry(filename,mo_num, mo_symmetry):
 
 # Orbitals / LCAO infomation
 
-def write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient):
+def write_champ_file_orbitals(filename, dict_mo, ao_num):
     """Writes the molecular orbitals coefficients from the quantum
     chemistry calculation / trexio file to champ v2.0 input file format.
 
@@ -576,8 +576,8 @@ def write_champ_file_orbitals(filename, mo_num, ao_num, mo_coefficient):
 
                 # header line printed below
                 file.write("# File created using the trex2champ converter https://github.com/TREX-CoE/trexio_tools  \n")
-                file.write("lcao " + str(mo_num) + " " + str(ao_num) + " 1 " + "\n" )
-                np.savetxt(file, mo_coefficient, fmt='%.8f')
+                file.write("lcao " + str(dict_mo["num"]) + " " + str(ao_num) + " 1 " + "\n" )
+                np.savetxt(file, dict_mo["coefficient"], fmt='%.8f')
                 file.write("end\n")
             file.close()
         else:
