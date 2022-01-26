@@ -151,6 +151,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     # The following portion is written only to test few functionalities
     # It will be replaced by the data stored by trexio library.
     file = resultsFile.getFile(gamessfile)
+    write_champ_file_eigenvalues(filename, file)
     ## Champ-specific file basis on the grid
     write_champ_file_basis_grid(filename, dict_basis, nucleus_label)
     write_champ_file_bfinfo(filename, dict_basis,nucleus_label)
@@ -548,6 +549,46 @@ def write_champ_file_symmetry(filename, dict_mo):
                             if item == key:
                                 file.write(str(val)+" ")
                     file.write("\n")
+                file.write("end\n")
+            file.close()
+
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+
+
+# eigenvalues
+def write_champ_file_eigenvalues(filename, file):
+    """Writes the eigenvalue information of molecular orbitals from the quantum
+    chemistry calculation to the new champ v2.0 input file format.
+
+    Returns:
+        None as a function value
+    """
+
+    mo_type = "GUGA"
+    resultsfile_molecular_orbitals = file.mo_sets[mo_type]
+    num_mo = len(resultsfile_molecular_orbitals)
+
+    eigenvalues = [resultsfile_molecular_orbitals[i].eigenvalue for i in range(num_mo)]
+
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down a eigenvalues file in the new champ v2.0 format
+            filename_eigenvalue = os.path.splitext("champ_v2_" + filename)[0]+'_eigenvalues.eig'
+            with open(filename_eigenvalue, 'w') as file:
+
+                # Write the header line
+                file.write("# File created using the trex2champ converter https://github.com/TREX-CoE/trexio_tools  \n")
+                file.write(f"# Eigenvalues correspond to the {mo_type} orbitals  \n")
+                file.write("eigenvalues " + str(num_mo) + "\n")
+
+                # Write the eigenvalues in one line
+                for i in range(num_mo):
+                    file.write(f"{eigenvalues[i]} ")
+                file.write("\n")
                 file.write("end\n")
             file.close()
 
