@@ -345,10 +345,12 @@ def write_champ_file_bfinfo(filename,dict_basis,nucleus_label):
                         if val == indices[i]:
                             shell_ang_mom_per_atom_list.append(dict_basis["shell_ang_mom"][ind])
 
-                    list_shells_per_atom = []
+                    list_shells_per_atom = []; k = 0
                     for shell in shell_ang_mom_per_atom_list:
                         for i in range(len(shells[shell])):
+                            k += 1
                             list_shells_per_atom.append(i)
+                            print ("i, k ", i, k)
 
                     for pointer in list_shells_per_atom:
                         file.write(f"{pointer} ")
