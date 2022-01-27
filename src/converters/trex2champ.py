@@ -143,7 +143,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     write_champ_file_symmetry(filename, dict_mo)
 
     # Write the .orb / .lcao file containing orbital information of MOs
-    write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num)
+    write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_label)
 
 
 
@@ -295,7 +295,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
 
                     # file writing part
                     file.write(f"{number_of_shells_per_atom} {gridtype} {gridpoints} {gridarg:0.6f} {gridr0_save:0.6f} {0}\n")
-                    np.savetxt(file, np.transpose(bgrid), fmt='%.8f')
+                    np.savetxt(file, np.transpose(bgrid), fmt=' %.12e')
 
                 file.close()
         else:
@@ -602,7 +602,7 @@ def write_champ_file_eigenvalues(filename, file, mo_type):
 
 # Orbitals / LCAO infomation
 
-def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num):
+def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_label):
     """Writes the molecular orbitals coefficients from the quantum
     chemistry calculation / trexio file to champ v2.0 input file format.
 
@@ -610,35 +610,85 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num):
         None as a function value
     """
 
-    # mocoeff = dict_mo["coefficient"]
-    # print ("MO coeff type ", type(mocoeff))
+    mocoeff = dict_mo["coefficient"]
+    print ("MO coeff type ", type(mocoeff))
 
 
-    # for i in range(len(mocoeff)):
-    #     print ( [mocoeff[i][j] for j in range(len(mocoeff[i])) ])
+    for i in range(len(mocoeff)):
+        print ( [mocoeff[i][j] for j in range(len(mocoeff[i])) ])
 
 
-    # mo_num = dict_mo["num"]
-    # cartesian = True
-    # if cartesian:
-    #   order = [ [0],
-    #             [0, 1, 2],
-    #             [0, 1, 2, 3, 4, 5],
-    #             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] ]
-    # else:
-    #     print ("Orbitals in spherical representation detected")
-    #     sys.exit()
+    ## Cartesian Ordering CHAMP
+    basis_order = ['S','X','Y','Z','XX','XY','XZ','YY','YZ','ZZ','XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
+    # sequence of flags in qmc input
+    label_ang_mom = {0:'S', 1:'P', 2:'D', 3:'F', 4:'G', 5:'H'}
 
-    # o = []
-    # icount = 0
-    # for i in range(dict_basis["shell_num"]):
-    #    l = dict_basis["shell_ang_mom"][i]
-    #    for k in order[l]:
-    #       o.append( icount+k )
-    #    icount += len(order[l])
+    shells = {}
+    shells[0] = ['S']
+    shells[1] = ['X','Y','Z']
+    shells[2] = ['XX','XY','XZ','YY','YZ','ZZ']
+    shells[3] = ['XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
 
-    # print (" the o array is ", o)
-    # print (" the icount is ", icount)
+    print ("shells ", shells)
+
+    unique_elements, indices = np.unique(nucleus_label, return_index=True)
+    list_shell, list_nshells = np.unique(dict_basis["nucleus_index"], return_counts=True)
+    print ("nucleus ndex ", dict_basis["nucleus_index"])
+
+    index_radial = [[] for i in range(len(nucleus_label))]; counter = 0
+    index_primitive = [[] for i in range(len(nucleus_label))]
+    for i in range(len(nucleus_label)):
+        # number_of_shells_per_atom = list_nshells[indices[i]]
+
+        shell_ang_mom_per_atom_list = []
+        for ind, val in enumerate(dict_basis["nucleus_index"]):
+            if val == i:
+                shell_ang_mom_per_atom_list.append(dict_basis["shell_ang_mom"][ind])
+                index_radial[i].append(counter)
+                print ("i, val, ind, counter ", i, val, ind, counter)
+                # index_primitive[i].append(dict_basis["primitive_index"][ind])
+                counter += 1
+
+
+        print ("shell ang mom per atom list ", shell_ang_mom_per_atom_list)
+        print ([shells[l] for l in shell_ang_mom_per_atom_list])
+        shell_ang_mom_per_atom_count = Counter(shell_ang_mom_per_atom_list)
+
+        print ("shell_ang_mom_per_atom_count ", shell_ang_mom_per_atom_count)
+
+        total_shells = sum(shell_ang_mom_per_atom_count.values())
+        print ("total_shells for atom: ",nucleus_label[i], " is ", total_shells)
+
+        shells_per_atom = {}
+        for count in shell_ang_mom_per_atom_count:
+            shells_per_atom[count] = shell_ang_mom_per_atom_count[count]
+        print ("shells_per_atom ", shells_per_atom)
+        print ("index_radial ", index_radial)
+        print ("index_primitive ", index_primitive)
+        print ("_____________________________")
+
+
+    mo_num = dict_mo["num"]
+    cartesian = True
+    if cartesian:
+      order = [ [0],
+                [0, 1, 2],
+                [0, 1, 2, 3, 4, 5],
+                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] ]
+    else:
+        print ("Orbitals in spherical representation detected")
+        sys.exit()
+
+    o = []
+    icount = 0
+    for i in range(dict_basis["shell_num"]):
+       l = dict_basis["shell_ang_mom"][i]
+       for k in order[l]:
+          o.append( icount+k )
+       icount += len(order[l])
+
+    print (" the o array is ", o)
+    print (" the icount is ", icount)
 
 
     # to be continued from here
