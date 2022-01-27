@@ -189,6 +189,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
     for j in range(dict_basis["shell_num"]):
         i = dict_basis["shell_index"][j]
         contr[i]["exponent"]    += [ dict_basis["exponent"][j] ]
+        print ("shell num shell index ", j,i, contr[i]["exponent"])
         contr[i]["coefficient"] += [ dict_basis["coefficient"][j] ]
         contr[i]["prim_factor"] += [ dict_basis["prim_factor"][j] ]
 
@@ -282,13 +283,14 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
 
                     bgrid = compute_grid()  # Compute the grid, store the results in bgrid
 
-
+                    ### Note temp index should point to shell index of unique atoms
                     # get the exponents and coefficients of unique atom types
                     shell = 1; temp_index = 0
                     for ind, val in enumerate(dict_basis["nucleus_index"]):
                         if val == indices[i]:
                             list_contracted_exponents =  contr[temp_index]["exponent"]
                             list_contracted_coefficients =  contr[temp_index]["coefficient"]
+                            print ("atom and ind, list expo coeff, ", unique_elements[i], "temp ", temp_index, list_contracted_exponents, list_contracted_coefficients)
                             add_function(dict_basis["shell_ang_mom"][ind], list_contracted_exponents, list_contracted_coefficients, shell, bgrid)
                             shell += 1; temp_index += 1
 
