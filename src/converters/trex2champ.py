@@ -179,21 +179,48 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
     # Get the number of shells per atom
     list_shell, list_nshells = np.unique(dict_basis["nucleus_index"], return_counts=True)
 
-
-
-    # print ("dict basis ", dict_basis)
-
     contr = [ { "exponent"      : [],
                 "coefficient"   : [],
                 "prim_factor"   : []  }  for _ in range(dict_basis["shell_num"]) ]
-    for j in range(dict_basis["shell_num"]):
+    for j in range(dict_basis["prim_num"]):
         i = dict_basis["shell_index"][j]
         contr[i]["exponent"]    += [ dict_basis["exponent"][j] ]
-        print ("shell num shell index ", j,i, contr[i]["exponent"])
         contr[i]["coefficient"] += [ dict_basis["coefficient"][j] ]
         contr[i]["prim_factor"] += [ dict_basis["prim_factor"][j] ]
 
+    basis = {}
+    for k in range(len(nucleus_label)):
+        basis[k] = { "shell_ang_mom" : [],
+                    "shell_factor"  : [],
+                    "shell_index"   : [],
+                    "contr"         : [] }
 
+    for i in range(dict_basis["shell_num"]):
+        k = dict_basis["nucleus_index"][i]
+        basis[k]["shell_ang_mom"] += [ dict_basis["shell_ang_mom"][i] ]
+        basis[k]["shell_factor"]  += [ dict_basis["shell_factor"][i] ]
+        basis[k]["shell_index"]   += [ dict_basis["shell_index"][i] ]
+        basis[k]["contr"]         += [ contr[i] ]
+
+    # Get the index array of the primitives for each atom
+    index_primitive = []; counter = 0;
+    index_primitive.append(0) # The starting index of the first primitive of the first atom
+    for nucleus in range(len(nucleus_label)):
+        for l in range(len(basis[nucleus]["shell_index"])):
+            ncontr = len(basis[nucleus]["contr"][l]["exponent"])
+            counter += ncontr
+            if l == 0 and nucleus > 0:
+                index_primitive.append(counter)
+
+    # Get the index array of the shells for each atom
+    index_radial = [[] for i in range(len(nucleus_label))]; counter = 0
+    for i in range(len(nucleus_label)):
+        for ind, val in enumerate(dict_basis["nucleus_index"]):
+            if val == i:
+                index_radial[i].append(counter)
+                counter += 1
+
+    print ("test", [contr[i]["exponent"] for i in range(dict_basis["shell_num"]) ])
     # Gaussian normalization
     def gnorm(alp,l):
         norm = 1.0          # default normalization
@@ -224,7 +251,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
         # put a new function on the grid
         # The function is defined by the exponent, coefficient and type
         for i in range(gridpoints):
-            r = bgrid[shell, i]
+            r = bgrid[shell+1, i]
             r2 = r*r
             r3 = r2*r
             value = 0.0
@@ -238,7 +265,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
             elif shell_ang_mom == 3:
                 value *= r3
 
-            bgrid[shell,i] = value
+            bgrid[shell+1,i] = value
 
         return
 
@@ -285,14 +312,14 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
 
                     ### Note temp index should point to shell index of unique atoms
                     # get the exponents and coefficients of unique atom types
-                    shell = 1; temp_index = 0
+                    counter = 0
                     for ind, val in enumerate(dict_basis["nucleus_index"]):
                         if val == indices[i]:
-                            list_contracted_exponents =  contr[temp_index]["exponent"]
-                            list_contracted_coefficients =  contr[temp_index]["coefficient"]
-                            print ("atom and ind, list expo coeff, ", unique_elements[i], "temp ", temp_index, list_contracted_exponents, list_contracted_coefficients)
-                            add_function(dict_basis["shell_ang_mom"][ind], list_contracted_exponents, list_contracted_coefficients, shell, bgrid)
-                            shell += 1; temp_index += 1
+                            shell_index_unique_atom = index_radial[i][counter]
+                            list_contracted_exponents =  contr[shell_index_unique_atom]["exponent"]
+                            list_contracted_coefficients =  contr[shell_index_unique_atom]["coefficient"]
+                            add_function(dict_basis["shell_ang_mom"][ind], list_contracted_exponents, list_contracted_coefficients, counter, bgrid)
+                            counter += 1
 
 
                     # file writing part
@@ -631,11 +658,11 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     shells[2] = ['XX','XY','XZ','YY','YZ','ZZ']
     shells[3] = ['XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
 
-    print ("shells ", shells)
+    # print ("shells ", shells)
 
     unique_elements, indices = np.unique(nucleus_label, return_index=True)
     list_shell, list_nshells = np.unique(dict_basis["nucleus_index"], return_counts=True)
-    print ("nucleus ndex ", dict_basis["nucleus_index"])
+    # print ("nucleus ndex ", dict_basis["nucleus_index"])
 
     index_radial = [[] for i in range(len(nucleus_label))]; counter = 0
     index_primitive = [[] for i in range(len(nucleus_label))]
@@ -647,27 +674,27 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
             if val == i:
                 shell_ang_mom_per_atom_list.append(dict_basis["shell_ang_mom"][ind])
                 index_radial[i].append(counter)
-                print ("i, val, ind, counter ", i, val, ind, counter)
-                # index_primitive[i].append(dict_basis["primitive_index"][ind])
+                # print ("i, val, ind, counter ", i, val, ind, counter)
+                index_primitive[i].append(dict_basis["shell_index"][ind])
                 counter += 1
 
 
-        print ("shell ang mom per atom list ", shell_ang_mom_per_atom_list)
-        print ([shells[l] for l in shell_ang_mom_per_atom_list])
+        # print ("shell ang mom per atom list ", shell_ang_mom_per_atom_list)
+        # print ([shells[l] for l in shell_ang_mom_per_atom_list])
         shell_ang_mom_per_atom_count = Counter(shell_ang_mom_per_atom_list)
 
-        print ("shell_ang_mom_per_atom_count ", shell_ang_mom_per_atom_count)
+        # print ("shell_ang_mom_per_atom_count ", shell_ang_mom_per_atom_count)
 
         total_shells = sum(shell_ang_mom_per_atom_count.values())
-        print ("total_shells for atom: ",nucleus_label[i], " is ", total_shells)
+        # print ("total_shells for atom: ",nucleus_label[i], " is ", total_shells)
 
         shells_per_atom = {}
         for count in shell_ang_mom_per_atom_count:
             shells_per_atom[count] = shell_ang_mom_per_atom_count[count]
-        print ("shells_per_atom ", shells_per_atom)
-        print ("index_radial ", index_radial)
-        print ("index_primitive ", index_primitive)
-        print ("_____________________________")
+        # print ("shells_per_atom ", shells_per_atom)
+        # print ("index_radial ", index_radial)
+        # print ("index_primitive from orbital ", index_primitive)
+        # print ("_____________________________")
 
 
     mo_num = dict_mo["num"]
