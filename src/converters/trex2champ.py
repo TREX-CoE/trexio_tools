@@ -220,7 +220,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
                 index_radial[i].append(counter)
                 counter += 1
 
-    print ("test", [contr[i]["exponent"] for i in range(dict_basis["shell_num"]) ])
+
     # Gaussian normalization
     def gnorm(alp,l):
         norm = 1.0          # default normalization
@@ -315,7 +315,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
                     counter = 0
                     for ind, val in enumerate(dict_basis["nucleus_index"]):
                         if val == indices[i]:
-                            shell_index_unique_atom = index_radial[i][counter]
+                            shell_index_unique_atom = index_radial[indices[i]][counter]
                             list_contracted_exponents =  contr[shell_index_unique_atom]["exponent"]
                             list_contracted_coefficients =  contr[shell_index_unique_atom]["coefficient"]
                             add_function(dict_basis["shell_ang_mom"][ind], list_contracted_exponents, list_contracted_coefficients, counter, bgrid)
