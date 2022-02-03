@@ -6,6 +6,8 @@ convert output of GAMESS/GAU$$IAN to trexio
 import sys
 import os
 from functools import reduce
+import converters.cart_sphe as cart_sphe
+import numpy as np
 
 try:
     import trexio
@@ -168,6 +170,109 @@ def run_molden(t, filename):
     return
 
 
+
+
+def run_cart_phe(inp, filename, cartesian):
+    out = trexio.File(filename, 'u', inp.back_end)
+
+    shell_ang_mom = trexio.read_basis_shell_ang_mom(inp)
+
+    # Build rotation matrix
+    count_sphe = 0
+    count_cart = 0
+    accu = []
+    shell = []
+    for i, l in enumerate(shell_ang_mom):
+      p, r = count_cart, count_sphe
+      (x,y) = cart_sphe.data[l].shape
+      count_cart += x
+      count_sphe += y
+      q, s = count_cart, count_sphe
+      accu.append( (l, p,q, r,s) )
+      if cartesian > 0: n = x
+      else: n = y
+      for _ in range(n):
+          shell.append(i)
+
+    R = np.zeros( (count_cart, count_sphe) )
+    for (l, p,q, r,s) in accu:
+      R[p:q,r:s] = cart_sphe.data[l]
+
+    if cartesian > 0:
+      R = R.T
+    else:
+      R = np.linalg.pinv(R)
+
+    # Update AOs
+    trexio.write_ao_cartesian(out, cartesian)
+    trexio.write_ao_num(out, len(shell))
+    trexio.write_ao_shell(out, shell)
+
+    if trexio.has_ao_normalization(inp):
+      X = trexio.read_ao_normalization(inp)
+      trexio.write_ao_normalization(out, X @ R)
+
+    # Update MOs
+    if trexio.has_mo_coefficient(inp):
+      X = trexio.read_mo_coefficient(inp)
+      trexio.write_mo_coefficient(out, X @ R )
+
+    # Update 1e Integrals
+    if trexio.has_ao_1e_int_overlap(inp):
+      X = trexio.read_ao_1e_int_overlap(inp)
+      trexio.write_ao_1e_int_overlap(out, X @ R)
+
+    if trexio.has_ao_1e_int_kinetic(inp):
+      X = trexio.read_ao_1e_int_kinetic(inp)
+      trexio.write_ao_1e_int_kinetic(out, X @ R)
+
+    if trexio.has_ao_1e_int_potential_n_e(inp):
+      X = trexio.read_ao_1e_int_potential_n_e(inp)
+      trexio.write_ao_1e_int_potential_n_e(out, X @ R)
+
+    if trexio.has_ao_1e_int_ecp_local(inp):
+      X = trexio.read_ao_1e_int_ecp_local(inp)
+      trexio.write_ao_1e_int_ecp_local(out, X @ R)
+
+    if trexio.has_ao_1e_int_ecp_local(inp):
+      X = trexio.read_ao_1e_int_ecp_non_local(inp)
+      trexio.write_ao_1e_int_ecp_non_local(out, X @ R)
+
+    if trexio.has_ao_1e_int_core_hamiltonian(inp):
+      X = trexio.read_ao_1e_int_core_hamiltonian(inp)
+      trexio.write_ao_1e_int_core_hamiltonian(out, X @ R)
+
+    # Remove 2e integrals
+    if trexio.has_ao_2e_int_eri(inp):
+      trexio.delete_ao_2e_int_eri(out)
+
+    if trexio.has_ao_2e_int_eri_lr(inp):
+      trexio.delete_ao_2e_int_eri_lr(out)
+
+
+def run_cartesian(t, filename):
+    # Start by copying the file
+    os.system('cp %s %s' % (t.filename, filename))
+    cartesian = trexio.read_ao_cartesian(t)
+    if cartesian > 0:
+        return
+
+    run_cart_phe(t, filename, cartesian=1)
+    return
+
+
+def run_spherical(t, filename):
+    # Start by copying the file
+    os.system('cp %s %s' % (t.filename, filename))
+    cartesian = trexio.read_ao_cartesian(t)
+    if cartesian == 0:
+        return
+
+    run_cart_phe(t, filename, cartesian=0)
+    return
+
+
+
 def run(trexio_filename, filename, filetype):
 
     try:
@@ -177,6 +282,11 @@ def run(trexio_filename, filename, filetype):
 
     if filetype.lower() == "molden":
         run_molden(trexio_file, filename)
+    elif filetype.lower() == "cartesian":
+        run_cartesian(trexio_file, filename)
+    elif filetype.lower() == "spherical":
+        run_spherical(trexio_file, filename)
+#    elif filetype.lower() == "gamess":
 #    elif filetype.lower() == "gamess":
 #        run_resultsFile(trexio_file, filename)
 #    elif filetype.lower() == "fcidump":

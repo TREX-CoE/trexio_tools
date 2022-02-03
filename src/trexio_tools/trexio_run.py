@@ -14,7 +14,7 @@ Options:
       -i --input=input_file        Name of the input file 
       -o --output=output_file      Name of the output file 
       -b --back_end=[hdf5 | text]  The TREXIO back end. Default is hdf5.
-      -t --type=[gaussian | gamess | fcidump | molden | champ]
+      -t --type=[gaussian | gamess | fcidump | molden | champ | cartesian | spherical ]
                                    File format
 """
 

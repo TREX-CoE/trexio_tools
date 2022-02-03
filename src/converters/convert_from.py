@@ -260,7 +260,6 @@ def run_resultsFile(trexio_filename, filename, back_end):
     accu.sort()
     ao_ordering += accu
 
-    print(ao_ordering)
     ao_ordering = [ i for (_,i,_) in ao_ordering ]
 
     # Normalization
