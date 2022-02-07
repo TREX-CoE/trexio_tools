@@ -421,7 +421,6 @@ def write_champ_file_determinants(filename, file):
 
     # Get the core+active space
     for det in range(len(det_coeff[0])): #reduced_list_determintants:
-        print ("det ", det)
         alpha = file.determinants[det].get("alpha")
         beta = file.determinants[det].get("beta")
         maxalpha = max(alpha); maxbeta = max(beta)
@@ -457,8 +456,6 @@ def write_champ_file_determinants(filename, file):
             flat_array_coeff.append(file._csf[i].coefficients[ind])
             temp_counter += 1
 
-    print ("flat array coeff", flat_array_coeff)
-
     ## Do the preprocessing to reduce the number of determinants and get the CSF mapping
     reduced_det_coefficients = []
     csf = file.csf
@@ -469,32 +466,22 @@ def write_champ_file_determinants(filename, file):
         counter = 0; counter2 = 0       # Counter2 is required for keeping correspondence of determinants in the reduced list
         for i,c in enumerate(state_coef):
             for d in csf[i].coefficients:
-                print ("all ", len(csf[i].coefficients),  csf[i].coefficients)
                 temp = 0.0
                 indices = [i for i, x in enumerate(file.determinants) if x == file.determinants[counter]]
-                print ("indices matching dets ", counter, indices)
                 if counter == indices[0]:
                     counter2 += 1
-                    print ("counter2 ", counter2)
                     copy_list_determintants.append(counter2)
                     reduced_list_determintants.append(indices[0])
                     for index in indices:
-                        print ("index in indices ", index, temp)
                         if len(indices) == 1:
-                            print ("i, index c, d,       ", i, index, c, flat_array_coeff[index])
                             temp =  c * flat_array_coeff[index]
                         else:
-                            print ("i, index c, d, accum ", i, index, c, flat_array_coeff[index])
                             temp += c * flat_array_coeff[index]
                     vector.append(temp)
-                    print ("tmp i", i, temp)
-                    print ("________________")
                 else:
                     copy_list_determintants.append(indices[0])
                 counter += 1
         reduced_det_coefficients.append(vector)
-
-
 
 
     if filename is not None:
@@ -545,8 +532,6 @@ def write_champ_file_determinants(filename, file):
                         for d in csf[i].coefficients:
                             csf_det_coeff.append(d)
 
-                print ("csf det coeff ", csf_det_coeff)
-                print ("csf phaseoeff ", qmc_phase_factor, len(qmc_phase_factor))
 
                 for state in range(num_states):
                     i = 0
