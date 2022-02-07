@@ -404,14 +404,9 @@ def write_champ_file_determinants(filename, file):
     Returns:
         None as a function value
     """
+    import copy
     det_coeff = file.det_coefficients
     csf_coeff = file.csf_coefficients
-
-    print ("raw det_coeff", det_coeff)
-    print ("raw csf coefficients", csf_coeff)
-
-    for i in range(len(file._csf)):
-        print ("raw _csf ", i, file._csf[i].coefficients)
 
     # determinants_per_csf, csf_det_coeff = file.get_dets_per_csf()
     # print ("determinants_per_csf: write module ", determinants_per_csf)
@@ -454,44 +449,46 @@ def write_champ_file_determinants(filename, file):
                     if occupation[k] == "a" or occupation[k] == "ab":
                         phase_count += 1
         qmc_phase_factor.append((-1)**phase_count)
-        print ("phase count and factor ", phase_count, qmc_phase_factor[-1])
-        print ("length of phase ", len(qmc_phase_factor))
 
-    temp_counter = 0
+    temp_counter = 0; flat_array_coeff=[]
     for i in range(len(file._csf)):
         for ind, coeff in enumerate(file._csf[i].coefficients):
-            print ("as it is ", i, ind, file._csf[i].coefficients[ind])
             file._csf[i].coefficients[ind] = file._csf[i].coefficients[ind]*qmc_phase_factor[temp_counter]
-            print ("tempo change ", i, ind, temp_counter, file._csf[i].coefficients[ind])
+            flat_array_coeff.append(file._csf[i].coefficients[ind])
             temp_counter += 1
 
-    for i in range(len(file._csf)):
-        print ("raw _csf updated ", i, file._csf[i].coefficients)
+    print ("flat array coeff", flat_array_coeff)
 
     ## Do the preprocessing to reduce the number of determinants and get the CSF mapping
     reduced_det_coefficients = []
     csf = file.csf
     reduced_list_determintants = []
     copy_list_determintants = []
-    print ("comparison csf_coefficients ", file.csf_coefficients)
     for state_coef in file.csf_coefficients:
         vector = []
         counter = 0; counter2 = 0       # Counter2 is required for keeping correspondence of determinants in the reduced list
         for i,c in enumerate(state_coef):
             for d in csf[i].coefficients:
+                print ("all ", len(csf[i].coefficients),  csf[i].coefficients)
                 temp = 0.0
                 indices = [i for i, x in enumerate(file.determinants) if x == file.determinants[counter]]
-                print ("indices matching dets ", indices)
+                print ("indices matching dets ", counter, indices)
                 if counter == indices[0]:
                     counter2 += 1
+                    print ("counter2 ", counter2)
                     copy_list_determintants.append(counter2)
                     reduced_list_determintants.append(indices[0])
                     for index in indices:
+                        print ("index in indices ", index, temp)
                         if len(indices) == 1:
-                            temp =  c * d
+                            print ("i, index c, d,       ", i, index, c, flat_array_coeff[index])
+                            temp =  c * flat_array_coeff[index]
                         else:
-                            temp += c * d
+                            print ("i, index c, d, accum ", i, index, c, flat_array_coeff[index])
+                            temp += c * flat_array_coeff[index]
                     vector.append(temp)
+                    print ("tmp i", i, temp)
+                    print ("________________")
                 else:
                     copy_list_determintants.append(indices[0])
                 counter += 1
