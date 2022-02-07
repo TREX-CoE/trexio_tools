@@ -59,6 +59,7 @@ except:
     sys.exit(1)
 
 try:
+    sys.path.append('/home/ravindra/trial/resultsFile')
     import resultsFile
 except:
     print("Error: The resultsFile Python library is not installed")
@@ -405,6 +406,13 @@ def write_champ_file_determinants(filename, file):
     """
     det_coeff = file.det_coefficients
     csf_coeff = file.csf_coefficients
+
+    print ("raw det_coeff", det_coeff)
+    print ("raw csf coefficients", csf_coeff)
+
+    for i in range(len(file._csf)):
+        print ("raw _csf ", i, file._csf[i].coefficients)
+
     # determinants_per_csf, csf_det_coeff = file.get_dets_per_csf()
     # print ("determinants_per_csf: write module ", determinants_per_csf)
     num_csf = len(csf_coeff[0])
@@ -416,11 +424,56 @@ def write_champ_file_determinants(filename, file):
     alpha_orbitals = np.sort(file.determinants[0].get("alpha"))
     beta_orbitals = np.sort(file.determinants[0].get("beta"))
 
+    # Get the core+active space
+    for det in range(len(det_coeff[0])): #reduced_list_determintants:
+        print ("det ", det)
+        alpha = file.determinants[det].get("alpha")
+        beta = file.determinants[det].get("beta")
+        maxalpha = max(alpha); maxbeta = max(beta)
+
+    qmc_phase_factor = []
+    for det in range(len(det_coeff[0])): #reduced_list_determintants:
+        alpha = file.determinants[det].get("alpha")
+        beta = file.determinants[det].get("beta")
+
+        alpha_occup = np.zeros(maxalpha+1,dtype=str)
+        beta_occup  = np.zeros(maxbeta+1,dtype=str)
+
+        for a in alpha:
+            alpha_occup[a] = "a"
+        for b in beta:
+            beta_occup[b]  = "b"
+
+        occupation = [x[0]+x[1] for x in zip(alpha_occup, beta_occup)]
+
+        phase_count = 0
+
+        for j in range(len(occupation)):
+            if occupation[j] == "b" or occupation[j] == "ab":
+                for k in range(j+1,len(occupation)):
+                    if occupation[k] == "a" or occupation[k] == "ab":
+                        phase_count += 1
+        qmc_phase_factor.append((-1)**phase_count)
+        print ("phase count and factor ", phase_count, qmc_phase_factor[-1])
+        print ("length of phase ", len(qmc_phase_factor))
+
+    temp_counter = 0
+    for i in range(len(file._csf)):
+        for ind, coeff in enumerate(file._csf[i].coefficients):
+            print ("as it is ", i, ind, file._csf[i].coefficients[ind])
+            file._csf[i].coefficients[ind] = file._csf[i].coefficients[ind]*qmc_phase_factor[temp_counter]
+            print ("tempo change ", i, ind, temp_counter, file._csf[i].coefficients[ind])
+            temp_counter += 1
+
+    for i in range(len(file._csf)):
+        print ("raw _csf updated ", i, file._csf[i].coefficients)
+
     ## Do the preprocessing to reduce the number of determinants and get the CSF mapping
     reduced_det_coefficients = []
     csf = file.csf
     reduced_list_determintants = []
     copy_list_determintants = []
+    print ("comparison csf_coefficients ", file.csf_coefficients)
     for state_coef in file.csf_coefficients:
         vector = []
         counter = 0; counter2 = 0       # Counter2 is required for keeping correspondence of determinants in the reduced list
@@ -428,6 +481,7 @@ def write_champ_file_determinants(filename, file):
             for d in csf[i].coefficients:
                 temp = 0.0
                 indices = [i for i, x in enumerate(file.determinants) if x == file.determinants[counter]]
+                print ("indices matching dets ", indices)
                 if counter == indices[0]:
                     counter2 += 1
                     copy_list_determintants.append(counter2)
@@ -442,6 +496,8 @@ def write_champ_file_determinants(filename, file):
                     copy_list_determintants.append(indices[0])
                 counter += 1
         reduced_det_coefficients.append(vector)
+
+
 
 
     if filename is not None:
@@ -491,6 +547,9 @@ def write_champ_file_determinants(filename, file):
                         determinants_per_csf.append(len(csf[i].coefficients))
                         for d in csf[i].coefficients:
                             csf_det_coeff.append(d)
+
+                print ("csf det coeff ", csf_det_coeff)
+                print ("csf phaseoeff ", qmc_phase_factor, len(qmc_phase_factor))
 
                 for state in range(num_states):
                     i = 0
