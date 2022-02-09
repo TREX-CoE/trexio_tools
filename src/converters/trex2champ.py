@@ -144,7 +144,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     write_champ_file_symmetry(filename, dict_mo)
 
     # Write the .orb / .lcao file containing orbital information of MOs
-    # write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_label)
+    write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_label)
 
 
 
@@ -407,7 +407,7 @@ def write_champ_file_determinants(filename, file):
     import copy
     det_coeff = file.det_coefficients
     csf_coeff = file.csf_coefficients
-    
+
     num_csf = len(csf_coeff[0])
     num_states = file.num_states
     num_dets = len(det_coeff[0])
@@ -468,17 +468,17 @@ def write_champ_file_determinants(filename, file):
             for d in csf[i].coefficients:
                 temp = 0.0
                 indices = [i for i, x in enumerate(file.determinants) if x == file.determinants[counter]]
-                print ("indices ", indices)
+                # print ("indices ", indices)
                 if counter == indices[0]:
-                    print ("counter2", counter2)
+                    # print ("counter2", counter2)
                     copy_list_determintants.append(counter2)
-                    counter2 += 1                    
+                    counter2 += 1
                     reduced_list_determintants.append(indices[0])
                     for index in indices:
                         if len(indices) == 1:
                             temp =  c * flat_array_coeff[index]
                         else:
-                            print ("special index, ccsf, coeff ", index, c, flat_array_coeff[index])
+                            # print ("special index, ccsf, coeff ", index, c, flat_array_coeff[index])
                             temp += c * flat_array_coeff[index]
                     vector.append(temp)
                 else:
@@ -684,8 +684,10 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     print ("MO coeff type ", type(mocoeff))
 
 
-    for i in range(len(mocoeff)):
-        print ( [mocoeff[i][j] for j in range(len(mocoeff[i])) ])
+    # for j in range(len(mocoeff)):
+        # print ( [mocoeff[i][j] for j in range(len(mocoeff[i])) ])
+    np.set_printoptions(suppress=True)
+    print("first mo only ", mocoeff[0] )
 
 
     ## Cartesian Ordering CHAMP
@@ -699,7 +701,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     shells[2] = ['XX','XY','XZ','YY','YZ','ZZ']
     shells[3] = ['XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
 
-    # print ("shells ", shells)
+    print ("shells ", shells)
 
     contr = [ { "exponent"      : [],
                 "coefficient"   : [],
@@ -780,15 +782,13 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
 
     print ("index_radial ", index_radial)
     print ("index_primitive from orbital ", index_primitive)
-    print ("                  basis[atom]['contr'][shell]['exponent']")
-    print ("basis k contr ", basis[0]["contr"][6]["exponent"])
     print ("_____________________________")
 
 
     mo_num = dict_mo["num"]
     cartesian = True
     if cartesian:
-      order = [ [0],
+        order = [ [0],
                 [0, 1, 2],
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] ]
@@ -796,16 +796,60 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         print ("Orbitals in spherical representation detected")
         sys.exit()
 
-    o = []
+    print ("TREXIO ordering accoring to the webpage of trexio")
+    o = []; shell_reprensentation = []
     icount = 0
     for i in range(dict_basis["shell_num"]):
-       l = dict_basis["shell_ang_mom"][i]
-       for k in order[l]:
-          o.append( icount+k )
-       icount += len(order[l])
+        # print ("index i of shell number ", i)
+        l = dict_basis["shell_ang_mom"][i]
+        # print ("shell ang mom l ", l)
+        for k in order[l]:
+            o.append( icount+k )
+            shell_reprensentation.append( shells[l][k] )
+        icount += len(order[l])
 
-    print (" the o array is ", o)
+    print (" the TREXIO o array is     ", o)
+    print (" the TREXIO shell array is ", shell_reprensentation)
     print (" the icount is ", icount)
+
+
+
+#   Count how many times l = 1 appears for a given atom
+    dict_pshell_count = {}
+    for atom_index in range(len(index_radial)):
+        counter = 0
+        for i in range(len(index_radial[atom_index])):
+            l = dict_basis["shell_ang_mom"][i]
+            if l == 1:
+                counter += 1
+        dict_pshell_count[atom_index] = counter
+
+
+
+    index_dict = {}; shell_reprensentation = {}
+    icount = 0; counter = 0
+    for atom_index in range(len(index_radial)):
+        for i in range(len(index_radial[atom_index])):
+            l = dict_basis["shell_ang_mom"][i]
+            # run a small loop to reshuffle the shell ordering
+            for k in order[l]:
+                if l == 1:
+                    for ind in range(dict_pshell_count[atom_index]):
+                        index_dict[counter+3*ind] =  icount + k
+                        shell_reprensentation[counter+3*ind] = shells[l][k]
+                        icount += 1
+
+                    counter += 1
+                else:
+                        index_dict[counter] =  icount+k
+                        shell_reprensentation[counter] = shells[l][k]
+                        counter += 1
+                icount += len(order[l])
+
+    print (" the CHAMP ordering array is     ", index_dict.keys(), len(index_dict.keys()))
+    print (" the CHAMP shell array is ", shell_reprensentation.values())
+
+
 
 
     # to be continued from here
