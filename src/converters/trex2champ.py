@@ -156,7 +156,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     ## Champ-specific file basis on the grid
     write_champ_file_basis_grid(filename, dict_basis, nucleus_label)
     # write_champ_file_bfinfo(filename, dict_basis,nucleus_label)
-    write_champ_file_determinants(filename, file)
+    # write_champ_file_determinants(filename, file)
 
     return
 
@@ -407,9 +407,7 @@ def write_champ_file_determinants(filename, file):
     import copy
     det_coeff = file.det_coefficients
     csf_coeff = file.csf_coefficients
-
-    # determinants_per_csf, csf_det_coeff = file.get_dets_per_csf()
-    # print ("determinants_per_csf: write module ", determinants_per_csf)
+    
     num_csf = len(csf_coeff[0])
     num_states = file.num_states
     num_dets = len(det_coeff[0])
@@ -461,21 +459,26 @@ def write_champ_file_determinants(filename, file):
     csf = file.csf
     reduced_list_determintants = []
     copy_list_determintants = []
+
     for state_coef in file.csf_coefficients:
         vector = []
         counter = 0; counter2 = 0       # Counter2 is required for keeping correspondence of determinants in the reduced list
         for i,c in enumerate(state_coef):
+            print ("i c", i, c)
             for d in csf[i].coefficients:
                 temp = 0.0
                 indices = [i for i, x in enumerate(file.determinants) if x == file.determinants[counter]]
+                print ("indices ", indices)
                 if counter == indices[0]:
-                    counter2 += 1
+                    print ("counter2", counter2)
                     copy_list_determintants.append(counter2)
+                    counter2 += 1                    
                     reduced_list_determintants.append(indices[0])
                     for index in indices:
                         if len(indices) == 1:
                             temp =  c * flat_array_coeff[index]
                         else:
+                            print ("special index, ccsf, coeff ", index, c, flat_array_coeff[index])
                             temp += c * flat_array_coeff[index]
                     vector.append(temp)
                 else:
@@ -538,7 +541,7 @@ def write_champ_file_determinants(filename, file):
                     for csf in range(num_csf):
                         f.write(f"{determinants_per_csf[csf]:d} \n")
                         for num in range(determinants_per_csf[csf]):
-                            f.write(f"  {copy_list_determintants[i]}  {csf_det_coeff[i]:.6f} \n")
+                            f.write(f"  {copy_list_determintants[i]+1}  {csf_det_coeff[i]:.6f} \n")
                             i += 1
                 f.write("end \n")
 
