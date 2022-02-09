@@ -846,9 +846,16 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                         counter += 1
                 icount += len(order[l])
 
-    print (" the CHAMP ordering array is     ", index_dict.keys(), len(index_dict.keys()))
     print (" the CHAMP shell array is ", shell_reprensentation.values())
 
+
+    ## Reorder orbitals according to the ordering of the CHAMP ordering
+    champ_ao_ordering = list(index_dict.keys())
+    print (" the CHAMP ordering array is     ", champ_ao_ordering)
+
+    reordered_mo_array = dict_mo["coefficient"][:,champ_ao_ordering]
+
+    print ("the reordered MO array is ", reordered_mo_array[0:5])
 
 
 
@@ -863,7 +870,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                 # header line printed below
                 file.write("# File created using the trex2champ converter https://github.com/TREX-CoE/trexio_tools  \n")
                 file.write("lcao " + str(dict_mo["num"]) + " " + str(ao_num) + " 1 " + "\n" )
-                np.savetxt(file, dict_mo["coefficient"], fmt='%.8f')
+                np.savetxt(file, reordered_mo_array, fmt='%.8f')
                 file.write("end\n")
             file.close()
         else:
