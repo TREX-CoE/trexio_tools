@@ -680,18 +680,8 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         None as a function value
     """
 
-    mocoeff = dict_mo["coefficient"]
-    print ("MO coeff type ", type(mocoeff))
-
-
-    # for j in range(len(mocoeff)):
-        # print ( [mocoeff[i][j] for j in range(len(mocoeff[i])) ])
-    np.set_printoptions(suppress=True)
-    print("first mo only ", mocoeff[0] )
-
-
     ## Cartesian Ordering CHAMP
-    basis_order = ['S','X','Y','Z','XX','XY','XZ','YY','YZ','ZZ','XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
+    # basis_order = ['S',[all 'X'],[all 'Y'],[all 'Z'],'XX','XY','XZ','YY','YZ','ZZ','XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
     # sequence of flags in qmc input
     label_ang_mom = {0:'S', 1:'P', 2:'D', 3:'F', 4:'G', 5:'H'}
 
@@ -700,8 +690,6 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     shells[1] = ['X','Y','Z']
     shells[2] = ['XX','XY','XZ','YY','YZ','ZZ']
     shells[3] = ['XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
-
-    print ("shells ", shells)
 
     contr = [ { "exponent"      : [],
                 "coefficient"   : [],
@@ -745,46 +733,6 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                 counter += 1
 
 
-
-
-
-    # unique_elements, indices = np.unique(nucleus_label, return_index=True)
-    # list_shell, list_nshells = np.unique(dict_basis["nucleus_index"], return_counts=True)
-    # # print ("nucleus ndex ", dict_basis["nucleus_index"])
-
-    # index_radial = [[] for i in range(len(nucleus_label))]; counter = 0
-    # index_primitive = [[] for i in range(len(nucleus_label))]
-    # for i in range(len(nucleus_label)):
-    #     # number_of_shells_per_atom = list_nshells[indices[i]]
-
-    #     shell_ang_mom_per_atom_list = []
-    #     for ind, val in enumerate(dict_basis["nucleus_index"]):
-    #         if val == i:
-    #             shell_ang_mom_per_atom_list.append(dict_basis["shell_ang_mom"][ind])
-    #             index_radial[i].append(counter)
-    #             # print ("i, val, ind, counter ", i, val, ind, counter)
-    #             index_primitive[i].append(dict_basis["shell_index"][ind])
-    #             counter += 1
-
-    #     # print ("shell ang mom per atom list ", shell_ang_mom_per_atom_list)
-    #     # print ([shells[l] for l in shell_ang_mom_per_atom_list])
-    #     shell_ang_mom_per_atom_count = Counter(shell_ang_mom_per_atom_list)
-
-    #     # print ("shell_ang_mom_per_atom_count ", shell_ang_mom_per_atom_count)
-
-    #     total_shells = sum(shell_ang_mom_per_atom_count.values())
-    #     # print ("total_shells for atom: ",nucleus_label[i], " is ", total_shells)
-
-    #     shells_per_atom = {}
-    #     for count in shell_ang_mom_per_atom_count:
-    #         shells_per_atom[count] = shell_ang_mom_per_atom_count[count]
-    #     # print ("shells_per_atom ", shells_per_atom)
-
-    print ("index_radial ", index_radial)
-    print ("index_primitive from orbital ", index_primitive)
-    print ("_____________________________")
-
-
     mo_num = dict_mo["num"]
     cartesian = True
     if cartesian:
@@ -796,21 +744,19 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         print ("Orbitals in spherical representation detected")
         sys.exit()
 
-    print ("TREXIO ordering accoring to the webpage of trexio")
-    o = []; shell_reprensentation = []
-    icount = 0
-    for i in range(dict_basis["shell_num"]):
-        # print ("index i of shell number ", i)
-        l = dict_basis["shell_ang_mom"][i]
-        # print ("shell ang mom l ", l)
-        for k in order[l]:
-            o.append( icount+k )
-            shell_reprensentation.append( shells[l][k] )
-        icount += len(order[l])
+    # print ("TREXIO ordering accoring to the webpage of trexio")
+    # o = []; shell_reprensentation = []
+    # icount = 0
+    # for i in range(dict_basis["shell_num"]):
+    #     l = dict_basis["shell_ang_mom"][i]
+    #     for k in order[l]:
+    #         o.append( icount+k )
+    #         shell_reprensentation.append( shells[l][k] )
+    #     icount += len(order[l])
 
-    print (" the TREXIO o array is     ", o)
-    print (" the TREXIO shell array is ", shell_reprensentation)
-    print (" the icount is ", icount)
+    # print (" the TREXIO o array is     ", o)
+    # print (" the TREXIO shell array is ", shell_reprensentation)
+
 
 
 
@@ -825,7 +771,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         dict_pshell_count[atom_index] = counter
 
 
-
+#   Get the shuffled list of indices which CHAMP needs
     index_dict = {}; shell_reprensentation = {}
     icount = 0; counter = 0
     for atom_index in range(len(index_radial)):
@@ -838,7 +784,6 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                         index_dict[counter+3*ind] =  icount + k
                         shell_reprensentation[counter+3*ind] = shells[l][k]
                         icount += 1
-
                     counter += 1
                 else:
                         index_dict[counter] =  icount+k
@@ -846,25 +791,16 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                         counter += 1
                 icount += len(order[l])
 
-    print (" the CHAMP shell array is ", shell_reprensentation.values())
-
 
     ## Reorder orbitals according to the ordering of the CHAMP ordering
     champ_ao_ordering = list(index_dict.keys())
-    print (" the CHAMP ordering array is     ", champ_ao_ordering)
-
     reordered_mo_array = dict_mo["coefficient"][:,champ_ao_ordering]
 
-    print ("the reordered MO array is ", reordered_mo_array[0:5])
-
-
-
-    # to be continued from here
-
+    # write to the file
     if filename is not None:
         if isinstance(filename, str):
             ## Write down an orbitals file in the new champ v2.0 format
-            filename_orbitals = os.path.splitext("champ_v2_" + filename)[0]+'_orbitals.orb'
+            filename_orbitals = os.path.splitext("champ_v2_" + filename)[0]+'_orbitals.lcao'
             with open(filename_orbitals, 'w') as file:
 
                 # header line printed below
