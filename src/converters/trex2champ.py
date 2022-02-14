@@ -155,7 +155,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     write_champ_file_eigenvalues(filename, file, "GUGA")
     ## Champ-specific file basis on the grid
     write_champ_file_basis_grid(filename, dict_basis, nucleus_label)
-    # write_champ_file_bfinfo(filename, dict_basis,nucleus_label)
+    write_champ_file_bfinfo(filename, dict_basis, nucleus_label)
     # write_champ_file_determinants(filename, file)
 
     return
@@ -384,7 +384,7 @@ def write_champ_file_bfinfo(filename,dict_basis,nucleus_label):
                             # print ("i, k ", i, k)
 
                     for pointer in list_shells_per_atom:
-                        file.write(f"{pointer} ")
+                        file.write(f"{pointer+1} ")
                     file.write(f"\n")
 
             file.close()
@@ -715,7 +715,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         basis[k]["contr"]         += [ contr[i] ]
 
     # Get the index array of the primitives for each atom
-    index_primitive = []; counter = 0;
+    index_primitive = []; counter = 0
     index_primitive.append(0) # The starting index of the first primitive of the first atom
     for nucleus in range(len(nucleus_label)):
         for l in range(len(basis[nucleus]["shell_index"])):
@@ -744,21 +744,6 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         print ("Orbitals in spherical representation detected")
         sys.exit()
 
-    # print ("TREXIO ordering accoring to the webpage of trexio")
-    # o = []; shell_reprensentation = []
-    # icount = 0
-    # for i in range(dict_basis["shell_num"]):
-    #     l = dict_basis["shell_ang_mom"][i]
-    #     for k in order[l]:
-    #         o.append( icount+k )
-    #         shell_reprensentation.append( shells[l][k] )
-    #     icount += len(order[l])
-
-    # print (" the TREXIO o array is     ", o)
-    # print (" the TREXIO shell array is ", shell_reprensentation)
-
-
-
 
 #   Count how many times l = 1 appears for a given atom
     dict_pshell_count = {}
@@ -772,29 +757,36 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
 
 
 #   Get the shuffled list of indices which CHAMP needs
-    index_dict = {}; shell_reprensentation = {}
+    index_dict = {}; shell_reprensentation = {}; bf_representation = {}
     icount = 0; counter = 0
     for atom_index in range(len(index_radial)):
+        bfcounter = 1
         for i in range(len(index_radial[atom_index])):
             l = dict_basis["shell_ang_mom"][i]
             # run a small loop to reshuffle the shell ordering
             for k in order[l]:
                 if l == 1:
                     for ind in range(dict_pshell_count[atom_index]):
+                        # print ("bf counter", bfcounter)
+                        bf_representation[counter] = bfcounter
                         index_dict[counter+3*ind] =  icount + k
                         shell_reprensentation[counter+3*ind] = shells[l][k]
                         icount += 1
                     counter += 1
                 else:
+                        bf_representation[counter] = bfcounter
                         index_dict[counter] =  icount+k
                         shell_reprensentation[counter] = shells[l][k]
                         counter += 1
                 icount += len(order[l])
-
+            bfcounter += 1
 
     ## Reorder orbitals according to the ordering of the CHAMP ordering
     champ_ao_ordering = list(index_dict.keys())
     reordered_mo_array = dict_mo["coefficient"][:,champ_ao_ordering]
+
+    reordered_bf_array = {k: bf_representation[k] for k in champ_ao_ordering}
+    # print ("reordered_bf_array", reordered_bf_array.values())
 
     # write to the file
     if filename is not None:
