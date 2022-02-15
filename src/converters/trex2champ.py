@@ -155,7 +155,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     write_champ_file_eigenvalues(filename, file, "GUGA")
     ## Champ-specific file basis on the grid
     write_champ_file_basis_grid(filename, dict_basis, nucleus_label)
-    write_champ_file_bfinfo(filename, dict_basis, nucleus_label)
+    # write_champ_file_bfinfo(filename, dict_basis, nucleus_label)
     # write_champ_file_determinants(filename, file)
 
     return
@@ -333,68 +333,6 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
     # If filename is None, return a string representation of the output.
     else:
         return None
-
-
-# Symmetry
-def write_champ_file_bfinfo(filename,dict_basis,nucleus_label):
-    """Writes the basis information of molecular orbitals from the quantum
-    chemistry calculation to the new champ v2.0 input file format.
-
-    Returns:
-        None as a function value
-    """
-    ## Cartesian Ordering
-    basis_order = ['S','X','Y','Z','XX','XY','XZ','YY','YZ','ZZ','XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
-    # sequence of flags in qmc input
-    label_ang_mom = {0:'S', 1:'P', 2:'D', 3:'F', 4:'G', 5:'H'}
-
-    shells = {}
-    shells[0] = ['S']
-    shells[1] = ['X','Y','Z']
-    shells[2] = ['XX','XY','XZ','YY','YZ','ZZ']
-    shells[3] = ['XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
-
-
-
-    unique_elements, indices = np.unique(nucleus_label, return_index=True)
-
-
-
-    if filename is not None:
-        if isinstance(filename, str):
-            ## Write down a symmetry file in the new champ v2.0 format
-            filename_bfinfo = os.path.splitext("champ_v2_" + filename)[0]+'.bfinfo'
-            with open(filename_bfinfo, 'w') as file:
-
-                # qmc bfinfo line printed below
-                file.write("qmc_bf_info 1 \n")
-
-                # pointers to the basis functions
-                for i in range(len(unique_elements)):
-                    shell_ang_mom_per_atom_list = []
-                    for ind, val in enumerate(dict_basis["nucleus_index"]):
-                        if val == indices[i]:
-                            shell_ang_mom_per_atom_list.append(dict_basis["shell_ang_mom"][ind])
-
-                    list_shells_per_atom = []; k = 0
-                    for shell in shell_ang_mom_per_atom_list:
-                        for i in range(len(shells[shell])):
-                            k += 1
-                            list_shells_per_atom.append(i)
-                            # print ("i, k ", i, k)
-
-                    for pointer in list_shells_per_atom:
-                        file.write(f"{pointer+1} ")
-                    file.write(f"\n")
-
-            file.close()
-
-        else:
-            raise ValueError
-    # If filename is None, return a string representation of the output.
-    else:
-        return None
-
 
 
 def write_champ_file_determinants(filename, file):
@@ -732,7 +670,6 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                 index_radial[i].append(counter)
                 counter += 1
 
-
     mo_num = dict_mo["num"]
     cartesian = True
     if cartesian:
@@ -758,9 +695,9 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
 
 #   Get the shuffled list of indices which CHAMP needs
     index_dict = {}; shell_reprensentation = {}; bf_representation = {}
-    icount = 0; counter = 0
+    icount = 0; counter = 0; basis_per_atom = []
     for atom_index in range(len(index_radial)):
-        bfcounter = 1
+        bfcounter = 1; basis_per_atom_counter = 0
         for i in range(len(index_radial[atom_index])):
             l = dict_basis["shell_ang_mom"][i]
             # run a small loop to reshuffle the shell ordering
@@ -779,16 +716,71 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                         shell_reprensentation[counter] = shells[l][k]
                         counter += 1
                 icount += len(order[l])
+                basis_per_atom_counter += 1
             bfcounter += 1
+        basis_per_atom.append(basis_per_atom_counter)
+
 
     ## Reorder orbitals according to the ordering of the CHAMP ordering
     champ_ao_ordering = list(index_dict.keys())
     reordered_mo_array = dict_mo["coefficient"][:,champ_ao_ordering]
 
+    # The next two arrays are needed for bfinfo file
     reordered_bf_array = {k: bf_representation[k] for k in champ_ao_ordering}
-    # print ("reordered_bf_array", reordered_bf_array.values())
+    reordered_bf_array_values = list(reordered_bf_array.values())
+    shell_reprensentation_values = list(shell_reprensentation.values())
 
-    # write to the file
+    accumumulated_basis_per_atom = np.cumsum(basis_per_atom)
+
+    start_index = 0
+    basis_pointer_per_atom = []
+    shell_reprensentation_per_atom = []
+    for i in range(len(basis_per_atom)):
+        end_index = accumumulated_basis_per_atom[i]
+        basis_pointer_per_atom.append(reordered_bf_array_values[start_index:end_index])
+        shell_reprensentation_per_atom.append(shell_reprensentation_values[start_index:end_index])
+        start_index = end_index
+
+
+
+    ## write the information to the bfinfo file
+    # Get the indices of unique atoms
+    unique_atoms, unique_atom_indices = np.unique(nucleus_label, return_index=True)
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down a symmetry file in the new champ v2.0 format
+            filename_bfinfo = os.path.splitext("champ_v2_" + filename)[0]+'.bfinfo'
+            with open(filename_bfinfo, 'w') as file:
+
+                # qmc bfinfo line printed below
+                file.write("qmc_bf_info 1 \n")
+
+                # pointers to the basis functions
+                for i in unique_atom_indices:
+                    count_shells_per_atom = list(Counter(shell_reprensentation_per_atom[i]).values())
+                    # Write the number of types of shells for each unique atom
+                    for num in count_shells_per_atom:
+                        file.write(f"{num} ")
+                    # Write down zeros for shells that are not present. Total shells supported are S(1) + P(3) + D(6) + F(10) = 20
+                    for rem in range(len(count_shells_per_atom), 20):
+                        file.write(f"0 ")
+                    file.write(f"\n")
+
+                    # Write the pointers to the basis functions
+                    for pointer in basis_pointer_per_atom[i]:
+                        file.write(f"{pointer} ")
+                    file.write(f"\n")
+                file.write("end\n")
+            file.close()
+
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+    # all the bfinfo file information written to the file
+
+    # write the molecular coefficients to the .lcao file
     if filename is not None:
         if isinstance(filename, str):
             ## Write down an orbitals file in the new champ v2.0 format
@@ -806,6 +798,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     # If filename is None, return a string representation of the output.
     else:
         return None
+    # all the lcao file information written to the file
 
 
 # ECP / Pseudopotential files using the trexio file
