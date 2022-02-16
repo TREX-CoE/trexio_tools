@@ -92,8 +92,6 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     nucleus_label = trexio.read_nucleus_label(trexio_file)
     nucleus_point_group = trexio.read_nucleus_point_group(trexio_file)
 
-    # Write the .xyz file containing cartesial coordinates (Bohr) of nuclei
-    write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coord)
 
     # ECP
     # ------
@@ -107,7 +105,6 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     ecp_coefficient = trexio.read_ecp_coefficient(trexio_file)
     ecp_power = trexio.read_ecp_power(trexio_file)
 
-    write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power)
 
     # Basis
 
@@ -140,23 +137,37 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     dict_mo["coefficient"] = trexio.read_mo_coefficient(trexio_file)
     dict_mo["symmetry"] = trexio.read_mo_symmetry(trexio_file)
 
-    # Write the .sym file containing symmetry information of MOs
-    write_champ_file_symmetry(filename, dict_mo)
-
-    # Write the .orb / .lcao file containing orbital information of MOs
-    write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_label)
 
 
 
     ###### NOTE ######
-    # The following portion is written only to test few functionalities
-    # It will be replaced by the data stored by trexio library.
-    file = resultsFile.getFile(gamessfile)
-    write_champ_file_eigenvalues(filename, file, "GUGA")
-    ## Champ-specific file basis on the grid
+    # The following portion is written to convert the data available in the
+    # TREXIO file to the format readable by CHAMP.
+    # Note all the information is yet not available in trexio file.
+    # The determinants and csf information is obtained from the GAMESS output file using the resultsFile package.
+    # It will be replaced by the data stored by trexio later in the future.
+
+    # Write the .xyz file containing cartesian coordinates (Bohr) of nuclei
+    write_champ_file_geometry(filename, nucleus_num, nucleus_label, nucleus_coord)
+
+    # Write the ECP files for each unique atoms
+    write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power)
+
+    # Write the .sym file containing symmetry information of MOs
+    write_champ_file_symmetry(filename, dict_mo)
+
+    # Write the .lcao and .bfinfo file containing orbital information of MOs
+    write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_label)
+
+    # Write the basis on the radial grid file
     write_champ_file_basis_grid(filename, dict_basis, nucleus_label)
-    # write_champ_file_bfinfo(filename, dict_basis, nucleus_label)
-    # write_champ_file_determinants(filename, file)
+
+    # Write the determinants, csf and csfmap into a single file using the resultsFile package
+    file = resultsFile.getFile(gamessfile)
+    write_champ_file_determinants(filename, file)
+
+    # Write the eigenvalues for a given type of orbitals using the resultsFile package
+    write_champ_file_eigenvalues(filename, file, "GUGA")
 
     return
 
@@ -398,26 +409,30 @@ def write_champ_file_determinants(filename, file):
     reduced_list_determintants = []
     copy_list_determintants = []
 
+    ## Get which determinant coefficient correspond to which csf coefficient
+    csf_for_each_det = []
+    for state_coef in file.csf_coefficients:
+        for i,c in enumerate(state_coef):
+            for d in csf[i].coefficients:
+                csf_for_each_det.append(c)
+
+    # Get the reduced determinant coefficients
     for state_coef in file.csf_coefficients:
         vector = []
         counter = 0; counter2 = 0       # Counter2 is required for keeping correspondence of determinants in the reduced list
         for i,c in enumerate(state_coef):
-            print ("i c", i, c)
             for d in csf[i].coefficients:
                 temp = 0.0
                 indices = [i for i, x in enumerate(file.determinants) if x == file.determinants[counter]]
-                # print ("indices ", indices)
                 if counter == indices[0]:
-                    # print ("counter2", counter2)
                     copy_list_determintants.append(counter2)
                     counter2 += 1
                     reduced_list_determintants.append(indices[0])
                     for index in indices:
                         if len(indices) == 1:
-                            temp =  c * flat_array_coeff[index]
+                            temp =  csf_for_each_det[index] * flat_array_coeff[index]
                         else:
-                            # print ("special index, ccsf, coeff ", index, c, flat_array_coeff[index])
-                            temp += c * flat_array_coeff[index]
+                            temp += csf_for_each_det[index] * flat_array_coeff[index]
                     vector.append(temp)
                 else:
                     copy_list_determintants.append(indices[0])
