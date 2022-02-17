@@ -24,7 +24,7 @@ except:
 
 
 
-def run_resultsFile(trexio_filename, filename, motype, back_end):
+def run_resultsFile(trexio_filename, filename, back_end, motype=None):
 
     if os.path.exists(filename):
         os.system("rm -rf -- "+trexio_filename)
@@ -288,7 +288,7 @@ def run_resultsFile(trexio_filename, filename, motype, back_end):
     if motype is None:
         MO_type = res.determinants_mo_type
     else:
-        MO_type = motype.upper()
+        MO_type = motype
 
     allMOs = res.mo_sets[MO_type]
     trexio.write_mo_type(trexio_file, MO_type)
@@ -418,11 +418,11 @@ def run_resultsFile(trexio_filename, filename, motype, back_end):
     return
 
 
-def run(trexio_filename, filename, filetype,  motype, back_end):
+def run(trexio_filename, filename, filetype, back_end, motype=None):
     if filetype.lower() == "gaussian":
         run_resultsFile(trexio_filename, filename, back_end)
     elif filetype.lower() == "gamess":
-        run_resultsFile(trexio_filename, filename, motype, back_end)
+        run_resultsFile(trexio_filename, filename, back_end, motype)
     elif filetype.lower() == "fcidump":
         run_fcidump(trexio_filename, filename, back_end)
     elif filetype.lower() == "molden":

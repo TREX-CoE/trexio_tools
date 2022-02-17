@@ -64,7 +64,7 @@ except:
     print("Error: The resultsFile Python library is not installed")
     sys.exit(1)
 
-def run(filename,  gamessfile, motype, back_end):
+def run(filename,  gamessfile, back_end, motype=None):
 
     trexio_file = trexio.File(filename, mode='r',back_end=back_end)
 

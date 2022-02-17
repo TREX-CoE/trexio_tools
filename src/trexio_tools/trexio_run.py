@@ -6,8 +6,8 @@ Usage:
       trexio check-basis   [-n n_points]            [-b back_end]  TREXIO_FILE
       trexio check-mos     [-n n_points]            [-b back_end]  TREXIO_FILE
       trexio convert-to     -t type -o output_file                 TREXIO_FILE
-      trexio convert2champ  -i GAMESS_input_file  -x orbital_type  [-b back_end]  TREXIO_FILE
-      trexio convert-from   -t type -i input_file -x orbital_type [-b back_end]  TREXIO_FILE
+      trexio convert2champ  -i GAMESS_input_file  [-x orbital_type]  [-b back_end]  TREXIO_FILE
+      trexio convert-from   -t type -i input_file [-x orbital_type] [-b back_end]  TREXIO_FILE
 
 Options:
       -n --n_points=n              Number of integration points. Default is 81.
@@ -47,9 +47,9 @@ def main(filename=None, args=None):
         back_end = trexio.TREXIO_HDF5
 
     if args["--motype"] is not None:
-        motype = str(args["--motype"]).upper()
+        motype = str(args["--motype"])
     else:
-        motype = 'NATURAL'
+        motype = None
 
 
     if args["check-basis"]:
@@ -70,12 +70,11 @@ def main(filename=None, args=None):
 
     elif args["convert2champ"]:
         from converters.trex2champ import run
-        import pprint; pprint.pprint(args)
-        run(filename, gamessfile = args["--input"], motype=motype, back_end=back_end)
+        run(filename, gamessfile = args["--input"], back_end=back_end, motype=motype)
 
     elif args["convert-from"]:
         from converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], motype=motype, back_end=back_end)
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=motype)
 
     elif args["convert-to"]:
         from converters.convert_to import run
@@ -88,7 +87,6 @@ def main(filename=None, args=None):
 
 if __name__ == '__main__':
     args = docopt(__doc__)
-    import pprint; pprint.pprint(args)
     filename = args["TREXIO_FILE"]
     main(filename, args)
 
