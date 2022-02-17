@@ -46,11 +46,6 @@ def main(filename=None, args=None):
     else:
         back_end = trexio.TREXIO_HDF5
 
-    if args["--motype"] is not None:
-        motype = str(args["--motype"])
-    else:
-        motype = None
-
 
     if args["check-basis"]:
         trexio_file = trexio.File(filename, 'r', back_end=back_end)
@@ -70,11 +65,11 @@ def main(filename=None, args=None):
 
     elif args["convert2champ"]:
         from converters.trex2champ import run
-        run(filename, gamessfile = args["--input"], back_end=back_end, motype=motype)
+        run(filename, gamessfile = args["--input"], back_end=back_end, motype=args["--motype"])
 
     elif args["convert-from"]:
         from converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=motype)
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"])
 
     elif args["convert-to"]:
         from converters.convert_to import run
