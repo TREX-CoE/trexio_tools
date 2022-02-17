@@ -294,8 +294,22 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
     trexio.write_mo_type(trexio_file, MO_type)
 
     full_mo_set  = [(allMOs[i].eigenvalue, i) for i in range(len(allMOs))]
-
     MOindices = [x[1] for x in full_mo_set]
+
+    ## The following commented portion for the future use.
+    # try:
+    #     closed  = [(allMOs[i].eigenvalue, i) for i in res.closed_mos]
+    #     virtual = [(allMOs[i].eigenvalue, i) for i in res.virtual_mos]
+    #     active  = [(allMOs[i].eigenvalue, i) for i in res.active_mos]
+    # except:
+    #     closed  = []
+    #     virtual = []
+    #     active  = [(allMOs[i].eigenvalue, i) for i in range(len(allMOs))]
+
+    # closed  = [x[1] for x in closed]
+    # active  = [x[1] for x in active]
+    # virtual = [x[1] for x in virtual]
+    # MOindices = closed + active + virtual
 
     MOs = []
     for i in MOindices:
