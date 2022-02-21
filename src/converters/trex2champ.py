@@ -59,15 +59,14 @@ except:
     sys.exit(1)
 
 try:
-    sys.path.append('/home/ravindra/trial/resultsFile')
     import resultsFile
 except:
     print("Error: The resultsFile Python library is not installed")
     sys.exit(1)
 
-def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
+def run(filename,  gamessfile, back_end, motype=None):
 
-    trexio_file = trexio.File(filename, mode='r',back_end=trexio.TREXIO_HDF5)
+    trexio_file = trexio.File(filename, mode='r',back_end=back_end)
 
 
     # Metadata
@@ -167,7 +166,7 @@ def run(filename,  gamessfile, back_end=trexio.TREXIO_HDF5):
     write_champ_file_determinants(filename, file)
 
     # Write the eigenvalues for a given type of orbitals using the resultsFile package
-    write_champ_file_eigenvalues(filename, file, "GUGA")
+    write_champ_file_eigenvalues(filename, file, dict_mo["type"])
 
     return
 

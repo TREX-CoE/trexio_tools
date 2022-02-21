@@ -3,19 +3,19 @@
 Set of tools to interact with trexio files.
 
 Usage:
-      trexio check-basis   [-n n_points]           [-b back_end]  TREXIO_FILE          
-      trexio check-mos     [-n n_points]           [-b back_end]  TREXIO_FILE          
-      trexio convert2champ  -i input_file          [-b back_end]  TREXIO_FILE 
-      trexio convert-from   -t type -i input_file  [-b back_end]  TREXIO_FILE 
-      trexio convert-to     -t type -o output_file                TREXIO_FILE 
+      trexio check-basis   [-n n_points]            [-b back_end]  TREXIO_FILE
+      trexio check-mos     [-n n_points]            [-b back_end]  TREXIO_FILE
+      trexio convert-to     -t type -o output_file                 TREXIO_FILE
+      trexio convert2champ  -i GAMESS_input_file  [-x orbital_type]  [-b back_end]  TREXIO_FILE
+      trexio convert-from   -t type -i input_file [-x orbital_type] [-b back_end]  TREXIO_FILE
 
 Options:
       -n --n_points=n              Number of integration points. Default is 81.
-      -i --input=input_file        Name of the input file 
-      -o --output=output_file      Name of the output file 
+      -i --input=input_file        Name of the input file
+      -o --output=output_file      Name of the output file
       -b --back_end=[hdf5 | text]  The TREXIO back end. Default is hdf5.
-      -t --type=[gaussian | gamess | fcidump | molden | champ | cartesian | spherical ]
-                                   File format
+      -t --type=[gaussian | gamess | fcidump | molden | champ | cartesian | spherical ] File format
+      -x --motype=[natural | initial | guga-initial | guga-natural]  The type of the molecular orbitals. Default is natural.
 """
 
 from docopt import docopt
@@ -65,11 +65,11 @@ def main(filename=None, args=None):
 
     elif args["convert2champ"]:
         from converters.trex2champ import run
-        run(filename, gamessfile = args["--input"], back_end=back_end)
+        run(filename, gamessfile = args["--input"], back_end=back_end, motype=args["--motype"])
 
     elif args["convert-from"]:
         from converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end)
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"])
 
     elif args["convert-to"]:
         from converters.convert_to import run

@@ -24,7 +24,7 @@ except:
 
 
 
-def run_resultsFile(trexio_filename, filename, back_end):
+def run_resultsFile(trexio_filename, filename, back_end, motype=None):
 
     if os.path.exists(filename):
         os.system("rm -rf -- "+trexio_filename)
@@ -215,7 +215,7 @@ def run_resultsFile(trexio_filename, filename, back_end):
     trexio.write_basis_nucleus_index(trexio_file,nucleus_index_per_shell)
     trexio.write_basis_shell_ang_mom(trexio_file,shell_ang_mom)
     trexio.write_basis_shell_index(trexio_file,shell_index_per_prim)
-    
+
     # write normalization factor for each shell
     trexio.write_basis_shell_factor(trexio_file,shell_factor)
 
@@ -285,31 +285,37 @@ def run_resultsFile(trexio_filename, filename, back_end):
     # MOs
     # ---
 
-    MoTag = res.determinants_mo_type
-    MO_type = MoTag
-    allMOs = res.mo_sets[MO_type]
+    if motype is None:
+        MO_type = res.determinants_mo_type
+    else:
+        MO_type = motype
 
+    allMOs = res.mo_sets[MO_type]
     trexio.write_mo_type(trexio_file, MO_type)
 
-    try:
-        closed  = [(allMOs[i].eigenvalue, i) for i in res.closed_mos]
-        virtual = [(allMOs[i].eigenvalue, i) for i in res.virtual_mos]
-        active  = [(allMOs[i].eigenvalue, i) for i in res.active_mos]
-    except:
-        closed  = []
-        virtual = []
-        active  = [(allMOs[i].eigenvalue, i) for i in range(len(allMOs))]
+    full_mo_set  = [(allMOs[i].eigenvalue, i) for i in range(len(allMOs))]
+    MOindices = [x[1] for x in full_mo_set]
 
-    closed  = [x[1] for x in closed]
-    active  = [x[1] for x in active]
-    virtual = [x[1] for x in virtual]
-    MOindices = closed + active + virtual
+    ## The following commented portion for the future use.
+    # try:
+    #     closed  = [(allMOs[i].eigenvalue, i) for i in res.closed_mos]
+    #     virtual = [(allMOs[i].eigenvalue, i) for i in res.virtual_mos]
+    #     active  = [(allMOs[i].eigenvalue, i) for i in res.active_mos]
+    # except:
+    #     closed  = []
+    #     virtual = []
+    #     active  = [(allMOs[i].eigenvalue, i) for i in range(len(allMOs))]
+
+    # closed  = [x[1] for x in closed]
+    # active  = [x[1] for x in active]
+    # virtual = [x[1] for x in virtual]
+    # MOindices = closed + active + virtual
 
     MOs = []
     for i in MOindices:
         MOs.append(allMOs[i])
 
-    mo_num = len(MOs)
+    mo_num = len(MOindices)
     while len(MOindices) < mo_num:
         MOindices.append(len(MOindices))
 
@@ -426,11 +432,11 @@ def run_resultsFile(trexio_filename, filename, back_end):
     return
 
 
-def run(trexio_filename, filename, filetype, back_end):
+def run(trexio_filename, filename, filetype, back_end, motype=None):
     if filetype.lower() == "gaussian":
         run_resultsFile(trexio_filename, filename, back_end)
     elif filetype.lower() == "gamess":
-        run_resultsFile(trexio_filename, filename, back_end)
+        run_resultsFile(trexio_filename, filename, back_end, motype)
     elif filetype.lower() == "fcidump":
         run_fcidump(trexio_filename, filename, back_end)
     elif filetype.lower() == "molden":
