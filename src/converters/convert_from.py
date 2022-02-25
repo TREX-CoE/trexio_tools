@@ -289,6 +289,7 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
         MO_type = res.determinants_mo_type
     else:
         MO_type = motype
+    print ("available motypes", res.mo_types)
 
     allMOs = res.mo_sets[MO_type]
     trexio.write_mo_type(trexio_file, MO_type)

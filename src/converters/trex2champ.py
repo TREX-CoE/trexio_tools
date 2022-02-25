@@ -45,12 +45,12 @@ __email__ = "r.l.shinde@utwente.nl"
 __status__ = "Development"
 
 
+from operator import index
 import sys
 import os
-from tkinter import E
 import numpy as np
 from collections import Counter
-import copy
+
 
 try:
     import trexio
@@ -165,8 +165,8 @@ def run(filename,  gamessfile, back_end, motype=None):
     file = resultsFile.getFile(gamessfile)
     write_champ_file_determinants(filename, file)
 
-    # Write the eigenvalues for a given type of orbitals using the resultsFile package
-    write_champ_file_eigenvalues(filename, file, dict_mo["type"])
+    # Write the eigenvalues for a given type of orbitals using the resultsFile package. Currently it is optional.
+    # write_champ_file_eigenvalues(filename, file, dict_mo["type"])
 
     return
 
@@ -696,53 +696,125 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         sys.exit()
 
 
-#   Count how many times l = 1 appears for a given atom
-    dict_pshell_count = {}
+
+#   Count how many times p,d,f appears for a given atom
+    dict_sshell_count = {}; dict_pshell_count = {}; dict_dshell_count = {}; dict_fshell_count = {}
     for atom_index in range(len(index_radial)):
-        counter = 0
-        for i in range(len(index_radial[atom_index])):
+        counter_s = 0; counter_p = 0; counter_d = 0; counter_f = 0
+        for i in index_radial[atom_index]:
             l = dict_basis["shell_ang_mom"][i]
+            if l == 0:
+                counter_s += 1
             if l == 1:
-                counter += 1
-        dict_pshell_count[atom_index] = counter
+                counter_p += 1
+            if l == 2:
+                counter_d += 1
+            if l == 3:
+                counter_f += 1
+        dict_sshell_count[atom_index] = counter_s
+        dict_pshell_count[atom_index] = counter_p
+        dict_dshell_count[atom_index] = counter_d
+        dict_fshell_count[atom_index] = counter_f
 
 
-#   Get the shuffled list of indices which CHAMP needs
-    index_dict = {}; shell_reprensentation = {}; bf_representation = {}
-    icount = 0; counter = 0; basis_per_atom = []
+    # print ("index radial: ", index_radial)
+    # print ("dict basis: ", dict_basis["shell_ang_mom"])
+    # print ("dict_sshell count: ", dict_sshell_count)
+    # print ("dict_pshell count: ", dict_pshell_count)
+    # print ("dict_dshell count: ", dict_dshell_count)
+    # print ("dict_fshell count: ", dict_fshell_count)
+
+    # This part is for reshuffling to make the AO basis in the CHAMP's own ordering
+    index_dict = {}; shell_representation = {}; bf_representation = {}
+    new_shell_representation = []
+    counter = 0; basis_per_atom = []
+    ind = 0; champ_ao_ordering = []
     for atom_index in range(len(index_radial)):
         bfcounter = 1; basis_per_atom_counter = 0
-        for i in range(len(index_radial[atom_index])):
+        pindex = 0; dindex = 0; findex = 0
+        for i in index_radial[atom_index]:
             l = dict_basis["shell_ang_mom"][i]
             # run a small loop to reshuffle the shell ordering
+            if l == 0:
+                new_shell_representation.append(shells[l][0])
+                champ_ao_ordering.append(ind)
+                ind += 1
+
+            local_p = np.zeros((3,dict_pshell_count[atom_index]),dtype='U1')
+            local_ind_p = np.zeros((3,dict_pshell_count[atom_index]),dtype=int)
+            if l == 1:
+                pindex += 1; ind = champ_ao_ordering[-1] + 1
+                for j in range(dict_pshell_count[atom_index]):
+                    #loop over all 3 p orbitals
+                    for k in order[l]:
+                        local_p[k,j] = shells[l][k]
+                        local_ind_p[k,j] = ind
+                        ind += 1
+
+                if pindex == dict_pshell_count[atom_index]:
+                    new_shell_representation.extend(list(local_p.flatten()))
+                    champ_ao_ordering.extend(list(local_ind_p.flatten()))
+
+
+
+            local_d = np.zeros((6,dict_dshell_count[atom_index]),dtype='U2')
+            local_ind_d = np.zeros((6,dict_dshell_count[atom_index]),dtype=int)
+            if l == 2:
+                dindex += 1; ind = champ_ao_ordering[-1] + 1
+                for j in range(dict_dshell_count[atom_index]):
+                    #loop over all 6 d orbitals
+                    for k in order[l]:
+                        local_d[k,j] = shells[l][k]
+                        local_ind_d[k,j] = ind
+                        ind += 1
+
+                if dindex == dict_dshell_count[atom_index]:
+                    new_shell_representation.extend(list(local_d.flatten()))
+                    champ_ao_ordering.extend(list(local_ind_d.flatten()))
+
+
+            local_f = np.zeros((10,dict_fshell_count[atom_index]),dtype='U3')
+            local_ind_f = np.zeros((10,dict_fshell_count[atom_index]),dtype=int)
+            if l == 3:
+                findex += 1; ind = champ_ao_ordering[-1] + 1
+                for j in range(dict_fshell_count[atom_index]):
+                    #loop over all 10 f orbitals
+                    for k in order[l]:
+                        local_f[k,j] = shells[l][k]
+                        local_ind_f[k,j] = ind
+                        ind += 1
+
+                if findex == dict_fshell_count[atom_index]:
+                    new_shell_representation.extend(list(local_f.flatten()))
+                    champ_ao_ordering.extend(list(local_ind_f.flatten()))
+
+            # Get number of AO basis per atom
             for k in order[l]:
-                if l == 1:
-                    for ind in range(dict_pshell_count[atom_index]):
-                        # print ("bf counter", bfcounter)
-                        bf_representation[counter] = bfcounter
-                        index_dict[counter+3*ind] =  icount + k
-                        shell_reprensentation[counter+3*ind] = shells[l][k]
-                        icount += 1
-                    counter += 1
-                else:
-                        bf_representation[counter] = bfcounter
-                        index_dict[counter] =  icount+k
-                        shell_reprensentation[counter] = shells[l][k]
-                        counter += 1
-                icount += len(order[l])
+                shell_representation[counter] = shells[l][k]
+                index_dict[counter] =  counter
+                bf_representation[counter] = bfcounter
+                counter += 1
                 basis_per_atom_counter += 1
             bfcounter += 1
         basis_per_atom.append(basis_per_atom_counter)
 
+    # print ("champ ao ordering: ", champ_ao_ordering)
+    # print ("new_shell_representation: ", new_shell_representation)
+    # print ("old_shell_representation: ", shell_representation.values())
+    # print ("basis per atom: ", basis_per_atom)
+    # print ("BF representation: ", bf_representation.values())
+
 
     ## Reorder orbitals according to the ordering of the CHAMP ordering
-    champ_ao_ordering = list(index_dict.keys())
     reordered_mo_array = dict_mo["coefficient"][:,champ_ao_ordering]
+
 
     # The next two arrays are needed for bfinfo file
     reordered_bf_array = {k: bf_representation[k] for k in champ_ao_ordering}
     reordered_bf_array_values = list(reordered_bf_array.values())
-    shell_reprensentation_values = list(shell_reprensentation.values())
+    shell_representation_values = list(shell_representation.values())
+
+    # print( "bf   ", reordered_bf_array_values)
 
     accumumulated_basis_per_atom = np.cumsum(basis_per_atom)
 
@@ -752,7 +824,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     for i in range(len(basis_per_atom)):
         end_index = accumumulated_basis_per_atom[i]
         basis_pointer_per_atom.append(reordered_bf_array_values[start_index:end_index])
-        shell_reprensentation_per_atom.append(shell_reprensentation_values[start_index:end_index])
+        shell_reprensentation_per_atom.append(shell_representation_values[start_index:end_index])
         start_index = end_index
 
 
