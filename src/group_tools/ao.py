@@ -2,7 +2,7 @@
 
 import trexio
 import numpy as np
-import basis as trexio_basis
+from . import basis as trexio_basis
 
 def read(trexio_file):
     r = {}

@@ -2,7 +2,7 @@
 
 import trexio
 import numpy as np
-import nucleus
+from . import nucleus
 
 def read(trexio_file):
     r = {}

@@ -2,9 +2,9 @@
 
 import trexio
 import numpy as np
-import nucleus as trexio_nucleus
-import basis as trexio_basis
-import ao as trexio_ao
+from . import nucleus as trexio_nucleus
+from . import basis as trexio_basis
+from . import ao as trexio_ao
 
 def run(trexio_file, n_points):
     """
