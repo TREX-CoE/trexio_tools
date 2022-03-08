@@ -12,6 +12,11 @@ def run(trexio_file, n_points):
     the matrix stored in the file.
     """
 
+    if not trexio.has_ao_1e_int_overlap(trexio_file):
+      raise Exception(
+        "One-electron overlap integrals are missing in the TREXIO file. Required for check-basis."
+        )
+
     ao = trexio_ao.read(trexio_file)
     basis = ao["basis"]
     nucleus = basis["nucleus"]
