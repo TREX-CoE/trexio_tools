@@ -30,7 +30,7 @@ def run(trexio_file, n_points):
 
     S = np.zeros( [ ao["num"], ao["num"]] )
     for x in linspace[0]:
-      print(".",end='',flush=True)
+      #print(".",end='',flush=True)
       for y in linspace[1]:
         for z in linspace[2]:
            chi = trexio_ao.value(ao, np.array( [x,y,z] ) )
