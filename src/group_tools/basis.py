@@ -48,8 +48,6 @@ def convert_to_old(basis: dict) -> dict:
     basis_old["shell_prim_index"] = l3 
     basis_old["shell_prim_num"] = l4
 
-    lists_to_map(l1,l2)
-
     return basis_old
 
 
