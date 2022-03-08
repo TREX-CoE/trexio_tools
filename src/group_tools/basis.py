@@ -65,6 +65,9 @@ def map_to_lists(map: list, dim: int) -> tuple:
 
     n_per_instance = Counter(map)
     num_per_instance = [ n_per_instance[j] for j in range(dim) ]
+
+    if(len(index_per_instance) != len(num_per_instance)):
+        raise Exception(f"Inconsistent dimensions of output arrays: {len(index_per_instance)} != {len(num_per_instance)}")
     #print(map, "\n", index_per_instance, "\n", num_per_instance)
 
     return (index_per_instance, num_per_instance)
@@ -72,6 +75,9 @@ def map_to_lists(map: list, dim: int) -> tuple:
 
 def lists_to_map(indices: list, numbers: list) -> list:
     """Convert two lists (with index and number of elements per instance like atom) into one big mapping list."""
+
+    if(len(indices) != len(numbers)):
+        raise Exception(f"Inconsistent dimensions of input arrays: {len(indices)} != {len(numbers)}")
 
     map = []
     for i, _ in enumerate(indices):
