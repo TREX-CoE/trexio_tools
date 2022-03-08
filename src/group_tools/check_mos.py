@@ -27,13 +27,14 @@ def run(trexio_file, n_points):
     step = [ None for i in range(3) ]
     for a in range(3):
       linspace[a], step[a] = np.linspace(rmin[a]-shift[a], rmax[a]+shift[a], num=n_points, retstep=True)
-    print (step)
+
+    print("Integration steps:", step)
     dv = step[0]*step[1]*step[2]
 
     mo_num = mo["num"]
     S = np.zeros( [ mo_num, mo_num ] )
     for x in linspace[0]:
-      print(".",end='',flush=True)
+      #print(".",end='',flush=True)
       for y in linspace[1]:
         for z in linspace[2]:
            chi = trexio_mo.value(mo, np.array( [x,y,z] ) )
@@ -43,7 +44,7 @@ def run(trexio_file, n_points):
     S_ex = np.eye(mo_num)
     S_diff = S - S_ex
     print ("Norm of the error: %f"%(np.linalg.norm(S_diff)))
-    print(S_diff)
+    #print(S_diff)
 
     for i in range(mo_num):
       for j in range(i,mo_num):

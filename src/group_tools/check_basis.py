@@ -25,7 +25,8 @@ def run(trexio_file, n_points):
     step = [ None for i in range(3) ]
     for a in range(3):
       linspace[a], step[a] = np.linspace(rmin[a]-shift[a], rmax[a]+shift[a], num=n_points, retstep=True)
-    print (step)
+      
+    print("Integration steps:", step)
     dv = step[0]*step[1]*step[2]
 
     S = np.zeros( [ ao["num"], ao["num"]] )
@@ -40,9 +41,10 @@ def run(trexio_file, n_points):
     ao_num = ao["num"]
     S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
     S_diff = S - S_ex
-    print ("Norm of the error: %f"%(np.linalg.norm(S_diff)))
-    print(S_diff)
+    print("Norm of the error: %f"%(np.linalg.norm(S_diff)))
+    #print(S_diff)
 
+    # This produces a lot of output for large molecules, maybe wrap up in ``if debug`` statement ?
     for i in range(ao_num):
       for j in range(i,ao_num):
         print("%3d %3d %15f %15f"%(i,j,S[i][j],S_ex[i,j]))

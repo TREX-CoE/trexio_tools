@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from typing import Dict, Tuple
 import trexio
 import numpy as np
 from . import nucleus
@@ -24,7 +23,7 @@ def read(trexio_file):
     return r
 
 
-def convert_to_old(basis: dict) -> Dict:
+def convert_to_old(basis: dict) -> dict:
     """Convert the new basis set format into the old one (<2.0.0)."""
 
     basis_old = {}
@@ -38,10 +37,9 @@ def convert_to_old(basis: dict) -> Dict:
     basis_old["prim_factor"]        =  basis["prim_factor"] 
     # basis_num has been renamed into basis_shell_num
     basis_old["num"]                =  basis["shell_num"]
-    # The per-nucleus and per-shell quantities below have to be reconstructed from the 
+    # The per-nucleus and per-shell lists below have to be reconstructed from the 
     # `nucleus_index` and `shell_index` maps, respectively, introduced in v.2.0.0
-
-    # Save the data (index of the first shell and No of shells per atom) in the old format
+    # Save the data in the old format (index of the first shell and No of shells per atom)
     l1, l2 = map_to_lists(basis["nucleus_index"], basis["nucleus"]["num"])
     basis_old["nucleus_index"] = l1 
     basis_old["nucleus_shell_num"] = l2
@@ -50,24 +48,37 @@ def convert_to_old(basis: dict) -> Dict:
     basis_old["shell_prim_index"] = l3 
     basis_old["shell_prim_num"] = l4
 
+    lists_to_map(l1,l2)
+
     return basis_old
 
 
 def map_to_lists(map: list, dim: int) -> tuple:
     """Convert long map into two short ones (with index and number of elements per instance (e.g. atom), respectively)."""
+
     from collections import Counter
 
     index_per_instance = []
     instances_done = []
-    for ind, inst in enumerate(map):
+    for i, inst in enumerate(map):
         if not inst in instances_done:
-            index_per_instance.append(ind)
+            index_per_instance.append(i)
             instances_done.append(inst)
 
     n_per_instance = Counter(map)
-    num_per_instance = [ n_per_instance[i] for i in range(dim) ]
-
-    print(map, "\n", index_per_instance, "\n", num_per_instance)
+    num_per_instance = [ n_per_instance[j] for j in range(dim) ]
+    #print(map, "\n", index_per_instance, "\n", num_per_instance)
 
     return (index_per_instance, num_per_instance)
 
+
+def lists_to_map(indices: list, numbers: list) -> list:
+    """Convert two lists (with index and number of elements per instance like atom) into one big mapping list."""
+
+    map = []
+    for i, _ in enumerate(indices):
+        for _ in range(numbers[i]):
+            map.append(i)
+    #print(indices, "\n", numbers, "\n", map)
+
+    return map
