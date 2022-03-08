@@ -1,26 +1,20 @@
 #!/usr/bin/env python3
 """
-convert output of GAMESS/GAU$$IAN to trexio
+Convert output file from a given code/format into TREXIO
 """
 
-import sys
 import os
-from functools import reduce
+from group_tools import basis as trexio_basis
 
 try:
     import trexio
-except:
-    print("Error: The TREXIO Python library is not installed")
-    sys.exit(1)
-
+except ImportError as exc:
+    raise ImportError("trexio Python package is not installed.") from exc
 
 try:
     from resultsFile import getFile, a0, get_lm
-except:
-    print("Error: The resultsFile Python library is not installed")
-    sys.exit(1)
-
-
+except ImportError as exc:
+    raise ImportError("resultsFile Python package is not installed.") from exc
 
 
 
@@ -141,9 +135,11 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
             idx = geom.index(b.center)
             if idx != prev_idx:
                 nucleus_index.append(curr_shell)
+                if len(nucleus_index) > 1:
+                    nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
+
             prev_idx = idx
-            if len(nucleus_index) > 1:
-                nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
+
         ao_shell.append(curr_shell)
 
     nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
@@ -164,47 +160,9 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
                b.sym = 'p-1'
 
     # ========================================================================== #
-    # Conversion below is needed to convert arrays according to TREXIO format
-    # v.2.0
-
-    nucleus_index_per_shell = [0 for _ in range(shell_num)]
-    ind_prev = 0
-    # convert from [shell index per atom] representation into [atom index per
-    # shell] representation
-    for list_ind, ind in enumerate(nucleus_index):
-        # skip the first element because it is 0
-        if list_ind==0:
-            continue
-
-        for j in range(ind_prev,ind+1):
-            nucleus_index_per_shell[j] = list_ind-1
-
-        ind_prev = ind
-
-    # separate loop for the last atom because nucleus_index list does not
-    # include last index
-    for j in range(nucleus_index[-1],shell_num):
-        nucleus_index_per_shell[j] = nucleus_num-1
-
-
-    # convert from [prim index per shel] representation into [shell index per
-    # prim] representation
-    shell_index_per_prim = [0 for _ in range(prim_num)]
-    ind_prev = 0
-    for list_ind, ind in enumerate(shell_prim_index):
-        # skip the first element because it is 0
-        if list_ind==0:
-            continue
-
-        for j in range(ind_prev,ind+1):
-            shell_index_per_prim[j] = list_ind-1
-
-        ind_prev = ind
-
-    # separate loop for the last atom because shell_prim_index list does not
-    # include last index
-    for j in range(shell_prim_index[-1],prim_num):
-        shell_index_per_prim[j] = shell_num-1
+    # Conversion below is needed to convert arrays according to TREXIO v.2.0
+    nucleus_index_per_shell = trexio_basis.lists_to_map(nucleus_index, nucl_shell_num)
+    shell_index_per_prim = trexio_basis.lists_to_map(shell_prim_index, shell_prim_num)
     # ========================================================================= #
 
     # write total number of shell and primitives
