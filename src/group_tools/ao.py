@@ -7,10 +7,11 @@ from . import basis as trexio_basis
 def read(trexio_file):
     r = {}
 
-    r["basis"]  = trexio_basis.read(trexio_file)
-    r["num"]    = trexio.read_ao_num(trexio_file)
-    r["shell"]  = trexio.read_ao_shell(trexio_file)
-    r["factor"] = trexio.read_ao_normalization(trexio_file)
+    r["basis"]     = trexio_basis.read(trexio_file)
+    r["basis_old"] = trexio_basis.convert_to_old(r["basis"])
+    r["num"]       = trexio.read_ao_num(trexio_file)
+    r["shell"]     = trexio.read_ao_shell(trexio_file)
+    r["factor"]    = trexio.read_ao_normalization(trexio_file)
 
     return r
 
@@ -28,18 +29,22 @@ def value(ao,r):
     Evaluates all the basis functions at R=(x,y,z)
     """
 
-    basis              =  ao["basis"]
-    nucleus            =  basis["nucleus"]
-    coord              =  nucleus["coord"]
-    nucleus_num        =  nucleus["num"]
+    basis          =  ao["basis"]
 
-    basis_num          =  basis["num"]
-    prim_num           =  basis["prim_num"]
-    nucleus_shell_num  =  basis["nucleus_shell_num"]
-    nucleus_index      =  basis["nucleus_index"]
-    shell_ang_mom      =  basis["shell_ang_mom"]
-    shell_prim_num     =  basis["shell_prim_num"]
-    shell_prim_index   =  basis["shell_prim_index"]
+    nucleus        =  basis["nucleus"]
+    coord          =  nucleus["coord"]
+    nucleus_num    =  nucleus["num"]
+
+    basis_num      =  basis["shell_num"]
+    prim_num       =  basis["prim_num"]
+    shell_ang_mom  =  basis["shell_ang_mom"]
+
+    # to reconstruct for compatibility with TREXIO < v.2.0.0
+    basis_old         = ao["basis_old"]
+    nucleus_index     = basis_old["nucleus_index"]
+    nucleus_shell_num = basis_old["nucleus_shell_num"]
+    shell_prim_index  = basis_old["shell_prim_index"]
+    shell_prim_num    = basis_old["shell_prim_num"]
 
     coefficient = basis["coefficient"] * basis["prim_factor"]
     exponent    = basis["exponent"]
