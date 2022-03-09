@@ -2,7 +2,7 @@
 
 import trexio
 import numpy as np
-import ao as trexio_ao
+from . import ao as trexio_ao
 
 def read(trexio_file):
     r = {}
@@ -13,13 +13,10 @@ def read(trexio_file):
 
 #    if trexio.has_mo_type(trexio_file):
 #        r["type"]   = trexio.read_mo_type(trexio_file)
-
 #    if trexio.has_mo_class(trexio_file):
 #        r["class"]   = trexio.read_mo_class(trexio_file)
-#
 #    if trexio.has_mo_symmetry(trexio_file):
 #        r["symmetry"]   = trexio.read_mo_symmetry(trexio_file)
-#
 #    if trexio.has_mo_occupation(trexio_file):
 #        r["occupation"]   = trexio.read_mo_occupation(trexio_file)
 

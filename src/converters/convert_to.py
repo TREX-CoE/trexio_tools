@@ -6,7 +6,7 @@ convert output of GAMESS/GAU$$IAN to trexio
 import sys
 import os
 from functools import reduce
-import converters.cart_sphe as cart_sphe
+from . import cart_sphe as cart_sphe
 import numpy as np
 
 try:
