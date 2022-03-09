@@ -230,13 +230,9 @@ def run_cart_phe(inp, filename, cartesian):
       X = trexio.read_ao_1e_int_potential_n_e(inp)
       trexio.write_ao_1e_int_potential_n_e(out, X @ R)
 
-    if trexio.has_ao_1e_int_ecp_local(inp):
-      X = trexio.read_ao_1e_int_ecp_local(inp)
-      trexio.write_ao_1e_int_ecp_local(out, X @ R)
-
-    if trexio.has_ao_1e_int_ecp_local(inp):
-      X = trexio.read_ao_1e_int_ecp_non_local(inp)
-      trexio.write_ao_1e_int_ecp_non_local(out, X @ R)
+    if trexio.has_ao_1e_int_ecp(inp):
+      X = trexio.read_ao_1e_int_ecp(inp)
+      trexio.write_ao_1e_int_ecp(out, X @ R)
 
     if trexio.has_ao_1e_int_core_hamiltonian(inp):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
