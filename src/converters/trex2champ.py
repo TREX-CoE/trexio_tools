@@ -269,13 +269,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
             for j in range(len(exponents)):
                 value += gnorm(exponents[j], shell_ang_mom) * coefficients[j] * np.exp(-exponents[j]*r2)
                 # print ("each value k, ib,", i ,j , value)
-            if shell_ang_mom == 1:
-                value *= r
-            elif shell_ang_mom == 2:
-                value *= r2
-            elif shell_ang_mom == 3:
-                value *= r3
-
+                
             bgrid[shell+1,i] = value
 
         return
