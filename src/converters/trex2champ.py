@@ -269,7 +269,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
             for j in range(len(exponents)):
                 value += gnorm(exponents[j], shell_ang_mom) * coefficients[j] * np.exp(-exponents[j]*r2)
                 # print ("each value k, ib,", i ,j , value)
-                
+
             bgrid[shell+1,i] = value
 
         return
@@ -280,7 +280,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
 
             for i in range(len(unique_elements)):
                 # Write down an radial basis grid file in the new champ v2.0 format for each unique atom type
-                filename_basis_grid = "BFD-Q." + 'basis.' + unique_elements[i]
+                filename_basis_grid = "BASISGRID." + 'basis.' + unique_elements[i]
                 with open(filename_basis_grid, 'w') as file:
 
                     # Common numbers
@@ -895,7 +895,7 @@ def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, e
             unique_elements, indices = np.unique(nucleus_label, return_index=True)
             for i in range(len(unique_elements)):
                 # Write down an ECP file in the new champ v2.0 format for each nucleus
-                filename_ecp = "BFD." + 'gauss_ecp.dat.' + unique_elements[i]
+                filename_ecp = "PSEUDO." + 'gauss_ecp.dat.' + unique_elements[i]
                 with open(filename_ecp, 'w') as file:
                     file.write("BFD {:s} pseudo \n".format(unique_elements[i]))
 
