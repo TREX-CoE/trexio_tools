@@ -948,21 +948,24 @@ def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, e
                     np.savetxt(file, [len(lmax_index_array)], fmt='%d')
                     # Write down the coeff, power and exponent terms in the ECP for local parts.
                     for i in lmax_index_array:
-                        file.write(f"{ecp_array[i,1]:0.8f} {ecp_array[i,2]:0.8f} {ecp_array[i,3]:0.8f} ")
+                        file.write(f"{ecp_array[i,1]:0.8f} \t {ecp_array[i,2]:02} \t {ecp_array[i,3]:0.8f} ")
                         file.write("\n")
 
                     # write down the remaining terms in the ECP for non-local parts.
                     # Get the number of terms first
                     nterms = Counter(sorted_list)
                     nterms = list(nterms.values())
-
-                    for i in range(len(sorted_list)):
-                        if i not in lmax_index_array:
-                            file.write(f"{ecp_array[i,1]:0.8f} {ecp_array[i,2]:0.8f} {ecp_array[i,3]:0.8f} ")
+                    
+                    ind = 0
+                    for j in nterms[:-1]:  #lmax already written to the file
+                        file.write(f"{j}")
+                        file.write("\n")
+                        for i in range(j):
+                            file.write(f"{ecp_array[ind,1]:0.8f} \t {ecp_array[ind,2]:02} \t {ecp_array[ind,3]:0.8f} ")
+                            ind += 1
                             file.write("\n")
-
+                    file.write("\n")
                 file.close()
-
         else:
             raise ValueError
     # If filename is None, return a string representation of the output.
