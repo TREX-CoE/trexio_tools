@@ -360,10 +360,14 @@ def write_champ_file_determinants(filename, file):
     beta_orbitals = np.sort(file.determinants[0].get("beta"))
 
     # Get the core+active space
+    old_maxalpha = 0; old_maxbeta = 0
     for det in range(len(det_coeff[0])): #reduced_list_determintants:
         alpha = file.determinants[det].get("alpha")
         beta = file.determinants[det].get("beta")
-        maxalpha = max(alpha); maxbeta = max(beta)
+        maxalpha = max(max(alpha), old_maxalpha)
+        maxbeta =  max(max(beta), old_maxbeta)
+        old_maxalpha = maxalpha
+        old_maxbeta = maxbeta
 
     qmc_phase_factor = []
     for det in range(len(det_coeff[0])): #reduced_list_determintants:
@@ -955,7 +959,7 @@ def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, e
                     # Get the number of terms first
                     nterms = Counter(sorted_list)
                     nterms = list(nterms.values())
-                    
+
                     ind = 0
                     for j in nterms[:-1]:  #lmax already written to the file
                         file.write(f"{j}")
