@@ -210,7 +210,7 @@ def run_cart_phe(inp, filename, cartesian):
 
     if trexio.has_ao_normalization(inp):
       X = trexio.read_ao_normalization(inp)
-      trexio.write_ao_normalization(out, X @ R)
+      trexio.write_ao_normalization(out, R.T @ X @ R)
 
     # Update MOs
     if trexio.has_mo_coefficient(inp):
@@ -220,23 +220,23 @@ def run_cart_phe(inp, filename, cartesian):
     # Update 1e Integrals
     if trexio.has_ao_1e_int_overlap(inp):
       X = trexio.read_ao_1e_int_overlap(inp)
-      trexio.write_ao_1e_int_overlap(out, X @ R)
+      trexio.write_ao_1e_int_overlap(out, R.T @ X @ R)
 
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
-      trexio.write_ao_1e_int_kinetic(out, X @ R)
+      trexio.write_ao_1e_int_kinetic(out, R.T @ X @ R)
 
     if trexio.has_ao_1e_int_potential_n_e(inp):
       X = trexio.read_ao_1e_int_potential_n_e(inp)
-      trexio.write_ao_1e_int_potential_n_e(out, X @ R)
+      trexio.write_ao_1e_int_potential_n_e(out, R.T @ X @ R)
 
     if trexio.has_ao_1e_int_ecp(inp):
       X = trexio.read_ao_1e_int_ecp(inp)
-      trexio.write_ao_1e_int_ecp(out, X @ R)
+      trexio.write_ao_1e_int_ecp(out, R.T @ X @ R)
 
     if trexio.has_ao_1e_int_core_hamiltonian(inp):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
-      trexio.write_ao_1e_int_core_hamiltonian(out, X @ R)
+      trexio.write_ao_1e_int_core_hamiltonian(out, R.T @ X @ R)
 
     # Remove 2e integrals
     if trexio.has_ao_2e_int_eri(inp):
