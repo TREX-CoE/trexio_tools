@@ -72,6 +72,11 @@ def run(filename,  gamessfile, back_end, motype=None):
     # Metadata
     # --------
 
+    # try:
+    #     trexio.read_metadata_code_num(trexio_file)
+    # except trexio.Error as e:
+    #     print(f"TREXIO error message: {e.message}")
+
     metadata_num = trexio.read_metadata_code_num(trexio_file)
     metadata_code  = trexio.read_metadata_code(trexio_file)
     metadata_description = trexio.read_metadata_description(trexio_file)
@@ -243,6 +248,8 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
             norm = (2.0*alp)**(7.0/4.0)*np.sqrt(16.0/15.0)*(1.0/(np.pi**(1.0/4.0)))
         elif l == 3:
             norm = (2.0*alp)**(9.0/4.0)*np.sqrt(32.0/105.0)*(1.0/(np.pi**(1.0/4.0)))
+        elif l == 4:
+            norm = (2.0*alp)**(11.0/4.0)*np.sqrt(64.0/945.0)*(1.0/(np.pi**(1.0/4.0)))
         return norm
 
     def compute_grid():
@@ -672,6 +679,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     shells[1] = ['X','Y','Z']
     shells[2] = ['XX','XY','XZ','YY','YZ','ZZ']
     shells[3] = ['XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
+    shells[4] = ['XXXX','XXXY','XXXZ','XXYY','XXYZ','XXZZ','XYYY','XYYZ','XYZZ','XZZZ','YYYY','YYYZ','YYZZ','YZZZ','ZZZZ']
 
     contr = [ { "exponent"      : [],
                 "coefficient"   : [],
@@ -720,17 +728,18 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         order = [ [0],
                 [0, 1, 2],
                 [0, 1, 2, 3, 4, 5],
-                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] ]
+                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]]
     else:
         print ("Orbitals in spherical representation detected")
         sys.exit()
 
 
 
-#   Count how many times p,d,f appears for a given atom
-    dict_sshell_count = {}; dict_pshell_count = {}; dict_dshell_count = {}; dict_fshell_count = {}
+#   Count how many times p,d,f,g appears for a given atom
+    dict_sshell_count = {}; dict_pshell_count = {}; dict_dshell_count = {}; dict_fshell_count = {}; dict_gshell_count = {}
     for atom_index in range(len(index_radial)):
-        counter_s = 0; counter_p = 0; counter_d = 0; counter_f = 0
+        counter_s = 0; counter_p = 0; counter_d = 0; counter_f = 0; counter_g = 0
         for i in index_radial[atom_index]:
             l = dict_basis["shell_ang_mom"][i]
             if l == 0:
@@ -741,10 +750,13 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                 counter_d += 1
             if l == 3:
                 counter_f += 1
+            if l == 4:
+                counter_g += 1
         dict_sshell_count[atom_index] = counter_s
         dict_pshell_count[atom_index] = counter_p
         dict_dshell_count[atom_index] = counter_d
         dict_fshell_count[atom_index] = counter_f
+        dict_gshell_count[atom_index] = counter_g
 
 
     # print ("index radial: ", index_radial)
@@ -753,6 +765,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     # print ("dict_pshell count: ", dict_pshell_count)
     # print ("dict_dshell count: ", dict_dshell_count)
     # print ("dict_fshell count: ", dict_fshell_count)
+    # print ("dict_gshell count: ", dict_gshell_count)
 
     # This part is for reshuffling to make the AO basis in the CHAMP's own ordering
     index_dict = {}; shell_representation = {}; bf_representation = {}
@@ -761,7 +774,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     ind = 0; champ_ao_ordering = []
     for atom_index in range(len(index_radial)):
         bfcounter = 1; basis_per_atom_counter = 0
-        pindex = 0; dindex = 0; findex = 0
+        pindex = 0; dindex = 0; findex = 0; gindex = 0
         for i in index_radial[atom_index]:
             l = dict_basis["shell_ang_mom"][i]
             # run a small loop to reshuffle the shell ordering
@@ -818,6 +831,22 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                     new_shell_representation.extend(list(local_f.flatten()))
                     champ_ao_ordering.extend(list(local_ind_f.flatten()))
 
+            local_g = np.zeros((15,dict_gshell_count[atom_index]),dtype='U4')
+            local_ind_g = np.zeros((15,dict_gshell_count[atom_index]),dtype=int)
+            if l == 4:
+                gindex += 1; ind = champ_ao_ordering[-1] + 1
+                for j in range(dict_gshell_count[atom_index]):
+                    #loop over all 15 g orbitals
+                    for k in order[l]:
+                        local_g[k,j] = shells[l][k]
+                        local_ind_g[k,j] = ind
+                        ind += 1
+
+                if gindex == dict_gshell_count[atom_index]:
+                    new_shell_representation.extend(list(local_g.flatten()))
+                    champ_ao_ordering.extend(list(local_ind_g.flatten()))
+
+
             # Get number of AO basis per atom
             for k in order[l]:
                 shell_representation[counter] = shells[l][k]
@@ -866,10 +895,12 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         if isinstance(filename, str):
             ## Write down a symmetry file in the new champ v2.0 format
             filename_bfinfo = os.path.splitext("champ_v2_" + filename)[0]+'.bfinfo'
-            with open(filename_bfinfo, 'w') as file:
+            filename_bfinfo_g = os.path.splitext("champ_v2_" + filename)[0]+'_with_g.bfinfo'
+            with open(filename_bfinfo, 'w') as file, open(filename_bfinfo_g, 'w') as file_g:
 
                 # qmc bfinfo line printed below
                 file.write("qmc_bf_info 1 \n")
+                file_g.write("qmc_bf_info 1 \n")
 
                 # pointers to the basis functions
                 for i in np.sort(unique_atom_indices):
@@ -877,17 +908,25 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                     # Write the number of types of shells for each unique atom
                     for num in count_shells_per_atom:
                         file.write(f"{num} ")
+                        file_g.write(f"{num} ")
                     # Write down zeros for shells that are not present. Total shells supported are S(1) + P(3) + D(6) + F(10) = 20
                     for rem in range(len(count_shells_per_atom), 20):
                         file.write(f"0 ")
+                    for rem in range(len(count_shells_per_atom), 35):
+                        file_g.write(f"0 ")
                     file.write(f"\n")
+                    file_g.write(f"\n")
 
                     # Write the pointers to the basis functions
                     for pointer in basis_pointer_per_atom[i]:
                         file.write(f"{pointer} ")
+                        file_g.write(f"{pointer} ")
                     file.write(f"\n")
+                    file_g.write(f"\n")
                 file.write("end\n")
+                file_g.write("end\n")
             file.close()
+            file_g.close()
 
         else:
             raise ValueError
