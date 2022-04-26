@@ -162,6 +162,7 @@ def run(filename,  gamessfile, back_end, motype=None):
 
     # Write the .lcao and .bfinfo file containing orbital information of MOs
     write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_label)
+    write_champ_file_orbitals_trex_aligned(filename, dict_mo, ao_num)
 
     # Write the basis on the radial grid file
     write_champ_file_basis_grid(filename, dict_basis, nucleus_label)
@@ -954,6 +955,38 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     else:
         return None
     # all the lcao file information written to the file
+
+
+# Orbitals / LCAO infomation
+
+def write_champ_file_orbitals_trex_aligned(filename, dict_mo, ao_num):
+    """Writes the molecular orbitals coefficients from the quantum
+    chemistry calculation / trexio file to the champ v2.0 input file format but with the same trexio AO ordering.
+
+    Returns:
+        None as a function value
+    """
+
+    # write the molecular coefficients to the .lcao file
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down an orbitals file in the new champ v2.0 format
+            filename_orbitals = os.path.splitext("champ_v2_" + filename)[0]+'_trexio_aligned_orbitals.lcao'
+            with open(filename_orbitals, 'w') as file:
+
+                # header line printed below
+                file.write("# File created using the trex2champ converter https://github.com/TREX-CoE/trexio_tools . AOs have trexio ordering. \n")
+                file.write("lcao " + str(dict_mo["num"]) + " " + str(ao_num) + " 1 " + "\n" )
+                np.savetxt(file, dict_mo["coefficient"], fmt='%.8f')
+                file.write("end\n")
+            file.close()
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+    # all the lcao file information written to the file
+
 
 
 # ECP / Pseudopotential files using the trexio file
