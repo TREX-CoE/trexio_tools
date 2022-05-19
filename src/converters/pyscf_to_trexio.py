@@ -99,7 +99,9 @@ def pyscf_checkfile_to_trexio(pyscf_checkfile, trexio_filename="trexio.hdf5"):
         # PBC info
         ##########################################
         if pbc_flag:
-            a=mol.a[0]; b=mol.a[1]; c=mol.a[2]
+            a=np.array(mol.a[0])/ 0.529177210903   # Angstrom to Bohr
+            b=np.array(mol.a[1])/ 0.529177210903   # Angstrom to Bohr
+            c=np.array(mol.a[2])/ 0.529177210903   # Angstrom to Bohr
             k_point=k_vec
             periodic=True
         else:
