@@ -24,15 +24,12 @@ stream_handler.setFormatter(handler_format)
 logger.addHandler(stream_handler)
 
 # load python packages
-import numpy as np
 import os, sys
-import pandas as pd
-import scipy
-import numpy
-import itertools
+import numpy as np
 
 # load ASE modules
 from ase.io import read
+
 # load pyscf packages
 from pyscf import gto, scf, mp, tools
 from pyscf.pbc import gto as gto_pbc
