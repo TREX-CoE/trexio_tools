@@ -72,6 +72,11 @@ def run(filename,  gamessfile, back_end, motype=None):
     # Metadata
     # --------
 
+    # try:
+    #     trexio.read_metadata_code_num(trexio_file)
+    # except trexio.Error as e:
+    #     print(f"TREXIO error message: {e.message}")
+
     metadata_num = trexio.read_metadata_code_num(trexio_file)
     metadata_code  = trexio.read_metadata_code(trexio_file)
     metadata_description = trexio.read_metadata_description(trexio_file)
@@ -157,6 +162,7 @@ def run(filename,  gamessfile, back_end, motype=None):
 
     # Write the .lcao and .bfinfo file containing orbital information of MOs
     write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_label)
+    write_champ_file_orbitals_trex_aligned(filename, dict_mo, ao_num)
 
     # Write the basis on the radial grid file
     write_champ_file_basis_grid(filename, dict_basis, nucleus_label)
@@ -243,6 +249,8 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
             norm = (2.0*alp)**(7.0/4.0)*np.sqrt(16.0/15.0)*(1.0/(np.pi**(1.0/4.0)))
         elif l == 3:
             norm = (2.0*alp)**(9.0/4.0)*np.sqrt(32.0/105.0)*(1.0/(np.pi**(1.0/4.0)))
+        elif l == 4:
+            norm = (2.0*alp)**(11.0/4.0)*np.sqrt(64.0/945.0)*(1.0/(np.pi**(1.0/4.0)))
         return norm
 
     def compute_grid():
@@ -269,12 +277,6 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
             for j in range(len(exponents)):
                 value += gnorm(exponents[j], shell_ang_mom) * coefficients[j] * np.exp(-exponents[j]*r2)
                 # print ("each value k, ib,", i ,j , value)
-            if shell_ang_mom == 1:
-                value *= r
-            elif shell_ang_mom == 2:
-                value *= r2
-            elif shell_ang_mom == 3:
-                value *= r3
 
             bgrid[shell+1,i] = value
 
@@ -286,7 +288,7 @@ def write_champ_file_basis_grid(filename, dict_basis, nucleus_label):
 
             for i in range(len(unique_elements)):
                 # Write down an radial basis grid file in the new champ v2.0 format for each unique atom type
-                filename_basis_grid = "BFD-Q." + 'basis.' + unique_elements[i]
+                filename_basis_grid = "BASISGRID." + 'basis.' + unique_elements[i]
                 with open(filename_basis_grid, 'w') as file:
 
                     # Common numbers
@@ -366,10 +368,14 @@ def write_champ_file_determinants(filename, file):
     beta_orbitals = np.sort(file.determinants[0].get("beta"))
 
     # Get the core+active space
+    old_maxalpha = 0; old_maxbeta = 0
     for det in range(len(det_coeff[0])): #reduced_list_determintants:
         alpha = file.determinants[det].get("alpha")
         beta = file.determinants[det].get("beta")
-        maxalpha = max(alpha); maxbeta = max(beta)
+        maxalpha = max(max(alpha), old_maxalpha)
+        maxbeta =  max(max(beta), old_maxbeta)
+        old_maxalpha = maxalpha
+        old_maxbeta = maxbeta
 
     qmc_phase_factor = []
     for det in range(len(det_coeff[0])): #reduced_list_determintants:
@@ -405,7 +411,7 @@ def write_champ_file_determinants(filename, file):
     ## Do the preprocessing to reduce the number of determinants and get the CSF mapping
     reduced_det_coefficients = []
     csf = file.csf
-    reduced_list_determintants = []
+    reduced_list_determintants = [[] for i in range(num_states)]
     copy_list_determintants = []
 
     ## Get which determinant coefficient correspond to which csf coefficient
@@ -416,6 +422,7 @@ def write_champ_file_determinants(filename, file):
                 csf_for_each_det.append(c)
 
     # Get the reduced determinant coefficients
+    state_index = 0
     for state_coef in file.csf_coefficients:
         vector = []
         counter = 0; counter2 = 0       # Counter2 is required for keeping correspondence of determinants in the reduced list
@@ -426,7 +433,7 @@ def write_champ_file_determinants(filename, file):
                 if counter == indices[0]:
                     copy_list_determintants.append(counter2)
                     counter2 += 1
-                    reduced_list_determintants.append(indices[0])
+                    reduced_list_determintants[state_index].append(indices[0])
                     for index in indices:
                         if len(indices) == 1:
                             temp =  csf_for_each_det[index] * flat_array_coeff[index]
@@ -437,47 +444,73 @@ def write_champ_file_determinants(filename, file):
                     copy_list_determintants.append(indices[0])
                 counter += 1
         reduced_det_coefficients.append(vector)
+        state_index += 1
 
 
     if filename is not None:
         if isinstance(filename, str):
             ## Write down a determinant file in the new champ v2.0 format
-            filename_determinant = os.path.splitext("champ_v2_" + filename)[0]+'_determinants.det'
-            with open(filename_determinant, 'w') as f:
+            filename_determinant = os.path.splitext("champ_v2_" + filename)[0]+'_determinants_state1.det'
+            filename_determinant_multistates = os.path.splitext("champ_v2_" + filename)[0]+'_determinants_multistate.det'
+            with open(filename_determinant, 'w') as f, open(filename_determinant_multistates, 'w') as f2:
                 # header line printed below
                 f.write("# Determinants, CSF, and CSF mapping from the GAMESS output / TREXIO file. \n")
                 f.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
-                f.write("determinants {} {} \n".format(len(reduced_list_determintants), num_states))
+                f.write("determinants {} {} \n".format(len(reduced_list_determintants[0]), 1))
+
+                f2.write("# Determinants, CSF, and CSF mapping from the GAMESS output / TREXIO file. \n")
+                f2.write("# Converted from the trexio file using trex2champ converter https://github.com/TREX-CoE/trexio_tools \n")
+                f2.write("determinants {} {} \n".format(len(reduced_list_determintants[0]), 1))
+
 
                 # print the determinant coefficients
-                for state in range(num_states):
-                    for det in range(len(reduced_list_determintants)):
-                        f.write("{:.8f} ".format(reduced_det_coefficients[state][det]))
-                    f.write("\n")
+                for det in range(len(reduced_list_determintants[0])):
+                    f.write("{:.8f} ".format(reduced_det_coefficients[0][det]))
+                    f2.write("{:.8f} ".format(reduced_det_coefficients[0][det]))
+                f.write("\n")
+                f2.write("\n")
 
                 # print the determinant orbital mapping
-                for det in reduced_list_determintants:
+                for det in reduced_list_determintants[0]:
                     for num in range(num_alpha):
                         alpha_orbitals = np.sort(file.determinants[det].get("alpha"))[num]+1
                         f.write("{:4d} ".format(alpha_orbitals))
+                        f2.write("{:4d} ".format(alpha_orbitals))
                     f.write("  ")
+                    f2.write("  ")
                     for num in range(num_beta):
                         beta_orbitals = np.sort(file.determinants[det].get("beta"))[num]+1
                         f.write("{:4d} ".format(beta_orbitals))
+                        f2.write("{:4d} ".format(beta_orbitals))
                     f.write("\n")
+                    f2.write("\n")
                 f.write("end \n")
+                f2.write("end \n")
 
                 # print the CSF coefficients
-                f.write("csf {} {} \n".format(num_csf, num_states))
+                f.write("csf {} {} \n".format(num_csf, 1))  # default to 1 (to be replaced by selected_states)
+                f2.write("csf {} {} \n".format(num_csf, num_states))
+
+                for ccsf in range(num_csf):
+                    f.write("{:.8f} ".format(csf_coeff[0][ccsf]))  # default to state 1 (to be replaced by selected_states)
+                f.write("\n")
+                f.write("end \n")
+
+                #multistate file
                 for state in range(num_states):
                     for ccsf in range(num_csf):
-                        f.write("{:.8f} ".format(csf_coeff[state][ccsf]))
-                    f.write("\n")
-                f.write("end \n")
+                        f2.write("{:.8f} ".format(csf_coeff[state][ccsf]))
+                    f2.write("\n")
+                f2.write("end \n")
+
+
 
                 # print the CSFMAP information
                 f.write("csfmap \n")
-                f.write("{} {} {} \n".format(num_csf,  len(reduced_list_determintants), num_dets))
+                f.write("{} {} {} \n".format(num_csf,  len(reduced_list_determintants[0]), num_dets))
+
+                f2.write("csfmap \n")
+                f2.write("{} {} {} \n".format(num_csf,  len(reduced_list_determintants[0]), num_dets))
 
                 determinants_per_csf = []
                 csf_det_coeff = []
@@ -488,17 +521,22 @@ def write_champ_file_determinants(filename, file):
                             csf_det_coeff.append(d)
 
 
-                for state in range(num_states):
-                    i = 0
-                    for csf in range(num_csf):
-                        f.write(f"{determinants_per_csf[csf]:d} \n")
-                        for num in range(determinants_per_csf[csf]):
-                            f.write(f"  {copy_list_determintants[i]+1}  {csf_det_coeff[i]:.6f} \n")
-                            i += 1
+                # for state in range(num_states):
+                i = 0
+                for csf in range(num_csf):
+                    f.write(f"{determinants_per_csf[csf]:d} \n")
+                    f2.write(f"{determinants_per_csf[csf]:d} \n")
+                    for num in range(determinants_per_csf[csf]):
+                        f.write(f"  {copy_list_determintants[i]+1}  {csf_det_coeff[i]:.6f} \n")
+                        f2.write(f"  {copy_list_determintants[i]+1}  {csf_det_coeff[i]:.6f} \n")
+                        i += 1
                 f.write("end \n")
+                f2.write("end \n")
 
                 f.write("\n")
+                f2.write("\n")
             f.close()
+            f2.close()
         else:
             raise ValueError
     # If filename is None, return a string representation of the output.
@@ -642,6 +680,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     shells[1] = ['X','Y','Z']
     shells[2] = ['XX','XY','XZ','YY','YZ','ZZ']
     shells[3] = ['XXX','XXY','XXZ','XYY','XYZ','XZZ','YYY','YYZ','YZZ','ZZZ']
+    shells[4] = ['XXXX','XXXY','XXXZ','XXYY','XXYZ','XXZZ','XYYY','XYYZ','XYZZ','XZZZ','YYYY','YYYZ','YYZZ','YZZZ','ZZZZ']
 
     contr = [ { "exponent"      : [],
                 "coefficient"   : [],
@@ -690,17 +729,18 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         order = [ [0],
                 [0, 1, 2],
                 [0, 1, 2, 3, 4, 5],
-                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] ]
+                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]]
     else:
         print ("Orbitals in spherical representation detected")
         sys.exit()
 
 
 
-#   Count how many times p,d,f appears for a given atom
-    dict_sshell_count = {}; dict_pshell_count = {}; dict_dshell_count = {}; dict_fshell_count = {}
+#   Count how many times p,d,f,g appears for a given atom
+    dict_sshell_count = {}; dict_pshell_count = {}; dict_dshell_count = {}; dict_fshell_count = {}; dict_gshell_count = {}
     for atom_index in range(len(index_radial)):
-        counter_s = 0; counter_p = 0; counter_d = 0; counter_f = 0
+        counter_s = 0; counter_p = 0; counter_d = 0; counter_f = 0; counter_g = 0
         for i in index_radial[atom_index]:
             l = dict_basis["shell_ang_mom"][i]
             if l == 0:
@@ -711,10 +751,13 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                 counter_d += 1
             if l == 3:
                 counter_f += 1
+            if l == 4:
+                counter_g += 1
         dict_sshell_count[atom_index] = counter_s
         dict_pshell_count[atom_index] = counter_p
         dict_dshell_count[atom_index] = counter_d
         dict_fshell_count[atom_index] = counter_f
+        dict_gshell_count[atom_index] = counter_g
 
 
     # print ("index radial: ", index_radial)
@@ -723,6 +766,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     # print ("dict_pshell count: ", dict_pshell_count)
     # print ("dict_dshell count: ", dict_dshell_count)
     # print ("dict_fshell count: ", dict_fshell_count)
+    # print ("dict_gshell count: ", dict_gshell_count)
 
     # This part is for reshuffling to make the AO basis in the CHAMP's own ordering
     index_dict = {}; shell_representation = {}; bf_representation = {}
@@ -731,7 +775,7 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     ind = 0; champ_ao_ordering = []
     for atom_index in range(len(index_radial)):
         bfcounter = 1; basis_per_atom_counter = 0
-        pindex = 0; dindex = 0; findex = 0
+        pindex = 0; dindex = 0; findex = 0; gindex = 0
         for i in index_radial[atom_index]:
             l = dict_basis["shell_ang_mom"][i]
             # run a small loop to reshuffle the shell ordering
@@ -788,6 +832,22 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
                     new_shell_representation.extend(list(local_f.flatten()))
                     champ_ao_ordering.extend(list(local_ind_f.flatten()))
 
+            local_g = np.zeros((15,dict_gshell_count[atom_index]),dtype='U4')
+            local_ind_g = np.zeros((15,dict_gshell_count[atom_index]),dtype=int)
+            if l == 4:
+                gindex += 1; ind = champ_ao_ordering[-1] + 1
+                for j in range(dict_gshell_count[atom_index]):
+                    #loop over all 15 g orbitals
+                    for k in order[l]:
+                        local_g[k,j] = shells[l][k]
+                        local_ind_g[k,j] = ind
+                        ind += 1
+
+                if gindex == dict_gshell_count[atom_index]:
+                    new_shell_representation.extend(list(local_g.flatten()))
+                    champ_ao_ordering.extend(list(local_ind_g.flatten()))
+
+
             # Get number of AO basis per atom
             for k in order[l]:
                 shell_representation[counter] = shells[l][k]
@@ -836,28 +896,38 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
         if isinstance(filename, str):
             ## Write down a symmetry file in the new champ v2.0 format
             filename_bfinfo = os.path.splitext("champ_v2_" + filename)[0]+'.bfinfo'
-            with open(filename_bfinfo, 'w') as file:
+            filename_bfinfo_g = os.path.splitext("champ_v2_" + filename)[0]+'_with_g.bfinfo'
+            with open(filename_bfinfo, 'w') as file, open(filename_bfinfo_g, 'w') as file_g:
 
                 # qmc bfinfo line printed below
                 file.write("qmc_bf_info 1 \n")
+                file_g.write("qmc_bf_info 1 \n")
 
                 # pointers to the basis functions
-                for i in unique_atom_indices:
+                for i in np.sort(unique_atom_indices):
                     count_shells_per_atom = list(Counter(shell_reprensentation_per_atom[i]).values())
                     # Write the number of types of shells for each unique atom
                     for num in count_shells_per_atom:
                         file.write(f"{num} ")
+                        file_g.write(f"{num} ")
                     # Write down zeros for shells that are not present. Total shells supported are S(1) + P(3) + D(6) + F(10) = 20
                     for rem in range(len(count_shells_per_atom), 20):
                         file.write(f"0 ")
+                    for rem in range(len(count_shells_per_atom), 35):
+                        file_g.write(f"0 ")
                     file.write(f"\n")
+                    file_g.write(f"\n")
 
                     # Write the pointers to the basis functions
                     for pointer in basis_pointer_per_atom[i]:
                         file.write(f"{pointer} ")
+                        file_g.write(f"{pointer} ")
                     file.write(f"\n")
+                    file_g.write(f"\n")
                 file.write("end\n")
+                file_g.write("end\n")
             file.close()
+            file_g.close()
 
         else:
             raise ValueError
@@ -887,6 +957,38 @@ def write_champ_file_orbitals(filename, dict_basis, dict_mo, ao_num, nucleus_lab
     # all the lcao file information written to the file
 
 
+# Orbitals / LCAO infomation
+
+def write_champ_file_orbitals_trex_aligned(filename, dict_mo, ao_num):
+    """Writes the molecular orbitals coefficients from the quantum
+    chemistry calculation / trexio file to the champ v2.0 input file format but with the same trexio AO ordering.
+
+    Returns:
+        None as a function value
+    """
+
+    # write the molecular coefficients to the .lcao file
+    if filename is not None:
+        if isinstance(filename, str):
+            ## Write down an orbitals file in the new champ v2.0 format
+            filename_orbitals = os.path.splitext("champ_v2_" + filename)[0]+'_trexio_aligned_orbitals.lcao'
+            with open(filename_orbitals, 'w') as file:
+
+                # header line printed below
+                file.write("# File created using the trex2champ converter https://github.com/TREX-CoE/trexio_tools . AOs have trexio ordering. \n")
+                file.write("lcao " + str(dict_mo["num"]) + " " + str(ao_num) + " 1 " + "\n" )
+                np.savetxt(file, dict_mo["coefficient"], fmt='%.8f')
+                file.write("end\n")
+            file.close()
+        else:
+            raise ValueError
+    # If filename is None, return a string representation of the output.
+    else:
+        return None
+    # all the lcao file information written to the file
+
+
+
 # ECP / Pseudopotential files using the trexio file
 def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, ecp_z_core, ecp_max_ang_mom_plus_1, ecp_ang_mom, ecp_nucleus_index, ecp_exponent, ecp_coefficient, ecp_power):
     """Writes the Gaussian - effective core potential / pseudopotential data from
@@ -901,7 +1003,7 @@ def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, e
             unique_elements, indices = np.unique(nucleus_label, return_index=True)
             for i in range(len(unique_elements)):
                 # Write down an ECP file in the new champ v2.0 format for each nucleus
-                filename_ecp = "BFD." + 'gauss_ecp.dat.' + unique_elements[i]
+                filename_ecp = "ECP." + 'gauss_ecp.dat.' + unique_elements[i]
                 with open(filename_ecp, 'w') as file:
                     file.write("BFD {:s} pseudo \n".format(unique_elements[i]))
 
@@ -910,24 +1012,36 @@ def write_champ_file_ecp_trexio(filename, nucleus_num, nucleus_label, ecp_num, e
                     for ind, val in enumerate(ecp_nucleus_index):
                         if val == indices[i]:
                             dict_ecp[ind] = [ecp_ang_mom[ind], ecp_coefficient[ind], ecp_power[ind]+2, ecp_exponent[ind]]
-
                     ecp_array =  np.array(list(dict_ecp.values()))
                     ecp_array = ecp_array[np.argsort(ecp_array[:,0])]
 
-                    sorted_list = np.sort(ecp_array[:,0])[::-1]
+                    sorted_list = np.sort(ecp_array[:,0])
 
+                    # Write down the total number of local as well as non-local parts of ECP for a given element
                     np.savetxt(file, [len(np.unique(sorted_list))], fmt='%d')
-                    # loop over ang mom for a given atom
-                    for l in np.sort(np.unique(sorted_list))[::-1]:
-                        # loop and if condition to choose the correct components
-                        for x in np.unique(np.sort(ecp_array[:,0])[::-1]):
-                            if ecp_array[int(x):,0:][0][0] == l:
-                                count = np.count_nonzero(sorted_list == l)
-                                np.savetxt(file, [count], fmt='%d')
-                                np.savetxt(file, ecp_array[int(x):count+int(x),1:], fmt='%.8f')
+                    lmax_index_array = np.where(sorted_list == np.max(sorted_list))[0]
+                    # Write down the number of terms in the ECP for local parts.
+                    np.savetxt(file, [len(lmax_index_array)], fmt='%d')
+                    # Write down the coeff, power and exponent terms in the ECP for local parts.
+                    for i in lmax_index_array:
+                        file.write(f"{ecp_array[i,1]:0.8f} \t {ecp_array[i,2]:02} \t {ecp_array[i,3]:0.8f} ")
+                        file.write("\n")
 
+                    # write down the remaining terms in the ECP for non-local parts.
+                    # Get the number of terms first
+                    nterms = Counter(sorted_list)
+                    nterms = list(nterms.values())
+
+                    ind = 0
+                    for j in nterms[:-1]:  #lmax already written to the file
+                        file.write(f"{j}")
+                        file.write("\n")
+                        for i in range(j):
+                            file.write(f"{ecp_array[ind,1]:0.8f} \t {ecp_array[ind,2]:02} \t {ecp_array[ind,3]:0.8f} ")
+                            ind += 1
+                            file.write("\n")
+                    file.write("\n")
                 file.close()
-
         else:
             raise ValueError
     # If filename is None, return a string representation of the output.
