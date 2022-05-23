@@ -3,19 +3,21 @@
 Set of tools to interact with trexio files.
 
 Usage:
-      trexio check-basis   [-n n_points]            [-b back_end]  TREXIO_FILE
-      trexio check-mos     [-n n_points]            [-b back_end]  TREXIO_FILE
-      trexio convert-to     -t type -o output_file                 TREXIO_FILE
-      trexio convert2champ  -i GAMESS_input_file  [-x orbital_type]  [-b back_end]  TREXIO_FILE
-      trexio convert-from   -t type -i input_file [-x orbital_type] [-b back_end]  TREXIO_FILE
+      trexio check-basis   [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
+      trexio check-mos     [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
+      trexio convert-to     -t TYPE -o OUTPUT_FILE       TREXIO_FILE
+      trexio convert-from   -t TYPE -i INPUT_FILE  [-x MO_TYPE]  [-b BACK_END]  TREXIO_FILE
+      trexio convert2champ  -i GAMESS_INPUT_FILE   [-x MO_TYPE]  [-b BACK_END]  TREXIO_FILE
+      trexio (-h | --help)
 
 Options:
-      -n --n_points=n              Number of integration points. Default is 81.
-      -i --input=input_file        Name of the input file
-      -o --output=output_file      Name of the output file
-      -b --back_end=[hdf5 | text]  The TREXIO back end. Default is hdf5.
-      -t --type=[gaussian | gamess | fcidump | molden | champ | cartesian | spherical ] File format
-      -x --motype=[natural | initial | guga-initial | guga-natural]  The type of the molecular orbitals. Default is natural.
+      -h --help                 Print help message.
+      -n --n_points=N_POINTS    Number of integration points. [default: 81]
+      -i --input=INPUT_FILE     Name of the input file.
+      -o --output=OUTPUT_FILE   Name of the output file.
+      -b --back_end=BACK_END    [hdf5 | text]  The TREXIO back end. [default: hdf5]
+      -t --type=TYPE            [gaussian | gamess | fcidump | molden | champ | cartesian | spherical ] File format.
+      -x --motype=MO_TYPE       [natural | initial | guga-initial | guga-natural] The type of the molecular orbitals.
 """
 
 from docopt import docopt
@@ -42,7 +44,7 @@ def main(filename=None, args=None):
         elif str(args["--back_end"]).lower() == "text":
             back_end = trexio.TREXIO_TEXT
         else:
-            raise ValueError
+            raise ValueError("Supported back ends: text, hdf5.")
     else:
         back_end = trexio.TREXIO_HDF5
 
