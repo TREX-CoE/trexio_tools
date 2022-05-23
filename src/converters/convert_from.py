@@ -142,7 +142,11 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
 
         ao_shell.append(curr_shell)
 
-    nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
+    if len(nucleus_index) > 1:
+        nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
+    else:
+        # cade of a single atom
+        nucl_shell_num.append(curr_shell + 1)
 
     shell_num = curr_shell+1
     prim_num = len(exponent)
