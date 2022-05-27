@@ -36,8 +36,6 @@ def main(filename=None, args=None):
         args = docopt(__doc__)
         filename = args["TREXIO_FILE"]
 
-    print(args)
-
     if args["--n_points"]:
        n_points = int(args["--n_points"])
     else:

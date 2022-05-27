@@ -46,8 +46,6 @@ def generate_converter(json_filename: str) -> None:
   if trexio.has_{attr}(trexio_file_from):        \n\
     data = trexio.read_{attr}(trexio_file_from)  \n\
     trexio.write_{attr}(trexio_file_to, data)    \n\
-  else:                                          \n\
-    print("{attr} is missing in the file")       \n\
             '
             f_out.write(block)
 
@@ -64,8 +62,6 @@ def generate_converter(json_filename: str) -> None:
           trexio_file_to, offset_file, read_size, indices, values \n\
           )                                                       \n\
       offset_file += read_size                                    \n\
-  else:                                                           \n\
-    print("{attr} is missing in the file")                        \n\
             '
             f_out.write(block)
 
@@ -84,8 +80,6 @@ def generate_converter(json_filename: str) -> None:
           trexio_file_to, offset_file, read_size, data            \n\
           )                                                       \n\
       offset_file += read_size                                    \n\
-  else:                                                           \n\
-    print("{attr} is missing in the file")                        \n\
             '
             f_out.write(block)
 
