@@ -387,7 +387,8 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
     # Determinants 
     # ---------
 
-    if res.det_coefficients:
+    # resultsFile has non-empty det_coefficients sometimes
+    if len(res.det_coefficients[0]) > 1:
 
         int64_num       = int((mo_num-1)/64) + 1
         determinant_num = len(res.det_coefficients[0])
