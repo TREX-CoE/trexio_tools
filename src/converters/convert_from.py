@@ -5,6 +5,7 @@ Convert output file from a given code/format into TREXIO
 
 import os
 from group_tools import basis as trexio_basis
+from group_tools import determinant as trexio_det
 
 try:
     import trexio
@@ -66,10 +67,8 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
     trexio.write_nucleus_num(trexio_file, nucleus_num)
     trexio.write_nucleus_coord(trexio_file, coord)
     # nucleus_charge will be written later after removing core electrons with ECP
-    # trexio.write_nucleus_charge(trexio_file, charge)
 
-
-    # Transformt H1 into H
+    # Transform H1 into H
     import re
     p = re.compile(r'(\d*)$')
     label = [p.sub("", x.name).capitalize() for x in res.geometry]
@@ -385,9 +384,41 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
     # end if res.pseudo:
     trexio.write_nucleus_charge(trexio_file, charge)
 
-    # Electrons
+    # Determinants 
     # ---------
 
+    if res.det_coefficients:
+
+        int64_num       = int((mo_num-1)/64) + 1
+        determinant_num = len(res.det_coefficients[0])
+
+        # sanity check
+        if res.num_states > 1:
+            assert determinant_num == len(res.det_coefficients[1])
+
+        # construct the determinant_list of integer bitfields from resultsFile determinants reprsentation
+        det_list = []
+        for i in range(determinant_num):
+            det_tmp      = []
+            orb_list_up  = [ orb+1 for orb in res.determinants[i].get("alpha") ]
+            det_tmp     += trexio_det.to_determinant_list(orb_list_up, int64_num)
+            orb_list_dn  = [ orb+1 for orb in res.determinants[i].get("beta") ]
+            det_tmp     += trexio_det.to_determinant_list(orb_list_dn, int64_num) 
+
+            det_list.append(det_tmp)
+
+        # write the CI determinants
+        offset_file = 0
+        trexio.write_determinant_list(trexio_file, offset_file, determinant_num, det_list)
+
+        # write the CI coefficients
+        offset_file = 0
+        for s in range(res.num_states):
+            trexio_file.set_state(s)
+            trexio.write_determinant_coefficient(trexio_file, offset_file, determinant_num, res.det_coefficients[s])
+
+
+    # close the file before leaving
     trexio_file.close()
 
     print("Conversion to TREXIO format has been completed.")
@@ -403,7 +434,7 @@ def run(trexio_filename, filename, filetype, back_end, motype=None):
     elif filetype.lower() == "fcidump":
         run_fcidump(trexio_filename, filename, back_end)
     elif filetype.lower() == "molden":
-        run_fcidump(trexio_filename, filename, back_end)
+        run_molden(trexio_filename, filename, back_end)
     else:
         raise TypeError("Unknown file type")
 
