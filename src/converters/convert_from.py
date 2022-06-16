@@ -19,7 +19,7 @@ except ImportError as exc:
 
 
 
-def run_resultsFile(trexio_filename, filename, back_end, motype=None):
+def run_resultsFile(trexio_filename, filename, back_end):
 
     if os.path.exists(filename):
         os.system("rm -rf -- "+trexio_filename)
@@ -246,11 +246,8 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
     # MOs
     # ---
 
-    if motype is None:
-        MO_type = res.determinants_mo_type
-    else:
-        MO_type = motype
-    print ("available motypes", res.mo_types)
+    MO_type = res.determinants_mo_type
+    #print ("available motypes", res.mo_types)
 
     allMOs = res.mo_sets[MO_type]
     trexio.write_mo_type(trexio_file, MO_type)
@@ -384,7 +381,7 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
     # end if res.pseudo:
     trexio.write_nucleus_charge(trexio_file, charge)
 
-    # Determinants 
+    # Determinants
     # ---------
 
     # resultsFile has non-empty det_coefficients sometimes
@@ -404,7 +401,7 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
             orb_list_up  = [ orb+1 for orb in res.determinants[i].get("alpha") ]
             det_tmp     += trexio_det.to_determinant_list(orb_list_up, int64_num)
             orb_list_dn  = [ orb+1 for orb in res.determinants[i].get("beta") ]
-            det_tmp     += trexio_det.to_determinant_list(orb_list_dn, int64_num) 
+            det_tmp     += trexio_det.to_determinant_list(orb_list_dn, int64_num)
 
             det_list.append(det_tmp)
 
@@ -427,15 +424,14 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
     return
 
 
-def run(trexio_filename, filename, filetype, back_end, motype=None):
+def run(trexio_filename, filename, filetype, back_end):
     if filetype.lower() == "gaussian":
         run_resultsFile(trexio_filename, filename, back_end)
     elif filetype.lower() == "gamess":
-        run_resultsFile(trexio_filename, filename, back_end, motype)
+        run_resultsFile(trexio_filename, filename, back_end)
     elif filetype.lower() == "fcidump":
         run_fcidump(trexio_filename, filename, back_end)
     elif filetype.lower() == "molden":
         run_molden(trexio_filename, filename, back_end)
     else:
         raise TypeError("Unknown file type")
-
