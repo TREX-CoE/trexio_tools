@@ -6,7 +6,7 @@ Usage:
       trexio check-basis      [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio check-mos        [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio convert-to       -t TYPE -o OUTPUT_FILE        TREXIO_FILE
-      trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END]  TREXIO_FILE
+      trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END]  [-x MO_TYPE]  TREXIO_FILE
       trexio convert-backend  -i INPUT_FILE  -o OUTPUT_FILE  -b BACK_END  -j TREX_JSON_FILE  [-s BACK_END_FROM]  [-w OVERWRITE]
       trexio (-h | --help)
 
@@ -20,6 +20,7 @@ Options:
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
       -t, --type=TYPE               [gaussian | gamess | fcidump | molden | cartesian | spherical ] File format.
+      -x, --motype=MO_TYPE          [natural | initial | guga-initial | guga-natural] The type of the molecular orbitals.
 """
 
 from docopt import docopt
@@ -90,7 +91,7 @@ def main(filename=None, args=None):
 
     elif args["convert-from"]:
         from converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end)
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"]))
 
     elif args["convert-to"]:
         from converters.convert_to import run
