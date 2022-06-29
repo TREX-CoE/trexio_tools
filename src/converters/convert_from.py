@@ -102,6 +102,10 @@ def run_resultsFile(trexio_file, filename, motype=None):
     ao_shell = []
     prev_idx = None
     geom = [ a.coord for a in res.geometry ]
+    try:
+      normf = res.normf
+    except AttributeError:
+      normf=0
     for b in res.basis:
         # Warning: assumes +0 is always 1st of spherical functions
         if ("y" in b.sym) or ("z" in b.sym):
@@ -126,7 +130,10 @@ def run_resultsFile(trexio_file, filename, motype=None):
             exponent += [x.expo for x in b.prim]
             coefficient += b.coef
             prim_factor += [1./x.norm for x in b.prim]
-            shell_factor.append(1./b.norm)
+            if normf == 0:
+                shell_factor.append(1./b.norm)
+            else:
+                shell_factor.append(1.)
             idx = geom.index(b.center)
             if idx != prev_idx:
                 nucleus_index.append(curr_shell)
