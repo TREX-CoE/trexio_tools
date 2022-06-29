@@ -19,12 +19,8 @@ except ImportError as exc:
 
 
 
-def run_resultsFile(trexio_filename, filename, back_end, motype=None):
+def run_resultsFile(trexio_file, filename, motype=None):
 
-    if os.path.exists(filename):
-        os.system("rm -rf -- "+trexio_filename)
-
-    trexio_file = trexio.File(trexio_filename,mode='w',back_end=back_end)
     try:
         res = getFile(filename)
     except:
@@ -428,13 +424,19 @@ def run_resultsFile(trexio_filename, filename, back_end, motype=None):
 
 
 def run(trexio_filename, filename, filetype, back_end, motype=None):
+
+    if os.path.exists(filename):
+        os.system("rm -rf -- "+trexio_filename)
+
+    trexio_file = trexio.File(trexio_filename,mode='w',back_end=back_end)
+
     if filetype.lower() == "gaussian":
-        run_resultsFile(trexio_filename, filename, back_end)
+        run_resultsFile(trexio_file, filename, motype)
     elif filetype.lower() == "gamess":
-        run_resultsFile(trexio_filename, filename, back_end, motype)
+        run_resultsFile(trexio_file, filename, motype)
     elif filetype.lower() == "fcidump":
-        run_fcidump(trexio_filename, filename, back_end)
+        run_fcidump(trexio_file, filename)
     elif filetype.lower() == "molden":
-        run_molden(trexio_filename, filename, back_end)
+        run_molden(trexio_file, filename)
     else:
         raise TypeError("Unknown file type")
