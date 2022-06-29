@@ -91,7 +91,7 @@ def main(filename=None, args=None):
 
     elif args["convert-from"]:
         from converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"]))
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"])
 
     elif args["convert-to"]:
         from converters.convert_to import run
