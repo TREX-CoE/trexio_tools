@@ -7,7 +7,7 @@ from . import basis as trexio_basis
 from . import ao as trexio_ao
 
 try:
-    import qmcklm
+    import qmckl
     def run(trexio_file, n_points):
         """
         Computes numerically the overlap matrix in the AO basis and compares it to
