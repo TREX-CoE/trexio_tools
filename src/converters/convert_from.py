@@ -429,6 +429,126 @@ def run_resultsFile(trexio_file, filename, motype=None):
 
     return
 
+def run_molden(trexio_file, filename):
+
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+    if not lines[0].startswith("[Molden Format]"):
+        print("File not in Molden format")
+        raise TypeError
+
+    title = lines[1].strip()
+    atoms = []
+    gto = []
+    unit = None
+    inside = None
+    cartesian = True
+    sym = []
+    ene = []
+    spin = []
+    occup = []
+    coef = []
+    for line in lines:
+       line = line.strip()
+       if line == "":
+          continue
+       if line.lower().startswith("[atoms]"):
+          if "au" in line.lower().split()[1]:
+            unit = "au"
+          else:
+            unit = "angs"
+          inside = "Atoms"
+          continue
+       elif line.upper().startswith("[GTO]"):
+          inside = "GTO"
+          continue
+       elif line.upper().startswith("[MO]"):
+          inside = "MO"
+          continue
+       elif line.startswith("[5d]") \
+         or line.startswith("[7f]") \
+         or line.startswith("[9g]") \
+         or line.startswith("[11h]"):
+           cartesian = False
+       if inside == "Atoms":
+          buffer = line.split()
+          atoms.append( (buffer[0], int(buffer[2]), float(buffer[3]),
+                       float(buffer[4]), float(buffer[5])) )
+          continue
+       elif inside == "GTO":
+          gto.append(line)
+          continue
+       elif inside == "MO":
+          if line.lower().startswith("sym"):
+             sym.append ( line.split('=')[1].strip() )
+          elif line.lower().startswith("ene"):
+             ene.append ( float(line.split('=')[1].strip()) )
+          elif line.lower().startswith("occ"):
+             occup.append ( float(line.split('=')[1].strip()) )
+          elif line.lower().startswith("spin"):
+             if line.split('=')[1].strip().lower == "alpha":
+                spin.append(0)
+             else:
+                spin.append(1)
+          else:
+             buffer = line.split()
+             coef.append( (int(buffer[0]), float(buffer[1])) )
+          continue
+
+    # Metadata
+    # --------
+
+    trexio.write_metadata_code_num(trexio_file, 1)
+    trexio.write_metadata_code(trexio_file, ["Molden"])
+    trexio.write_metadata_author_num(trexio_file, 1)
+    trexio.write_metadata_author(trexio_file, [os.environ["USER"]])
+    trexio.write_metadata_description(trexio_file, title)
+
+    # Electrons
+    # ---------
+
+    elec_num = int(sum(occup))
+    up_num = 0
+    dn_num = 0
+    for o in occup:
+      if o > 1.0:
+        up_num += 1
+        dn_num += 1
+      elif o == 1.0:
+        up_num += 1
+    assert (elec_num == up_num + dn_num)
+    trexio.write_electron_up_num(trexio_file,up_num)
+    trexio.write_electron_dn_num(trexio_file,dn_num)
+
+    # Nuclei
+    # ------
+
+    charge = []
+    coord = []
+    nucleus_num = len(atoms)
+
+    coord = []
+    label = []
+    for a in atoms:
+        charge.append(float(a[1]))
+        label.append(a[0])
+        if unit != 'au':
+            coord.append([a[2] / a0, a[3] / a0, a[4] / a0])
+        else:
+            coord.append([a[2], a[3], a[4]])
+
+    trexio.write_nucleus_num(trexio_file, len(atoms))
+    trexio.write_nucleus_coord(trexio_file, coord)
+    trexio.write_nucleus_charge(trexio_file, charge)
+    trexio.write_nucleus_label(trexio_file, label)
+
+    return
+
+
+    # Basis
+    # TODO
+    trexio.write_basis_type(trexio_file, "Gaussian")
+    trexio.close(trexio_file)
 
 def run(trexio_filename, filename, filetype, back_end, motype=None):
 
