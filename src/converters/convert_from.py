@@ -14,8 +14,20 @@ except ImportError as exc:
 
 try:
     from resultsFile import getFile, a0, get_lm
+    import resultsFile
 except ImportError as exc:
     raise ImportError("resultsFile Python package is not installed.") from exc
+
+# Re-order AOs (xx,xy,xz,yy,yz,zz) or (d+0,+1,-1,-2,+2,-2,...)
+def f_sort(x):
+  if '+' in x or '-' in x:
+      l, m = get_lm(x)
+      if m>=0:
+          return 2*m
+      else:
+          return -2*m+1
+  else:
+      return x
 
 
 
@@ -147,7 +159,7 @@ def run_resultsFile(trexio_file, filename, motype=None):
     if len(nucleus_index) > 1:
         nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
     else:
-        # cade of a single atom
+        # case of a single atom
         nucl_shell_num.append(curr_shell + 1)
 
     shell_num = curr_shell+1
@@ -199,20 +211,9 @@ def run_resultsFile(trexio_file, filename, motype=None):
 
     ao_ordering = []
     accu = []
-    normalization = []
     prev_shell = None
 
     # Re-order AOs (xx,xy,xz,yy,yz,zz) or (d+0,+1,-1,-2,+2,-2,...)
-    def f_sort(x):
-        if '+' in x or '-' in x:
-            l, m = get_lm(x)
-            if m>=0:
-                return 2*m
-            else:
-                return -2*m+1
-        else:
-            return x
-
     for i,b in enumerate(res.basis):
         shell = ao_shell[i]
         if shell != prev_shell:
@@ -223,7 +224,6 @@ def run_resultsFile(trexio_file, filename, motype=None):
         prev_shell = shell
     accu.sort()
     ao_ordering += accu
-
     ao_ordering = [ i for (_,i,_) in ao_ordering ]
 
     # Normalization
@@ -313,13 +313,13 @@ def run_resultsFile(trexio_file, filename, motype=None):
     trexio.write_mo_symmetry(trexio_file, sym)
 
 #       TODO: occupations are not always provided in the output file ??
-#    print(res.occ_num)
 #    if res.occ_num is not None:
 #        OccNum = []
 #        for i in MOindices:
 #           OccNum.append(res.occ_num[MO_type][i])
 #    # Not sure about the part below as it might overwrite values from the
-#    # previous step !  while len(OccNum) < mo_num:
+#    # previous step !
+#        while len(OccNum) < mo_num:
 #            OccNum.append(0.)
 #        trexio.write_mo_occupation(trexio_file, OccNum)
 
@@ -429,10 +429,12 @@ def run_resultsFile(trexio_file, filename, motype=None):
 
     return
 
-def run_molden(trexio_file, filename):
+def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, ao_norm=0):
+    import numpy as np
 
     with open(filename, 'r') as f:
         lines = f.readlines()
+
     if not lines[0].startswith("[Molden Format]"):
         print("File not in Molden format")
         raise TypeError
@@ -447,7 +449,8 @@ def run_molden(trexio_file, filename):
     ene = []
     spin = []
     occup = []
-    coef = []
+    mo_coef = []
+    mo = []
     for line in lines:
        line = line.strip()
        if line == "":
@@ -467,9 +470,11 @@ def run_molden(trexio_file, filename):
           continue
        elif line.startswith("[5d]") \
          or line.startswith("[7f]") \
-         or line.startswith("[9g]") \
-         or line.startswith("[11h]"):
+         or line.startswith("[9g]"):
            cartesian = False
+           continue
+       elif line.startswith("["):
+          inside = None
        if inside == "Atoms":
           buffer = line.split()
           atoms.append( (buffer[0], int(buffer[2]), float(buffer[3]),
@@ -479,6 +484,7 @@ def run_molden(trexio_file, filename):
           gto.append(line)
           continue
        elif inside == "MO":
+          in_coef = False
           if line.lower().startswith("sym"):
              sym.append ( line.split('=')[1].strip() )
           elif line.lower().startswith("ene"):
@@ -491,9 +497,17 @@ def run_molden(trexio_file, filename):
              else:
                 spin.append(1)
           else:
+             in_coef = True
+          if in_coef:
              buffer = line.split()
-             coef.append( (int(buffer[0]), float(buffer[1])) )
+             mo.append( (int(buffer[0])-1, float(buffer[1])) )
+          if not in_coef and len(mo) > 0:
+             mo_coef.append(mo)
+             mo = []
           continue
+
+    if len(mo) > 0:
+       mo_coef.append(mo)
 
     # Metadata
     # --------
@@ -508,14 +522,18 @@ def run_molden(trexio_file, filename):
     # ---------
 
     elec_num = int(sum(occup))
-    up_num = 0
-    dn_num = 0
-    for o in occup:
-      if o > 1.0:
-        up_num += 1
-        dn_num += 1
-      elif o == 1.0:
-        up_num += 1
+    if multiplicity is None:
+        up_num = 0
+        dn_num = 0
+        for o in occup:
+            if o > 1.0:
+                up_num += 1
+                dn_num += 1
+            elif o == 1.0:
+                up_num += 1
+    else:
+        up_num = (multiplicity-1 + elec_num)/2
+        dn_num = elec_num - up_num
     assert (elec_num == up_num + dn_num)
     trexio.write_electron_up_num(trexio_file,up_num)
     trexio.write_electron_dn_num(trexio_file,dn_num)
@@ -542,13 +560,192 @@ def run_molden(trexio_file, filename):
     trexio.write_nucleus_charge(trexio_file, charge)
     trexio.write_nucleus_label(trexio_file, label)
 
-    return
-
 
     # Basis
-    # TODO
+    # -----
+
+    nucleus_index = []
+    shell_ang_mom = []
+    shell_index = []
+    shell_prim_index = []
+    shell_factor = []
+    exponent = []
+    coefficient = []
+    prim_factor = []
+    contraction = None
+
+    shell_id = -1
+    prim_id = -1
+    iatom = 0
+    for line in gto:
+       buffer = line.split()
+       if len(buffer) == 2 and buffer[1] == "0":
+           iatom = int(buffer[0])-1
+       elif len(buffer) == 3 and float(buffer[2]) == 1.0:
+           if contraction is not None:
+               if normalized_basis:
+                    accum = 0.
+                    n = [ x.norm for x in contraction.prim ]
+                    for i, ci in enumerate(contraction.coef):
+                        ci /= n[i]
+                        for j, cj in enumerate(contraction.coef):
+                            cj /= n[j]
+                            accum += ci*cj * contraction.prim[i].overlap(contraction.prim[j])
+                    shell_factor.append(1./accum)
+               else:
+                    shell_factor.append(1.)
+           shell_id += 1
+           ang_mom = buffer[0].lower()
+           nprim = int(buffer[1])
+           nucleus_index.append(iatom)
+           if   ang_mom == "s": shell_ang_mom.append(0)
+           elif ang_mom == "p": shell_ang_mom.append(1)
+           elif ang_mom == "d": shell_ang_mom.append(2)
+           elif ang_mom == "f": shell_ang_mom.append(3)
+           elif ang_mom == "g": shell_ang_mom.append(4)
+           if   ang_mom != "s": ang_mom = "x"*shell_ang_mom[-1]
+           contraction = resultsFile.contraction()
+       else:
+           prim_id += 1
+           e, c = float(buffer[0]), float(buffer[1])
+           shell_prim_index.append(prim_id)
+           exponent.append(e)
+           coefficient.append(c)
+           gauss = resultsFile.gaussian()
+           gauss.center = coord[iatom]
+           gauss.expo = e
+           gauss.sym  =ang_mom
+           contraction.append(c, gauss)
+           prim_factor.append(1./gauss.norm)
+           shell_index.append(prim_id)
+
+    if contraction is not None:
+        if normalized_basis:
+            accum = 0.
+            n = [ x.norm for x in contraction.prim ]
+            for i, ci in enumerate(contraction.coef):
+                ci /= n[i]
+                for j, cj in enumerate(contraction.coef):
+                    cj /= n[j]
+                    accum += ci*cj * contraction.prim[i].overlap(contraction.prim[j])
+            shell_factor.append(1./accum)
+        else:
+            shell_factor.append(1.)
+
+    shell_num = shell_id + 1
+    prim_num  = prim_id  + 1
+
     trexio.write_basis_type(trexio_file, "Gaussian")
-    trexio.close(trexio_file)
+
+    # write total number of shell and primitives
+    trexio.write_basis_shell_num(trexio_file,shell_num)
+    trexio.write_basis_prim_num(trexio_file,prim_num)
+
+    # write mappings to reconstruct per-atom and per-shell quantities
+    trexio.write_basis_nucleus_index(trexio_file,nucleus_index)
+    trexio.write_basis_shell_ang_mom(trexio_file,shell_ang_mom)
+    trexio.write_basis_shell_index(trexio_file,shell_index)
+
+    # write normalization factor for each shell
+    trexio.write_basis_shell_factor(trexio_file,shell_factor)
+
+    # write parameters of the primitives
+    trexio.write_basis_exponent(trexio_file,exponent)
+    trexio.write_basis_coefficient(trexio_file,coefficient)
+    trexio.write_basis_prim_factor(trexio_file,prim_factor)
+
+
+    # AOs
+    # ---
+
+    if max(shell_ang_mom) < 2:
+       cartesian=True
+
+    if cartesian:
+        conv = [ [ 's' ], ['x', 'y', 'z'], ['xx', 'xy', 'xz', 'yy', 'yz', 'zz'],
+                 ['xxx', 'xxy', 'xxz', 'xyy', 'xyz', 'xzz', 'yyy', 'yyz', 'yzz', 'zzz'],
+                 ['xxxx', 'xxxy', 'xxxz', 'xxyy', 'xxyz', 'xxzz', 'xyyy', 'xyyz', 'xyzz',
+                  'xzzz', 'yyyy', 'yyyz', 'yyzz', 'yzzz', 'zzzz'] ]
+    else:
+        conv = [ ['s'], ['p+1', 'p-1', 'p+0'], ['d+0', 'd+1', 'd-1', 'd+2', 'd-2'],
+                 ['f+0', 'f+1', 'f-1', 'f+2', 'f-2', 'f+3', 'f-3'],
+                 ['g+0', 'g+1', 'g-1', 'g+2', 'g-2', 'g+3', 'g-3', 'g+4', 'g-4'] ]
+
+    norm = []
+    for l in range(5):
+       g = resultsFile.gaussian()
+       gauss.center = (0.,0.,0.)
+       gauss.expo = 1.0
+       gauss.sym = conv[l][0]
+       ref = gauss.norm
+       norm.append([])
+       for m in conv[l]:
+            g = resultsFile.gaussian()
+            gauss.center = (0.,0.,0.)
+            gauss.expo = 1.0
+            gauss.sym = m
+            norm[l].append ( (gauss.norm / ref)**2 )
+
+    ao = []
+    ao_normalization = []
+    for l in shell_ang_mom:
+       if l>4:
+          raise TypeError("Angular momentum too high: l>4 not supported by Molden format.")
+       ao.append(conv[l])
+       ao_normalization.append(norm[l])
+
+    ao_shell = []
+    ao_ordering = []
+    j = 0
+    for k,l in enumerate(ao):
+      ao_shell += [ k for _ in l ]
+      accu = [ (f_sort(x), i+j, norm[shell_ang_mom[k]][i])  for i,x in enumerate(l) ]
+      accu.sort()
+      ao_ordering += accu
+      j += len(l)
+    ao_normalization = [ i for (_,_,i) in ao_ordering ]
+    ao_ordering = [ i for (_,i,_) in ao_ordering ]
+    ao_num = len(ao_ordering)
+
+    trexio.write_ao_num(trexio_file, ao_num)
+    trexio.write_ao_cartesian(trexio_file, cartesian)
+    trexio.write_ao_shell(trexio_file, ao_shell)
+    trexio.write_ao_normalization(trexio_file, ao_normalization)
+
+    # MOs
+    # ---
+
+#    trexio.write_mo_type(trexio_file, MO_type)
+
+    core   = []
+    active = []
+    virtual = []
+    mo_class = []
+    for i, o in enumerate(occup):
+       if o >= 2.:
+          core.append(i)
+          mo_class.append("Core")
+       elif o == 0.:
+          virtual.append(i)
+          mo_class.append("Virtual")
+       else:
+          active.append(i)
+          mo_class.append("Active")
+
+    trexio.write_mo_num(trexio_file, len(mo_class))
+    MoMatrix = []
+    for mo in mo_coef:
+      vector = np.zeros(ao_num)
+      for i, x in mo:
+         vector[i] = x
+      for i in ao_ordering:
+         MoMatrix.append(vector[i])
+
+    trexio.write_mo_spin(trexio_file, spin)
+    trexio.write_mo_class(trexio_file, mo_class)
+    trexio.write_mo_occupation(trexio_file, occup)
+    trexio.write_mo_symmetry(trexio_file, sym)
+    trexio.write_mo_coefficient(trexio_file, MoMatrix)
 
 def run(trexio_filename, filename, filetype, back_end, motype=None):
 
