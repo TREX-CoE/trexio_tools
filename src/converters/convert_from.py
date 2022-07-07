@@ -617,7 +617,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
            gauss.sym  =ang_mom
            contraction.append(c, gauss)
            prim_factor.append(1./gauss.norm)
-           shell_index.append(prim_id)
+           shell_index.append(shell_id)
 
     if contraction is not None:
         if normalized_basis:
@@ -662,10 +662,10 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
        cartesian=True
 
     if cartesian:
-        conv = [ [ 's' ], ['x', 'y', 'z'], ['xx', 'xy', 'xz', 'yy', 'yz', 'zz'],
-                 ['xxx', 'xxy', 'xxz', 'xyy', 'xyz', 'xzz', 'yyy', 'yyz', 'yzz', 'zzz'],
-                 ['xxxx', 'xxxy', 'xxxz', 'xxyy', 'xxyz', 'xxzz', 'xyyy', 'xyyz', 'xyzz',
-                  'xzzz', 'yyyy', 'yyyz', 'yyzz', 'yzzz', 'zzzz'] ]
+        conv = [ [ 's' ], ['x', 'y', 'z'], ['xx', 'yy', 'zz', 'xy', 'xz', 'yz'],
+                 ['xxx', 'yyy', 'zzz', 'xyy', 'xxy', 'xxz', 'xzz', 'yzz', 'yyz', 'xyz'],
+                 ['xxxx', 'yyyy', 'zzzz', 'xxxy', 'xxxz', 'xyyy', 'yyyz', 'xzzz', 'yzzz',
+                  'xxyy', 'xxzz', 'yyzz', 'xxyz', 'xyyz', 'xyzz'] ]
     else:
         conv = [ ['s'], ['p+1', 'p-1', 'p+0'], ['d+0', 'd+1', 'd-1', 'd+2', 'd-2'],
                  ['f+0', 'f+1', 'f-1', 'f+2', 'f-2', 'f+3', 'f-3'],
@@ -684,7 +684,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
             gauss.center = (0.,0.,0.)
             gauss.expo = 1.0
             gauss.sym = m
-            norm[l].append ( (gauss.norm / ref)**2 )
+            norm[l].append ( gauss.norm / ref )
 
     ao = []
     ao_normalization = []
