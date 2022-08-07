@@ -28,7 +28,7 @@ try:
         rmin = np.array( list([ np.min(nucleus["coord"][:,a]) for a in range(3) ]) )
         rmax = np.array( list([ np.max(nucleus["coord"][:,a]) for a in range(3) ]) )
 
-        shift = np.array([5.,5.,5.])
+        shift = np.array([8.,8.,8.])
         linspace = [ None for i in range(3) ]
         step = [ None for i in range(3) ]
         for a in range(3):
@@ -78,7 +78,7 @@ except ImportError:
         rmin = np.array( list([ np.min(nucleus["coord"][:,a]) for a in range(3) ]) )
         rmax = np.array( list([ np.max(nucleus["coord"][:,a]) for a in range(3) ]) )
 
-        shift = np.array([5.,5.,5.])
+        shift = np.array([8.,8.,8.])
         linspace = [ None for i in range(3) ]
         step = [ None for i in range(3) ]
         for a in range(3):
@@ -99,7 +99,8 @@ except ImportError:
 
         S_ex = np.eye(mo_num)
         S_diff = S - S_ex
-        print ("Norm of the error: %f"%(np.linalg.norm(S_diff)))
+        print ("%e %e"%(np.linalg.norm(S), np.linalg.norm(S_ex) ))
+        print ("Norm of the error: %e"%(np.linalg.norm(S_diff)))
         #print(S_diff)
 
         for i in range(mo_num):
