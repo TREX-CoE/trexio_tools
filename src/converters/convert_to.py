@@ -220,7 +220,7 @@ def run_cart_phe(inp, filename, cartesian):
     # Update 1e Integrals
     if trexio.has_ao_1e_int_overlap(inp):
       X = trexio.read_ao_1e_int_overlap(inp)
-     trexio.write_ao_1e_int_overlap(out, R.T @ X @ R)
+      trexio.write_ao_1e_int_overlap(out, R.T @ X @ R)
 
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
