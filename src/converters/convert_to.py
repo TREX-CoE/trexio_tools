@@ -172,12 +172,12 @@ def run_molden(t, filename):
 
 
 
-def run_cart_phe(inp, filename, cartesian):
+def run_cart_phe(inp, filename, to_cartesian):
     out = trexio.File(filename, 'u', inp.back_end)
 
     shell_ang_mom = trexio.read_basis_shell_ang_mom(inp)
 
-    # Build rotation matrix
+    # Build transformation matrix
     count_sphe = 0
     count_cart = 0
     accu = []
@@ -189,7 +189,7 @@ def run_cart_phe(inp, filename, cartesian):
       count_sphe += y
       q, s = count_cart, count_sphe
       accu.append( (l, p,q, r,s) )
-      if cartesian > 0: n = x
+      if to_cartesian != 0: n = x
       else: n = y
       for _ in range(n):
           shell.append(i)
@@ -198,45 +198,97 @@ def run_cart_phe(inp, filename, cartesian):
     for (l, p,q, r,s) in accu:
       R[p:q,r:s] = cart_sphe.data[l]
 
-    if cartesian > 0:
-      R = R.T
-    else:
-      R = np.linalg.pinv(R)
+    S = np.eye(count_sphe)
+
+    ao_num_in  = trexio.read_ao_num(inp)
+
+
+    if to_cartesian == 0:
+        print("Transformation from cartesian to spherical is not implemented")
+        return
+
+#        # See http://users.df.uba.ar/dmitnik/estructura3/bases/biblio/transformationGaussianSpherical.pdf
+#        # If S is the overlap of cartesian functions, R @ S @ R.T = I, so R^{-1} = S @ R.T
+#        if trexio.has_ao_1e_int_overlap(inp):
+#            X = trexio.read_ao_1e_int_overlap(inp)
+#        else:
+#            print("Transformation from Cartesian to Spherical requires AO overlap matrix.")
+#            return -1
+#
+#        S = np.zeros((count_cart, count_cart))
+#        for (l, p,q, r,s) in accu:
+#            S[p:q,p:q] = X[p:q,p:q]
+#
+#        R = R.T @ S
+
+    elif to_cartesian == -1:
+        R = np.eye(ao_num_in)
 
     # Update AOs
-    trexio.write_ao_cartesian(out, cartesian)
-    trexio.write_ao_num(out, len(shell))
+    ao_num_out = R.shape[0]
+    trexio.write_ao_cartesian(out, to_cartesian)
+    trexio.write_ao_num(out, ao_num_out)
     trexio.write_ao_shell(out, shell)
 
+    normalization = np.array( [ 1. ] * ao_num_in )
     if trexio.has_ao_normalization(inp):
-      X = trexio.read_ao_normalization(inp)
-      trexio.write_ao_normalization(out, X @ R)
+      normalization = trexio.read_ao_normalization(inp)
+
+    trexio.write_ao_normalization(out, [ 1. for i in range(ao_num_out) ] )
+
+    R_norm_inv = np.array(R)
 
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
-      trexio.write_mo_coefficient(out, X @ R )
+      for i in range(R.shape[1]):
+         if normalization[i] != 1.:
+            X[:,i] *= normalization[i]
+      Y  = X @ R.T
+      trexio.write_mo_coefficient(out, Y)
 
     # Update 1e Integrals
     if trexio.has_ao_1e_int_overlap(inp):
       X = trexio.read_ao_1e_int_overlap(inp)
-      trexio.write_ao_1e_int_overlap(out, R.T @ X @ R)
+      for i in range(R.shape[1]):
+            X[:,i] /= normalization[i]
+      for i in range(R.shape[1]):
+            X[i,:] /= normalization[i]
+      Y = R_norm_inv @ X @ R_norm_inv.T
+      trexio.write_ao_1e_int_overlap(out, Y)
+
 
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
-      trexio.write_ao_1e_int_kinetic(out, R.T @ X @ R)
+      for i in range(R.shape[1]):
+         if normalization[i] != 1.:
+            X[:,i] /= normalization[i]
+            X[i,:] /= normalization[i]
+      trexio.write_ao_1e_int_kinetic(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_potential_n_e(inp):
       X = trexio.read_ao_1e_int_potential_n_e(inp)
-      trexio.write_ao_1e_int_potential_n_e(out, R.T @ X @ R)
+      for i in range(R.shape[1]):
+         if normalization[i] != 1.:
+            X[:,i] /= normalization[i]
+            X[i,:] /= normalization[i]
+      trexio.write_ao_1e_int_potential_n_e(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_ecp(inp):
       X = trexio.read_ao_1e_int_ecp(inp)
-      trexio.write_ao_1e_int_ecp(out, R.T @ X @ R)
+      for i in range(R.shape[1]):
+         if normalization[i] != 1.:
+            X[:,i] /= normalization[i]
+            X[i,:] /= normalization[i]
+      trexio.write_ao_1e_int_ecp(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_core_hamiltonian(inp):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
-      trexio.write_ao_1e_int_core_hamiltonian(out, R.T @ X @ R)
+      for i in range(R.shape[1]):
+         if normalization[i] != 1.:
+            X[:,i] /= normalization[i]
+            X[i,:] /= normalization[i]
+      trexio.write_ao_1e_int_core_hamiltonian(out, R_norm_inv @ X @ R_norm_inv.T)
 
     # Remove 2e integrals: too expensive to transform
     if trexio.has_ao_2e_int_eri(inp):
@@ -247,6 +299,13 @@ def run_cart_phe(inp, filename, cartesian):
       trexio.delete_ao_2e_int_eri_lr(out)
 
 
+def run_normalized_aos(t, filename):
+    # Start by copying the file
+    os.system('cp %s %s' % (t.filename, filename))
+    run_cart_phe(t, filename, to_cartesian=-1)
+    return
+
+
 def run_cartesian(t, filename):
     # Start by copying the file
     os.system('cp %s %s' % (t.filename, filename))
@@ -254,9 +313,8 @@ def run_cartesian(t, filename):
     if cartesian > 0:
         return
 
-    run_cart_phe(t, filename, cartesian=1)
+    run_cart_phe(t, filename, to_cartesian=1)
     return
-
 
 def run_spherical(t, filename):
     # Start by copying the file
@@ -265,8 +323,9 @@ def run_spherical(t, filename):
     if cartesian == 0:
         return
 
-    run_cart_phe(t, filename, cartesian=0)
+    run_cart_phe(t, filename, to_cartesian=0)
     return
+
 
 
 
@@ -283,7 +342,8 @@ def run(trexio_filename, filename, filetype):
         run_cartesian(trexio_file, filename)
     elif filetype.lower() == "spherical":
         run_spherical(trexio_file, filename)
-#    elif filetype.lower() == "gamess":
+#    elif filetype.lower() == "normalized_aos":
+#        run_normalized_aos(trexio_file, filename)
 #    elif filetype.lower() == "gamess":
 #        run_resultsFile(trexio_file, filename)
 #    elif filetype.lower() == "fcidump":
