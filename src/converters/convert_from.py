@@ -76,10 +76,8 @@ def run_resultsFile(trexio_file, filename, motype=None):
     trexio.write_nucleus_coord(trexio_file, coord)
     # nucleus_charge will be written later after removing core electrons with ECP
 
-    # Transform H1 into H
-    import re
-    p = re.compile(r'(\d*)$')
-    label = [p.sub("", x.name).capitalize() for x in res.geometry]
+    # Write the element labels as they appear
+    label = [x.name.capitalize() for x in res.geometry]
     trexio.write_nucleus_label(trexio_file, label)
 
     trexio.write_nucleus_point_group(trexio_file, res.point_group)
