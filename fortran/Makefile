@@ -1,4 +1,4 @@
-.SUFFIXES: .f90
+.SUFFIXES: .f90 .F90
 
 FC=ifort 
 LIBS=-ltrexio
@@ -6,14 +6,16 @@ LIBS=-ltrexio
 .f90.o:
 	$(FC) -c $< -o $@
 
+.F90.o:
+	$(FC) -c $< -o $@
+
 .PHONY: all
 
 all: trexio_to_fcidump
 
 
-trexio_to_fcidump: trexio_to_fcidump.o trexio_f.o
+trexio_to_fcidump: trexio_to_fcidump.o trexio_module.o
 	$(FC) $^ -o $@ $(LIBS)
 
-trexio_f.o: trexio_f.f90
-trexio_to_fcidump.o: trexio_to_fcidump.f90 trexio_f.o
+trexio_to_fcidump.o: trexio_module.o
 
