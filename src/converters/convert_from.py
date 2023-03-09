@@ -156,14 +156,12 @@ def run_resultsFile(trexio_file, filename, motype=None):
 
         ao_shell.append(curr_shell)
 
-    if len(nucleus_index) > 1:
-        nucl_shell_num.append(nucleus_index[-1]-nucleus_index[-2])
-    else:
-        # case of a single atom
-        nucl_shell_num.append(curr_shell + 1)
-
     shell_num = curr_shell+1
     prim_num = len(exponent)
+
+    nucl_shell_num.append(shell_num-nucleus_index[-1])
+
+    assert(sum(nucl_shell_num) == shell_num)
 
     # Fix x,y,z in Spherical (don't move this before basis set detection!)
     if cartesian:
