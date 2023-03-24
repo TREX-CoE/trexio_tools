@@ -1,0 +1,49 @@
+#+TITLE: TREXIO example files
+
+This notebook generates some example files using quantum package.
+The produced files are archived on the git repository, so the text
+interface is used.
+
+* Water
+
+   #+BEGIN_SRC bash
+cat << EOF > h2o.xyz
+3
+Water
+O       0.                     0.   0.
+H      -0.756950272703377558   0.  -0.585882234512562827
+H       0.756950272703377558   0.  -0.585882234512562827
+
+EOF
+   #+END_SRC
+
+
+   #+BEGIN_SRC bash :results drawer
+source ~/qp2/quantum_package.rc
+rm -rf h2o
+qp create_ezfio -b aug-cc-pvdz h2o.xyz -o h2o
+qp set_file h2o
+qp run scf
+   #+END_SRC
+
+   
+   #+BEGIN_SRC bash :results drawer
+source ~/qp2/quantum_package.rc
+qp set_frozen_core
+qp run fci
+   #+END_SRC
+
+
+   #+BEGIN_SRC bash :results drawer
+source ~/qp2/quantum_package.rc
+qp set_file h2o
+qp set trexio backend 1
+qp set trexio trexio_file h2o.trexio
+qp set trexio export_ao_ints 1
+qp set trexio export_mo_ints 1
+qp set trexio export_rdm 1
+qp run export_trexio
+   #+END_SRC
+
+
+

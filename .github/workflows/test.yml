@@ -1,0 +1,44 @@
+name: TOOLS CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+
+jobs:
+
+  test_tools:
+
+    runs-on: ubuntu-latest
+    name: x86 Ubuntu latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: create a virtual environment
+        run: |
+          python3 -m venv trexio_tools
+          source trexio_tools/bin/activate
+
+      - name: install dependencies
+        run: pip install -r requirements.txt
+
+      - name: install trexio_tools
+        run: pip install .
+
+      - name: check installation
+        run: trexio --help
+
+      - name: run tests
+        run: |
+          # benchmark the converters from external codes
+          trexio convert-from -t gaussian  -i data/chbrclf.log    -b hdf5  trexio_gaussi.h5
+          trexio convert-from -t gamess    -i data/GAMESS_CAS.log -b hdf5  trexio_gamess.h5
+          # benchmark the MOs by computing numerically integrals on a grid and comparing with the ref values from the file
+          trexio check-mos -n 50 trexio_gamess.h5 > mos-res
+          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
+          # benchmark helper converters
+          trexio convert-to -t molden -o trexio_molden.h5 trexio_gamess.h5
