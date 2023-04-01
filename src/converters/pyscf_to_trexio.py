@@ -14,8 +14,7 @@ from pyscf.pbc import scf as pbcscf
 # Logger
 from logging import getLogger
 
-logger = getLogger("Turbo-Workflows").getChild(__name__)
-
+logger = getLogger("pyscf-trexio").getChild(__name__)
 
 def pyscf_to_trexio(
     pyscf_checkfile: str = "pyscf.chk",
@@ -626,13 +625,10 @@ def cli():
     from logging import getLogger, StreamHandler, Formatter
 
     log_level = "INFO"
-    logger = getLogger("Turbo-Workflows")
+    logger = getLogger("pyscf-trexio")
     logger.setLevel(log_level)
     stream_handler = StreamHandler()
     stream_handler.setLevel(log_level)
-    # handler_format = Formatter(
-    #    "%(name)s - %(levelname)s - %(lineno)d - %(message)s"
-    # )
     handler_format = Formatter("%(message)s")
     stream_handler.setFormatter(handler_format)
     logger.addHandler(stream_handler)
