@@ -70,6 +70,8 @@ def pyscf_checkfile_to_trexio(pyscf_checkfile, trexio_filename="trexio.hdf5"):
             k_list=mf['kpts']
         finally:
             mol=pbc_scf.chkfile.load_cell(pyscf_checkfile)
+            k_list = mol.get_scaled_kpts(k_list) #absoute -> crystal
+            
     else:
         twist_average=False
         k_list=[None]
