@@ -56,8 +56,6 @@ def pyscf_to_trexio(
             logger.info(k_list)
         except KeyError:
             twist_average = True
-            # logger.error("Twisted-average = True is not implemented")
-            # raise NotImplementedError
             logger.info("Twisted-average calculation")
             logger.info("Separated TREXIO files are generated")
             logger.info(
