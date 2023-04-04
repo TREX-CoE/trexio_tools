@@ -110,8 +110,6 @@ except ImportError:
                S += np.outer(chi, chi)*dv
         print()
 
-        print(trexio_ao.value(ao, np.array( [0.0,0.0,0.0] ) ))
-
         S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
         ao_num = ao["num"]
 

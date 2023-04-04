@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+"""
+    Script to numerically calculate the overlap integrals for numerical
+    orbitals of the FHIaims-type
+
+    Written by Johannes Günzl, TU Dresden 2023
+"""
+
 import trexio
 import numpy as np
 from . import basis as trexio_basis
