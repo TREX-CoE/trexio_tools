@@ -6,6 +6,7 @@ Convert output file from a given code/format into TREXIO
 import os
 from group_tools import basis as trexio_basis
 from group_tools import determinant as trexio_det
+from . import convert_aims_trexio
 
 try:
     import trexio
@@ -17,6 +18,9 @@ try:
     import resultsFile
 except ImportError as exc:
     raise ImportError("resultsFile Python package is not installed.") from exc
+
+def run_fhiaims(trexfile, dirpath):
+    convert_aims_trexio.convert_aims_trexio(trexfile, dirpath)
 
 # Re-order AOs (xx,xy,xz,yy,yz,zz) or (d+0,+1,-1,-2,+2,-2,...)
 def f_sort(x):
@@ -760,5 +764,7 @@ def run(trexio_filename, filename, filetype, back_end, motype=None):
         run_fcidump(trexio_file, filename)
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
+    elif filetype.lower() == "fhiaims":
+        run_fhiaims(trexio_file, filename)
     else:
         raise TypeError("Unknown file type")

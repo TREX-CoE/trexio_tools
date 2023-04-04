@@ -15,7 +15,6 @@ except:
     print("Error: The TREXIO Python library is not installed")
     sys.exit(1)
 
-
 """
 Basic converter from trexio to fcidump
 Symmetry labels are not included
