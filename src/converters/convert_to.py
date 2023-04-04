@@ -16,8 +16,68 @@ except:
     sys.exit(1)
 
 
+"""
+Basic converter from trexio to fcidump
+Symmetry labels are not included
 
+Written by Johannes Günzl, TU Dresden 2023
+"""
+def run_fcidump(trexfile, filename):
+    with open(filename, "w") as ofile:
+        # Write header
+        print("&FCI", file=ofile, end = " ")
+        if not trexio.has_mo_num(trexfile):
+            raise Exception("The provided trexio file does not include "\
+                            "the number of molecular orbitals.")
+        mo_num = trexio.read_mo_num(trexfile)
+        print(f"NORB={mo_num},", file=ofile, end = " ")
 
+        if not trexio.has_electron_num(trexfile):
+            raise Exception("The provided trexio file does not include "\
+                            "the number of electrons.")
+        elec_num = trexio.read_electron_num(trexfile)
+        print(f"NELEC={elec_num},", file=ofile, end = " ")
+
+        if trexio.has_electron_up_num(trexfile) and trexio.has_electron_dn_num(trexfile):
+            ms2 = trexio.read_electron_up_num(trexfile) \
+                    - trexio.read_electron_dn_num(trexfile)
+            print(f"MS2={ms2},", file=ofile)
+
+        print("ORBSYM=", end="", file=ofile)
+        for i in range(mo_num):
+            # The symmetry formats between trexio and FCIDUMP differ, so this
+            # information is not carried over automatically
+            print("1,", end="", file=ofile)
+        print("\nISYM=1,", file=ofile)
+
+        print("", file=ofile)
+
+        # Two electron integrals
+        offset = 0
+        buffer_size = 1000
+        integrals_eof = False
+        if trexio.has_mo_2e_int_eri(trexfile):
+            while not integrals_eof:
+                indices, vals, read_integrals, integrals_eof \
+                    = trexio.read_mo_2e_int_eri(trexfile, offset, buffer_size)
+                offset += read_integrals
+
+                for i in range(read_integrals):
+                    ind = indices[i]
+                    # Convert from dirac to chemists' notation
+                    print(vals[i], ind[0]+1, ind[2]+1, ind[1]+1, ind[3]+1, file=ofile)
+
+        # Hamiltonian
+        if trexio.has_mo_1e_int_core_hamiltonian(trexfile):
+            core_ham = trexio.read_mo_1e_int_core_hamiltonian(trexfile)
+            for a in range(1, mo_num):
+                for b in range(1, a + 1):
+                    print(core_ham[a - 1, b - 1], a, b, 0, 0, file=ofile)
+
+        # Core energy
+        if trexio.has_nucleus_repulsion(trexfile):
+            core = trexio.read_nucleus_repulsion(trexfile)
+            print(core, 0, 0, 0, 0, file=ofile)
 
 def run_molden(t, filename):
 
@@ -346,8 +406,8 @@ def run(trexio_filename, filename, filetype):
 #        run_normalized_aos(trexio_file, filename)
 #    elif filetype.lower() == "gamess":
 #        run_resultsFile(trexio_file, filename)
-#    elif filetype.lower() == "fcidump":
-#        run_fcidump(trexio_file, filename)
+    elif filetype.lower() == "fcidump":
+        run_fcidump(trexio_file, filename)
 #    elif filetype.lower() == "molden":
 #        run_fcidump(trexio_file, filename)
     else:
