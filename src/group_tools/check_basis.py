@@ -18,7 +18,6 @@ try:
           raise Exception(
             "One-electron overlap integrals are missing in the TREXIO file. Required for check-basis."
             )
-
         trexio_filename = trexio_file.filename
         context = qmckl.context_create()
         qmckl.trexio_read(context, trexio_filename)
@@ -81,14 +80,18 @@ except ImportError:
             "One-electron overlap integrals are missing in the TREXIO file. Required for check-basis."
             )
 
+        print(trexio.read_basis_type(trexio_file))
+        if trexio.read_basis_type(trexio_file) == "Numerical":
+            from . import nao as trexio_ao
         ao = trexio_ao.read(trexio_file)
         basis = ao["basis"]
         nucleus = basis["nucleus"]
-        assert basis["type"] == "Gaussian"
+        assert basis["type"] == "Gaussian" or basis["type"] == "Numerical"
 
         rmin = np.array( list([ np.min(nucleus["coord"][:,a]) for a in range(3) ]) )
         rmax = np.array( list([ np.max(nucleus["coord"][:,a]) for a in range(3) ]) )
 
+        # TODO Extension of NAO is finite -> use this
         shift = np.array([8.,8.,8.])
         linspace = [ None for i in range(3) ]
         step = [ None for i in range(3) ]
@@ -106,6 +109,8 @@ except ImportError:
                chi = trexio_ao.value(ao, np.array( [x,y,z] ) )
                S += np.outer(chi, chi)*dv
         print()
+
+        print(trexio_ao.value(ao, np.array( [0.0,0.0,0.0] ) ))
 
         S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
         ao_num = ao["num"]
