@@ -293,10 +293,10 @@ def run_cart_phe(inp, filename, to_cartesian):
     # Remove 2e integrals: too expensive to transform
     if trexio.has_ao_2e_int_eri(inp):
       print("Warning: Two-electron integrals are not converted")
-      trexio.delete_ao_2e_int_eri(out)
+      trexio.delete_ao_2e_int(out)
 
     if trexio.has_ao_2e_int_eri_lr(inp):
-      trexio.delete_ao_2e_int_eri_lr(out)
+      trexio.delete_ao_2e_int(out)
 
 
 def run_normalized_aos(t, filename):
