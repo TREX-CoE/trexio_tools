@@ -7,8 +7,7 @@ import os
 from group_tools import basis as trexio_basis
 from group_tools import determinant as trexio_det
 
-from . import pyscf_to_trexio as p2t
-from p2t import pyscf_to_trexio as run_pyscf
+from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
 
 try:
     import trexio
@@ -754,23 +753,20 @@ def run(trexio_filename, filename, filetype, back_end, motype=None):
     if os.path.exists(trexio_filename):
         print(f"TREXIO file {trexio_filename} already exists and will be removed.")
         if back_end == trexio.TREXIO_HDF5:
-            os.system(f"rm -f -- {trexio_filename}")
+            os.remove(trexio_filename)
         else:
-            if '*' in trexio_filename:
-                raise ValueError(
-                    f"TREXIO file name {trexio_filename} contains * character. Are you sure you want to remove it?"
-                    )
-            os.system(f"rm -rf -- {trexio_filename}")
+            raise NotImplementedError(f"Please remove the {trexio_filename} directory manually.")
 
-    trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
+    if "pyscf" not in filetype.lower():
+        trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
 
     if filetype.lower() == "gaussian":
         run_resultsFile(trexio_file, filename, motype)
     elif filetype.lower() == "gamess":
         run_resultsFile(trexio_file, filename, motype)
     elif filetype.lower() == "pyscf":
-        trexio_file.close()
-        run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename)
+        back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
+        run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename, back_end=back_end_str)
     elif filetype.lower() == "fcidump":
         raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
         #run_fcidump(trexio_file, filename)

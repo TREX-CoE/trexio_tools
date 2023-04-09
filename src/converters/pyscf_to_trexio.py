@@ -7,13 +7,15 @@
 from logging import getLogger
 logger = getLogger("pyscf-trexio").getChild(__name__)
 
+
 def pyscf_to_trexio(
     pyscf_checkfile: str = "pyscf.chk",
     trexio_filename: str = "trexio.hdf5",
     twist_average_in: bool = False,
     force_wf_complex: bool = False,
+    back_end: str = "hdf5"
 ):
-"""PySCF to TREXIO converter."""
+    """PySCF to TREXIO converter."""
 
     # load python packages
     import os
@@ -109,11 +111,19 @@ def pyscf_to_trexio(
         else:
             filename = trexio_filename
 
-        if os.path.exists(filename):
+        if os.path.exists(filename) and back_end.lower() == "hdf5":
             os.remove(filename)
 
+        # trexio back end handling
+        if back_end.lower() == "hdf5":
+            trexio_back_end = trexio.TREXIO_HDF5
+        elif back_end.lower() == "text":
+            trexio_back_end = trexio.TREXIO_TEXT
+        else:
+            raise NotImplementedError(f"{back_end} back-end is not supported.")
+
         # trexio file
-        trexio_file = trexio.File(filename, mode="w", back_end=trexio.TREXIO_HDF5)
+        trexio_file = trexio.File(filename, mode="w", back_end=trexio_back_end)
 
         ##########################################
         # PBC info
@@ -653,6 +663,13 @@ def cli():
         help="trexio filename",
         type=str,
         default="trexio.hdf5",
+    )
+    parser.add_argument(
+        "-b",
+        "--back_end",
+        help="trexio I/O back-end",
+        type=str,
+        default="hdf5",
     )
 
     # parse the input values
