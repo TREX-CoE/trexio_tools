@@ -751,8 +751,16 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
 
 def run(trexio_filename, filename, filetype, back_end, motype=None):
 
-    if os.path.exists(filename):
-        os.system("rm -rf -- "+trexio_filename)
+    if os.path.exists(trexio_filename):
+        print(f"TREXIO file {trexio_filename} already exists and will be removed.")
+        if back_end == trexio.TREXIO_HDF5:
+            os.system(f"rm -f -- {trexio_filename}")
+        else:
+            if '*' in trexio_filename:
+                raise ValueError(
+                    f"TREXIO file name {trexio_filename} contains * character. Are you sure you want to remove it?"
+                    )
+            os.system(f"rm -rf -- {trexio_filename}")
 
     trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
 
@@ -764,7 +772,8 @@ def run(trexio_filename, filename, filetype, back_end, motype=None):
         trexio_file.close()
         run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename)
     elif filetype.lower() == "fcidump":
-        run_fcidump(trexio_file, filename)
+        raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
+        #run_fcidump(trexio_file, filename)
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
     else:
