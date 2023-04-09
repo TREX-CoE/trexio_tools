@@ -3,17 +3,8 @@
 # maintainer: Kosuke Nakano
 # email: "kousuke_1123@icloud.com"
 
-# load python packages
-import os
-import numpy as np
-
-# load pyscf packages
-from pyscf import scf
-from pyscf.pbc import scf as pbcscf
-
 # Logger
 from logging import getLogger
-
 logger = getLogger("pyscf-trexio").getChild(__name__)
 
 def pyscf_to_trexio(
@@ -22,6 +13,15 @@ def pyscf_to_trexio(
     twist_average_in: bool = False,
     force_wf_complex: bool = False,
 ):
+"""PySCF to TREXIO converter."""
+
+    # load python packages
+    import os
+    import numpy as np
+    # load pyscf packages
+    from pyscf import scf
+    from pyscf.pbc import scf as pbcscf
+
     # ## pySCF -> TREX-IO
     # - how to install trexio
     # - pip install trexio

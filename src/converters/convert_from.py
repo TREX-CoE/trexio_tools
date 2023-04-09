@@ -7,6 +7,9 @@ import os
 from group_tools import basis as trexio_basis
 from group_tools import determinant as trexio_det
 
+from . import pyscf_to_trexio as p2t
+from p2t import pyscf_to_trexio as run_pyscf
+
 try:
     import trexio
 except ImportError as exc:
@@ -745,20 +748,24 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     trexio.write_mo_symmetry(trexio_file, sym)
     trexio.write_mo_coefficient(trexio_file, MoMatrix)
 
+
 def run(trexio_filename, filename, filetype, back_end, motype=None):
 
     if os.path.exists(filename):
         os.system("rm -rf -- "+trexio_filename)
 
-    trexio_file = trexio.File(trexio_filename,mode='w',back_end=back_end)
+    trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
 
     if filetype.lower() == "gaussian":
         run_resultsFile(trexio_file, filename, motype)
     elif filetype.lower() == "gamess":
         run_resultsFile(trexio_file, filename, motype)
+    elif filetype.lower() == "pyscf":
+        trexio_file.close()
+        run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename)
     elif filetype.lower() == "fcidump":
         run_fcidump(trexio_file, filename)
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
     else:
-        raise TypeError("Unknown file type")
+        raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
