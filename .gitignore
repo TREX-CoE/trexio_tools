@@ -2,6 +2,8 @@
 *.dir/
 *.h5
 
+kp_info.dat
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
