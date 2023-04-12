@@ -519,7 +519,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     # Electrons
     # ---------
 
-    elec_num = int(sum(occup))
+    elec_num = int(sum(occup)+0.5)
     if multiplicity is None:
         up_num = 0
         dn_num = 0
@@ -576,7 +576,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     prim_id = -1
     iatom = 0
     for line in gto:
-       buffer = line.split()
+       buffer = line.replace('D','E').split()
        if len(buffer) == 2 and buffer[1] == "0":
            iatom = int(buffer[0])-1
        elif len(buffer) == 3 and float(buffer[2]) == 1.0:
