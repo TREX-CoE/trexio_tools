@@ -194,9 +194,11 @@ def run_cart_phe(inp, filename, to_cartesian):
       for _ in range(n):
           shell.append(i)
 
+    cart_normalization = np.ones(count_cart)
     R = np.zeros( (count_cart, count_sphe) )
     for (l, p,q, r,s) in accu:
       R[p:q,r:s] = cart_sphe.data[l]
+      cart_normalization[p:q] = cart_sphe.normalization[l]
 
     S = np.eye(count_sphe)
 
@@ -234,7 +236,7 @@ def run_cart_phe(inp, filename, to_cartesian):
     if trexio.has_ao_normalization(inp):
       normalization = trexio.read_ao_normalization(inp)
 
-    trexio.write_ao_normalization(out, [ 1. for i in range(ao_num_out) ] )
+    trexio.write_ao_normalization(out, cart_normalization)
 
     R_norm_inv = np.array(R)
 
