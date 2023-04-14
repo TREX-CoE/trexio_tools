@@ -301,14 +301,14 @@ def run_cart_phe(inp, filename, to_cartesian):
 
 def run_normalized_aos(t, filename):
     # Start by copying the file
-    os.system('cp %s %s' % (t.filename, filename))
+    os.system('cp -r %s %s' % (t.filename, filename))
     run_cart_phe(t, filename, to_cartesian=-1)
     return
 
 
 def run_cartesian(t, filename):
     # Start by copying the file
-    os.system('cp %s %s' % (t.filename, filename))
+    os.system('cp -r %s %s' % (t.filename, filename))
     cartesian = trexio.read_ao_cartesian(t)
     if cartesian > 0:
         return
@@ -318,7 +318,7 @@ def run_cartesian(t, filename):
 
 def run_spherical(t, filename):
     # Start by copying the file
-    os.system('cp %s %s' % (t.filename, filename))
+    os.system('cp -r %s %s' % (t.filename, filename))
     cartesian = trexio.read_ao_cartesian(t)
     if cartesian == 0:
         return
@@ -331,10 +331,7 @@ def run_spherical(t, filename):
 
 def run(trexio_filename, filename, filetype):
 
-    try:
-        trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_TEXT)
-    except:
-        trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_HDF5)
+    trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_AUTO)
 
     if filetype.lower() == "molden":
         run_molden(trexio_file, filename)
