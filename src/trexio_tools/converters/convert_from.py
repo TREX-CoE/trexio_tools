@@ -4,8 +4,8 @@ Convert output file from a given code/format into TREXIO
 """
 
 import os
-from group_tools import basis as trexio_basis
-from group_tools import determinant as trexio_det
+from trexio_tools.group_tools import basis as trexio_basis
+from trexio_tools.group_tools import determinant as trexio_det
 
 try:
     import trexio
