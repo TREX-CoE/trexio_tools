@@ -11,8 +11,6 @@ logger = getLogger("pyscf-trexio").getChild(__name__)
 def pyscf_to_trexio(
     pyscf_checkfile: str = "pyscf.chk",
     trexio_filename: str = "trexio.hdf5",
-    twist_average_in: bool = False,
-    force_wf_complex: bool = False,
     back_end: str = "hdf5"
 ):
     """PySCF to TREXIO converter."""
@@ -54,7 +52,14 @@ def pyscf_to_trexio(
             twist_average = False
             logger.info("Single-k calculation")
             k_list = [k]
-            logger.info(k_list)
+            if all([k_i == 0.0 for k_i in list(k)]):
+                logger.info("k = gamma point")
+                logger.info("The generated WF will be real.")
+                force_wf_complex = False
+            else:
+                logger.info("k = general point")
+                logger.info("The generated WF will be complex.")
+                force_wf_complex = True
         except KeyError:
             twist_average = True
             logger.info("Twisted-average calculation")
@@ -63,6 +68,8 @@ def pyscf_to_trexio(
                 "The Correspondence between the index \
                     and k is written in kp_info.dat"
             )
+            logger.info("The generated WFs will be complex.")
+            force_wf_complex = True
             with open("kp_info.dat", "w") as f:
                 f.write("# k_index, kx, ky, kz\n")
             k_list = mf["kpts"]
@@ -74,22 +81,19 @@ def pyscf_to_trexio(
     else:
         twist_average = False
         k_list = [[0.0, 0.0, 0.0]]
-
-    assert twist_average_in == twist_average
+        force_wf_complex = False
 
     # if pbc_flag == true, check if ecp or pseudo
     if pbc_flag:
         if len(mol._pseudo) > 0:
             logger.error(
-                "TREXIO does not support 'pseudo' format for PBC. \
-                    Plz. use 'ecp'"
+                "TREXIO does not support 'pseudo' format for PBC. Plz. use 'ecp'"
             )
             raise NotImplementedError
 
     if twist_average:
         logger.warning(
-            f"WF at each k point is saved as a separated file, \
-                kXXXX_{trexio_filename}"
+            f"WF at each k point is saved as a separated file, kXXXX_{trexio_filename}"
         )
         logger.warning("k points info. is stored in kp_info.dat.")
 
