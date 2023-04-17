@@ -63,9 +63,9 @@ def pyscf_to_trexio(
         except KeyError:
             twist_average = True
             logger.info("Twisted-average calculation")
-            logger.info("Separated TREXIO files are generated")
+            logger.info("Separate TREXIO files are generated")
             logger.info(
-                "The Correspondence between the index \
+                "The correspondence between the index \
                     and k is written in kp_info.dat"
             )
             logger.info("The generated WFs will be complex.")
@@ -87,15 +87,15 @@ def pyscf_to_trexio(
     if pbc_flag:
         if len(mol._pseudo) > 0:
             logger.error(
-                "TREXIO does not support 'pseudo' format for PBC. Plz. use 'ecp'"
+                "TREXIO does not support 'pseudo' format for PBC. Use 'ecp'."
             )
             raise NotImplementedError
 
     if twist_average:
         logger.warning(
-            f"WF at each k point is saved as a separated file, kXXXX_{trexio_filename}"
+            f"WF at each k point is saved in a separate file kXXXX_{trexio_filename}"
         )
-        logger.warning("k points info. is stored in kp_info.dat.")
+        logger.warning("k points information is stored in kp_info.dat file.")
 
     # each k WF is stored as a separate file!!
     # for an open-boundary calculation, and a single-k one,
@@ -115,8 +115,12 @@ def pyscf_to_trexio(
         else:
             filename = trexio_filename
 
-        if os.path.exists(filename) and back_end.lower() == "hdf5":
-            os.remove(filename)
+        if os.path.exists(filename):
+            logger.warning(f"TREXIO file {filename} already exists and will be removed before conversion.")
+            if back_end.lower() == "hdf5":
+                os.remove(filename)
+            else:
+                raise NotImplementedError(f"Please remove the {filename} directory manually.")
 
         # trexio back end handling
         if back_end.lower() == "hdf5":
