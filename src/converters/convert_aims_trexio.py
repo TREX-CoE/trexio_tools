@@ -604,7 +604,7 @@ def load_basis_set(trexfile, dirpath, context):
 
     context.aos = aos
 
-def handle_2e_integral(sparse_data, indices, val, g_mat = None, density=None):
+def handle_2e_integral(sparse_data, indices, val, g_mat=None, density=None, restricted=True, mo=True):
     sparse_data.add(indices, val)
 
     i = indices[0]
@@ -612,13 +612,49 @@ def handle_2e_integral(sparse_data, indices, val, g_mat = None, density=None):
     k = indices[2]
     l = indices[3]
 
-    if not g_mat is None:
-        g_mat[i, k] += density[j, l] * val
-        g_mat[i, l] -= 0.5 * density[k, j] * val
-        # Mirroring of off-diagonal elements omitted due to lack of symmetry
-        #print(density[j, l])
+    """
+    What do we have in the polarized case?
+    For aos:
+        integrals are the same for both spins
+        current implementation works
+        indices only 0..n_basis
+    
+    For mos:
+        indices from 0 to 2*n_basis = n_states
+        g_mat should, in the end, be block diagonal because such is the Hamiltonian
+        Input indices are in Dirac notation!
+        integral (ij|kl): spin(i) == spin(k) and spin(j) == spin(l)
+    """
 
-def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices, calculate_g = False, density=None):
+    if not g_mat is None:
+        if restricted:
+            g_mat[i, k] += density[j, l] * val
+            g_mat[i, l] -= 0.5 * density[k, j] * val
+        else:
+            # All matrices are block diagonal here
+            # Both spins are handled at the same time
+            o = density.shape[0] // 2
+            if mo:
+                # These index pairs are always of parallel spin
+                g_mat[i, k] += density[j, l] * val
+                if (i < o) == (l < o): # Check whether spins are the same
+                    g_mat[i, l] -= density[k, j] * val
+            else:
+                # The core Hamiltonian only needs to be calculated for one spin
+                g_mat[i, k] += (density[j, l] + density[j + o, l + o]) * val
+                g_mat[i, l] -= density[k, j] * val
+
+                # Calculating the core Hamiltonian for both spins is redundant,
+                # but comparing them can be useful for testing
+                #g_mat[i, k]         += (density[j, l] + density[j + o, l + o]) * val
+                #g_mat[o + i, o + k] += (density[j, l] + density[j + o, l + o]) * val
+
+                #g_mat[i, l]         -= density[k, j] * val
+                #g_mat[o + i, o + l] -= density[o + k, o + j] * val
+        # Mirroring of off-diagonal elements omitted due to lack of symmetry
+
+def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
+                      calculate_g=False, density=None, restricted=True):
     # To reduce memory, it makes sense to calculate the G matrix on the fly
 
     # Handle both full and other type
@@ -628,17 +664,19 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices, calcula
         filename = dirpath + "/coulomb_integrals_" + suffix + ".out"
         symmetry = False
         if not os.path.isfile(filename):
-            print(f"Two-electron integral file {filename} could not be found; "\
+            print(f"No two-electron integral file could be found; "\
                    "if the integrals are needed, please check that one of the "\
                    "corresponding options is set in control.in.")
             return None
 
+    mo = suffix == "mo"
     g_mat = None # No need to do the allocation if unnecessary
     if density is None:
         calculate_g = False
 
     if calculate_g:
-        g_mat = np.zeros(density.shape, dtype=float)
+        orb_cnt = len(orbital_indices)
+        g_mat = np.zeros((orb_cnt, orb_cnt), dtype=float)
 
     with open(filename) as file:
         sparse_data = SparseData(trexfile, write, 1000)
@@ -657,7 +695,7 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices, calcula
                 continue
 
             if not symmetry:
-                handle_2e_integral(sparse_data, indices, val, g_mat, density)
+                handle_2e_integral(sparse_data, indices, val, g_mat, density, restricted, mo)
             else:
                 # Permute indices and handle individually
                 # All orbitals are real, so the symmetry is eightfold
@@ -678,7 +716,7 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices, calcula
                     if p_indices in found_permutations:
                         continue
                     found_permutations.append(p_indices)
-                    handle_2e_integral(sparse_data, p_indices, val, g_mat, density)
+                    handle_2e_integral(sparse_data, p_indices, val, g_mat, density, restricted, mo)
 
         # Flush the remaining integrals if there are any
         sparse_data.write_batch()
@@ -687,6 +725,8 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices, calcula
 
 def load_elsi_matrix(filename, matrix_indices, info=[], fix_cols=False):
     try:
+        if not os.path.isfile(filename):
+            raise Exception()
         matrix = read_elsi.read_elsi_to_csc(filename)
         matrix = matrix.tocoo() # COO format better suited for the permutations
         for i in range(len(matrix.row)):
@@ -721,6 +761,7 @@ def transform_to_mo(matrix, coeffs):
 
 def load_integrals(trexfile, dirpath, context):
     matrix_indices = context.matrix_indices
+    restricted = context.spin_moment == 0
     # MO Coefficients
     # Columns need to be fixed so that the MO stay ordered by their energy
     # and the coefficient matrix in the MO basis diagonal
@@ -737,7 +778,7 @@ def load_integrals(trexfile, dirpath, context):
             matrix_indices = [i for i in range(coeffs.shape[0])]
 
         # If the system is spin polarized, join the two matrices
-        if context.spin_moment != 0:
+        if context.unrestricted() != 0:
             coeffs_dn = load_elsi_matrix(dirpath + "/C_spin_02_kpt_000001.csc", matrix_indices, \
                                        ["coefficient matrix", "elsi_output_matrix eigenvectors"], \
                                       fix_cols=True)
@@ -746,7 +787,7 @@ def load_integrals(trexfile, dirpath, context):
                 coeffs = np.hstack((coeffs, coeffs_dn))
                 mo_num = 2*ao_num
 
-        trexio.write_mo_num(trexfile, coeffs.shape[1])
+        trexio.write_mo_num(trexfile, mo_num)
         trexio.write_mo_coefficient(trexfile, coeffs)
     else:
         print("Coefficient matrix could not be found. Integrals cannot be loaded.")
@@ -768,13 +809,33 @@ def load_integrals(trexfile, dirpath, context):
                     ret += coeffs_up[mu, a] * coeffs_up[nu, a]
                 density_up[mu, nu] = context.occupation()*ret
 
+    ao_density = density_up
+
+    if context.unrestricted():
+        density_dn = load_elsi_matrix(dirpath + "/D_spin_02_kpt_000001.csc", matrix_indices, [])
+        if density_dn is None and context.unrestricted():
+            density_dn = np.zeros(coeffs_dn.shape, dtype=float)
+            for mu in range(len(matrix_indices)):
+                for nu in range(len(matrix_indices)):
+                    ret = 0
+
+                    for a in range(context.elec_dn):
+                        ret += coeffs_dn[mu, a] * coeffs_dn[nu, a]
+                    density_dn[mu, nu] = context.occupation()*ret
+
+        ao_density = block_diag(density_up, density_dn)
+
     mo_density = np.zeros((mo_num, mo_num), dtype=float)
+    mo_density_up = np.zeros((ao_num, ao_num), dtype=float)
+    mo_density_dn = np.zeros((ao_num, ao_num), dtype=float)
 
     if context.unrestricted():
         for i in range(context.elec_up):
             mo_density[i, i] = 1
+            mo_density_up[i, i] = 1
         for i in range(context.elec_dn):
             mo_density[ao_num + i, ao_num + i] = 1
+            mo_density_dn[i, i] = 1
         spin = [0 if i < ao_num else 1 for i in range(mo_num)]
         trexio.write_mo_spin(trexfile, spin)
     else:
@@ -789,61 +850,70 @@ def load_integrals(trexfile, dirpath, context):
                                ["overlap matrix", "elsi_output_matrix overlap"])
     if not overlap is None:
         trexio.write_ao_1e_int_overlap(trexfile, overlap)
-        overlap_mo = transform_to_mo(overlap, coeffs)#coeffs.transpose() * overlap * coeffs
+        overlap_mo = transform_to_mo(overlap, coeffs) #coeffs.transpose() * overlap * coeffs
         trexio.write_mo_1e_int_overlap(trexfile, overlap_mo)
 
     # Full hamiltonian; trexio supports only core Hamiltonian -> can be calculated with 2e integrals
-    hamiltonian = load_elsi_matrix(dirpath + "/H_spin_01_kpt_000001.csc", matrix_indices, \
+    ao_ham = load_elsi_matrix(dirpath + "/H_spin_01_kpt_000001.csc", matrix_indices, \
                                ["hamiltonian matrix", "elsi_output_matrix hamiltonian"])
+    ao_ham_up = ao_ham
+    ao_ham_dn = None
 
     # MO 2e integrals are directly loaded into the trexio file
     # G-matrix is only useful if the Hamiltonian has been found
     # Since the MOs are not affected by changes in the basis, there is no index transformation
-    mo_indices = [i for i in range(len(matrix_indices))]
-    mo_g_matrix = load_2e_integrals(trexfile, dirpath, "mo", \
-                                    trexio.write_mo_2e_int_eri, mo_indices, \
-                                    not hamiltonian is None, mo_density)
+    mo_ham = None
+    mo_ham_up = None
+    mo_ham_dn = None
     
-    if not hamiltonian is None:
-        hamiltonian_mo = transform_to_mo(hamiltonian, coeffs_up)
+    if not ao_ham is None:
+        mo_ham_up = transform_to_mo(ao_ham_up, coeffs_up)
+        mo_ham = mo_ham_up
 
         if context.unrestricted():
-            ham_ao_dn = load_elsi_matrix(dirpath + "/H_spin_02_kpt_000001.csc", matrix_indices, \
+            # TODO remove redundancy
+            ao_ham_dn = load_elsi_matrix(dirpath + "/H_spin_02_kpt_000001.csc", matrix_indices, \
                                ["down spin hamiltonian matrix", "elsi_output_matrix hamiltonian"])
-            ham_mo_dn = transform_to_mo(ham_ao_dn, coeffs_dn)
-            if not ham_mo_dn is None:
-                hamiltonian_mo = block_diag(hamiltonian_mo, ham_mo_dn)
+            ao_ham = block_diag(ao_ham_up, ao_ham_dn)
+            if not ao_ham_dn is None:
+                mo_ham_dn = transform_to_mo(ao_ham_dn, coeffs_dn)
+                mo_ham = block_diag(mo_ham_up, mo_ham_dn)
 
-        if not mo_g_matrix is None:
-            core_ham_mo = hamiltonian_mo - mo_g_matrix
-            #print_matrix(hamiltonian_mo, "ham")
-            #print_matrix(core_ham_mo, "Core ham")
-            #print_matrix(mo_g_matrix, "g")
-            trexio.write_mo_1e_int_core_hamiltonian(trexfile, core_ham_mo)
-            #print_matrix(core_ham_mo, "Default mo core Hamiltonian")
+    mo_indices = None
+
+    if context.unrestricted():
+        mo_indices = [i for i in range(2*len(matrix_indices))]
+    else:
+        mo_indices = [i for i in range(len(matrix_indices))]
+    mo_g_matrix = load_2e_integrals(trexfile, dirpath, "mo", \
+                                    trexio.write_mo_2e_int_eri, mo_indices, \
+                                    not mo_ham is None, mo_density, \
+                                    not context.unrestricted())
+
+    if not mo_g_matrix is None and not mo_ham is None:
+            mo_core_ham = mo_ham - mo_g_matrix
+            trexio.write_mo_1e_int_core_hamiltonian(trexfile, mo_core_ham)
 
     # Note that the functionality for printing the ao 2e integrals is an
     # addition within this project and not necessarily available in
     # public versions of FHI-aims
     # Since it is only an intermediary, one spin is sufficient
     ao_g_matrix = load_2e_integrals(trexfile, dirpath, "ao", \
-        trexio.write_ao_2e_int_eri, matrix_indices, True, density_up)
+        trexio.write_ao_2e_int_eri, matrix_indices, True, ao_density, \
+                                    not context.unrestricted())
     
-    if not hamiltonian is None and not ao_g_matrix is None:
-        core_ham_ao = hamiltonian - ao_g_matrix
-        trexio.write_ao_1e_int_core_hamiltonian(trexfile, core_ham_ao)
+    if not ao_ham is None and not ao_g_matrix is None:
+        # For comparing whether both spins give the same result, use this line
+        #ao_core_ham = ao_ham - ao_g_matrix
+        ao_core_ham = ao_ham_up - ao_g_matrix
+        trexio.write_ao_1e_int_core_hamiltonian(trexfile, ao_core_ham)
 
-        if context.unrestricted():
-            # The mo Hamiltonian is most easily accessed from its ao equivalent
-            core_ham_mo_up = transform_to_mo(core_ham_ao, coeffs_up)
-            core_ham_mo_dn = transform_to_mo(core_ham_ao, coeffs_dn)
-            #print_matrix(core_ham_mo_up, "MO Hamiltonian up");
-            #print_matrix(core_ham_mo_dn, "MO Hamiltonian down");
-            #print_matrix(core_ham_mo_dn + core_ham_mo_up, "MO Hamiltonian full");
-            core_ham_mo = block_diag(core_ham_mo_up, core_ham_mo_dn)
-            #trexio.write_mo_1e_int_core_hamiltonian(trexfile, core_ham_mo)
-            #print_matrix(core_ham_mo, "Correct MO core Hamiltonian")
-
+        if context.unrestricted() and not trexio.has_mo_1e_int_core_hamiltonian(trexfile):
+            # The MO hamiltonian can also be accessed from its ao version for reference
+            mo_core_ham_up = transform_to_mo(ao_core_ham, coeffs_up)
+            mo_core_ham_dn = transform_to_mo(ao_core_ham, coeffs_dn)
+            mo_core_ham = block_diag(mo_core_ham_up, mo_core_ham_dn)
+            trexio.write_mo_1e_int_core_hamiltonian(trexfile, mo_core_ham)
 
 def convert_aims_trexio(trexfile, dirpath):
     # The exception is triggered when the module is loaded; if located in
@@ -874,7 +944,7 @@ def convert_aims_trexio(trexfile, dirpath):
     read_control(control_path, context)
     if context.species == None:
         # Technically, integrals could still be exported, but it is simpler
-        # to just work with the file.
+        # to just require the file.
         msg = "The control file anticipated at " + control_path \
               + "could not be found. Export cannot be done without this file"
         raise Exception(msg)

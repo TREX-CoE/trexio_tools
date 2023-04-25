@@ -99,15 +99,15 @@ def value(ao,r):
     Evaluates all the basis functions at R=(x,y,z)
     """
 
-    basis           =  ao["basis"]
+    basis           = ao["basis"]
     ao_num          = ao["num"]
 
-    nucleus         =  basis["nucleus"]
-    coord           =  nucleus["coord"]
-    nucleus_num     =  nucleus["num"]
+    nucleus         = basis["nucleus"]
+    coord           = nucleus["coord"]
+    nucleus_num     = nucleus["num"]
 
-    basis_num       =  basis["shell_num"]
-    shell_ang_mom   =  basis["shell_ang_mom"]
+    basis_num       = basis["shell_num"]
+    shell_ang_mom   = basis["shell_ang_mom"]
 
     nucleus_index   = basis["nucleus_index"]
 
