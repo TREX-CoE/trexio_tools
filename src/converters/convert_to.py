@@ -49,7 +49,9 @@ def run_fcidump(trexfile, filename):
             print("1,", end="", file=ofile)
         print("\nISYM=1,", file=ofile)
 
-        print("", file=ofile)
+        print("&END", file=ofile)
+
+        fcidump_threshold = 1e-10
 
         # Two electron integrals
         offset = 0
@@ -62,6 +64,8 @@ def run_fcidump(trexfile, filename):
                 offset += read_integrals
 
                 for i in range(read_integrals):
+                    if np.abs(vals[i]) < fcidump_threshold:
+                        continue
                     ind = indices[i]
                     # Convert from dirac to chemists' notation
                     print(vals[i], ind[0]+1, ind[2]+1, ind[1]+1, ind[3]+1, file=ofile)
@@ -69,9 +73,11 @@ def run_fcidump(trexfile, filename):
         # Hamiltonian
         if trexio.has_mo_1e_int_core_hamiltonian(trexfile):
             core_ham = trexio.read_mo_1e_int_core_hamiltonian(trexfile)
-            for a in range(1, mo_num):
+            for a in range(1, mo_num + 1):
                 for b in range(1, a + 1):
-                    print(core_ham[a - 1, b - 1], a, b, 0, 0, file=ofile)
+                    val = core_ham[a - 1, b - 1]
+                    if np.abs(val) > fcidump_threshold:
+                        print(val, a, b, 0, 0, file=ofile)
 
         # Core energy
         if trexio.has_nucleus_repulsion(trexfile):
