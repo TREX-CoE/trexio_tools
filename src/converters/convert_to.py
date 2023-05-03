@@ -22,36 +22,78 @@ Symmetry labels are not included
 Written by Johannes Günzl, TU Dresden 2023
 """
 def run_fcidump(trexfile, filename):
+    # The Fortran implementation takes i_start and i_end as arguments; here,
+    # whether an orbital is active is taken from the field in the file
+    # Active orbitals are carried over as-is, core orbitals are incorporated
+    # into the integrals; all others are deleted
+
     with open(filename, "w") as ofile:
-        # Write header
-        print("&FCI", file=ofile, end = " ")
         if not trexio.has_mo_num(trexfile):
             raise Exception("The provided trexio file does not include "\
                             "the number of molecular orbitals.")
         mo_num = trexio.read_mo_num(trexfile)
-        print(f"NORB={mo_num},", file=ofile, end = " ")
-
         if not trexio.has_electron_num(trexfile):
             raise Exception("The provided trexio file does not include "\
                             "the number of electrons.")
         elec_num = trexio.read_electron_num(trexfile)
-        print(f"NELEC={elec_num},", file=ofile, end = " ")
 
+        occupation = 2
+        ms2 = 0
         if trexio.has_electron_up_num(trexfile) and trexio.has_electron_dn_num(trexfile):
             ms2 = trexio.read_electron_up_num(trexfile) \
                     - trexio.read_electron_dn_num(trexfile)
-            print(f"MS2={ms2},", file=ofile)
+            if ms2 != 0:
+                occupation = 1
 
+        if trexio.has_mo_class(trexfile):
+        #if True:
+            n_act = 0
+            n_core = 0
+            #n_c = 3
+            #classes = np.array(["core"]*n_c)
+            #classes = np.append(classes, ["active"]*(mo_num - n_c))
+            #print(classes)
+            classes = trexio.read_mo_class(trexfile)
+            # Id of an active orbital among the other active orbs
+            # -1 means core, -2 means deleted
+            orb_ids = np.zeros(len(classes), dtype=int)
+            act_ids = []
+            for i, c in enumerate(classes):
+                if c.lower() == "active":
+                    orb_ids[i] = n_act
+                    act_ids.append(i)
+                    n_act += 1
+                elif c.lower() == "core":
+                    orb_ids[i] = -1
+                    n_core += 1
+                else:
+                    orb_ids[i] = -2
+        else:
+            # Consider everything active
+            n_act = mo_num
+            n_core = 0
+            orb_ids = [i for i in range(n_act)]
+            act_ids = orb_ids
+
+        if n_core != 0 and ms2 != 0:
+            raise Exception("Core orbitals are not supported for spin polarized systems")
+
+        # Write header
+        print("&FCI", file=ofile, end = " ")
+        print(f"NORB={n_act},", file=ofile, end = " ")
+        print(f"NELEC={elec_num - occupation*n_core},", file=ofile, end = " ")
+        print(f"MS2={ms2},", file=ofile)
         print("ORBSYM=", end="", file=ofile)
-        for i in range(mo_num):
+        for i in range(n_act):
             # The symmetry formats between trexio and FCIDUMP differ, so this
             # information is not carried over automatically
             print("1,", end="", file=ofile)
         print("\nISYM=1,", file=ofile)
-
         print("&END", file=ofile)
 
         fcidump_threshold = 1e-10
+        int3 = np.zeros((n_act, n_act, 2), dtype=float)
+        int2 = np.zeros((n_act, n_act, 2), dtype=float)
 
         # Two electron integrals
         offset = 0
@@ -63,25 +105,97 @@ def run_fcidump(trexfile, filename):
                     = trexio.read_mo_2e_int_eri(trexfile, offset, buffer_size)
                 offset += read_integrals
 
-                for i in range(read_integrals):
-                    if np.abs(vals[i]) < fcidump_threshold:
+                for integral in range(read_integrals):
+                    val = vals[integral]
+
+                    if np.abs(val) < fcidump_threshold:
                         continue
-                    ind = indices[i]
-                    # Convert from dirac to chemists' notation
-                    print(vals[i], ind[0]+1, ind[2]+1, ind[1]+1, ind[3]+1, file=ofile)
+                    ind = indices[integral]
+                    ii = ind[0]
+                    jj = ind[1]
+                    kk = ind[2]
+                    ll = ind[3]
+                    act_ind = [orb_ids[x] for x in ind]
+                    i = act_ind[0]
+                    j = act_ind[1]
+                    k = act_ind[2]
+                    l = act_ind[3]
+
+                    if i >= 0 and j >= 0 and k >= 0 and l >= 0:
+                        # Convert from dirac to chemists' notation
+                        print(val, i+1, k+1, j+1, l+1, file=ofile)
+
+                    # Since the integrals are added, the multiplicity needs to be screened
+                    if not (ii >= kk and ii >= jj and ii >= ll and jj >= ll and (ii != jj or ll >= kk)):
+                        continue
+
+                    if i >= 0 and k >= 0 and j == -1 and jj == ll:
+                        int3[i, k, 0] += val
+                        if i != k:
+                            int3[k, i, 0] += val
+
+                    if i >= 0 and l >= 0 and j == -1 and jj == kk:
+                        int3[i, l, 1] += val
+                        if i != l:
+                            int3[l, i, 1] += val
+                    elif i >= 0 and j >= 0 and l == -1 and ll == kk:
+                        int3[i, j, 1] += val
+                        if i != j:
+                            int3[j, i, 1] += val
+
+                    if j >= 0 and l >= 0 and i == -1 and ii == kk:
+                        int3[j, l, 0] += val
+                        if j != l:
+                            int3[l, j, 0] += val
+
+                    if j >= 0 and k >= 0 and i == -1 and ii == ll:
+                        int3[j, k, 1] += val
+                        if j != k:
+                            int3[k, j, 1] += val
+                    elif l >= 0 and k >= 0 and i == -1 and ii == jj:
+                        int3[l, k, 1] += val
+                        if l != k:
+                            int3[k, l, 1] += val
+
+                    if i == -1 and ii == kk and j == -1 and jj == ll:
+                        int2[ii, jj, 0] = val
+                        int2[jj, ii, 0] = val
+
+                    if i == -1 and ii == ll and j == -1 and jj == kk:
+                        int2[ii, jj, 1] = val
+                        int2[jj, ii, 1] = val
+                    if i == -1 and ii == jj and k == -1 and kk == ll:
+                        int2[ii, kk, 1] = val
+                        int2[kk, ii, 1] = val
 
         # Hamiltonian
         if trexio.has_mo_1e_int_core_hamiltonian(trexfile):
             core_ham = trexio.read_mo_1e_int_core_hamiltonian(trexfile)
-            for a in range(1, mo_num + 1):
-                for b in range(1, a + 1):
-                    val = core_ham[a - 1, b - 1]
+            # Add core Fock operator
+            for j in range(n_act):
+                jj = act_ids[j]
+                for i in range(n_act):
+                    ii = act_ids[i]
+                    # TODO spin polarization
+                    int3[i, j, 0] = core_ham[ii, jj] + occupation*int3[i, j, 0] - int3[i, j, 1]
+
+            for a in range(n_act):
+                for b in range(a, n_act):
+                    val = int3[a, b, 0]
                     if np.abs(val) > fcidump_threshold:
-                        print(val, a, b, 0, 0, file=ofile)
+                        print(val, b+1, a+1, 0, 0, file=ofile)
 
         # Core energy
         if trexio.has_nucleus_repulsion(trexfile):
             core = trexio.read_nucleus_repulsion(trexfile)
+            for i in range(mo_num):
+                if orb_ids[i] == -1:
+                    core += occupation*core_ham[i, i]
+                    for j in range(mo_num):
+                        if orb_ids[j] == -1:
+                            # TODO spin polarization
+                            core += occupation*int2[i, j, 0] - int2[i, j, 1]
+
             print(core, 0, 0, 0, 0, file=ofile)
 
 def run_molden(t, filename):
