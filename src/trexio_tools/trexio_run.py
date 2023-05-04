@@ -15,7 +15,7 @@ Options:
       -n, --n_points=N_POINTS       Number of integration points.  [default: 81]
       -i, --input=INPUT_FILE        Name of the input file.
       -o, --output=OUTPUT_FILE      Name of the output file.
-      -b, --back_end=BACK_END       [hdf5 | text | auto]  The TREXIO back end.  [default: auto]
+      -b, --back_end=BACK_END       [hdf5 | text | auto]  The TREXIO back end.  [default: hdf5]
       -s, --back_end_from=BACK_END  [hdf5 | text | auto]  The input TREXIO back end.  [default: auto]
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
