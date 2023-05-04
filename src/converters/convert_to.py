@@ -329,8 +329,6 @@ def run_spherical(t, filename):
     return
 
 
-
-
 def run(trexio_filename, filename, filetype):
 
     trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_AUTO)
@@ -343,12 +341,8 @@ def run(trexio_filename, filename, filetype):
         run_spherical(trexio_file, filename)
 #    elif filetype.lower() == "normalized_aos":
 #        run_normalized_aos(trexio_file, filename)
-#    elif filetype.lower() == "gamess":
-#        run_resultsFile(trexio_file, filename)
 #    elif filetype.lower() == "fcidump":
 #        run_fcidump(trexio_file, filename)
-#    elif filetype.lower() == "molden":
-#        run_fcidump(trexio_file, filename)
     else:
-        raise TypeError("Unknown file type")
+        raise NotImplementedError(f"Conversion from TREXIO to {filetype} is not supported.")
 
