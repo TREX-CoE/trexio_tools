@@ -36,8 +36,9 @@ jobs:
           # benchmark the converters from external codes
           trexio convert-from -t gaussian  -i data/chbrclf.log          -b hdf5  trexio_gaussi.h5
           trexio convert-from -t gamess    -i data/GAMESS_CAS.log       -b hdf5  trexio_gamess.h5
-          trexio convert-from -t pyscf     -i data/water.chk            -b hdf5  trexio_pyscfw.h5
-          trexio convert-from -t pyscf     -i data/diamond_single_k.chk -b hdf5  trexio_pyscfd.h5
+          trexio convert-from -t pyscf     -i data/water.chk            -b hdf5  trexio_pyscf_w.h5
+          trexio convert-from -t pyscf     -i data/diamond_single_k.chk -b hdf5  trexio_pyscf_1k.h5
+          trexio convert-from -t pyscf     -i data/diamond_k_grid.chk   -b hdf5  trexio_pyscf_Nk.h5
           # benchmark the MOs by computing numerically integrals on a grid and comparing with the ref values from the file
           trexio check-mos -n 50 trexio_gamess.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
