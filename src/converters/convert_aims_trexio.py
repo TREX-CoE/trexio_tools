@@ -46,17 +46,13 @@ except ImportError:
     raise Exception("Unable to import trexio. Please check that the trexio \
                     Python package is properly installed.")
 
+import struct
 import sys
 import os
 import numpy as np
 from scipy.linalg.lapack import dgtsv # For interpolation parameters
-from scipy.linalg import block_diag
-
-# This should be a module import, but the module is a utility of FHI-aims.
-# To avoid license issues, it is currently not provided with trexio_tools.
-# Hence, the ImportError would always shut it down and the import must be
-# located elsewhere.
-read_elsi = None
+from scipy.linalg import block_diag # Block matrices for spin polarization
+from scipy.sparse import csc_matrix, coo_matrix # Read ELSI matrices
 
 hartree_to_ev = 27.2113845
 bohr_to_angstrom = 0.52917721
@@ -725,15 +721,47 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
 
 def load_elsi_matrix(filename, matrix_indices, info=[], fix_cols=False):
     try:
-        if not os.path.isfile(filename):
-            raise Exception()
-        matrix = read_elsi.read_elsi_to_csc(filename)
-        matrix = matrix.tocoo() # COO format better suited for the permutations
-        for i in range(len(matrix.row)):
-            if not fix_cols:
-                matrix.col[i] = matrix_indices[matrix.col[i]]
-            matrix.row[i] = matrix_indices[matrix.row[i]]
-        return matrix.toarray()
+        with open(filename, "rb") as file:
+            data = file.read()
+
+        # Fetch header
+        start = 0
+        end = 128
+        header = struct.unpack("l"*16, data[start:end])
+        n_basis = header[3]
+        val_cnt = header[5] # Number of non-zero elements
+        if header[2] != 0:
+            raise Exception("The matrix containts complex values which are not supported by this script")
+
+        start = end
+        end = start + 8*n_basis
+        pointer = struct.unpack("l"*n_basis, data[start:end])
+        pointer += (val_cnt+1,)
+        pointer = np.array(pointer) - 1
+
+        start = end
+        end = start + 4*val_cnt
+        rows = struct.unpack("i"*val_cnt, data[start:end])
+        rows = np.array(rows) - 1
+
+        start = end
+
+        end = start+val_cnt*8
+        vals = struct.unpack("d" * val_cnt, data[start:end])
+
+        matrix = np.zeros((n_basis, n_basis), dtype=float)
+        val_at = 0
+        for col in range(n_basis):
+            for row in rows[pointer[col]:pointer[col+1]]:
+                i = matrix_indices[row]
+                if fix_cols: # Needed so that coefficient matrix does not change MO order
+                    j = col
+                else:
+                    j = matrix_indices[col]
+                matrix[i, j] = vals[val_at]
+                val_at += 1
+
+        return matrix
     except Exception as err:
         print(err)
         if len(info) > 1: # Can be used to mute warning
@@ -916,19 +944,6 @@ def load_integrals(trexfile, dirpath, context):
             trexio.write_mo_1e_int_core_hamiltonian(trexfile, mo_core_ham)
 
 def convert_aims_trexio(trexfile, dirpath):
-    # The exception is triggered when the module is loaded; if located in
-    # the main body, it would block other converters
-    try:
-        global read_elsi
-        from . import read_elsi as read_elsi
-    except ImportError:
-        raise Exception("This programm relies on the file \"read_elsi.py\" of FHIaims. " \
-                        "Please copy it from \"FHIaims/utilities/elsi_matrix/read_elsi.py\" " \
-                        "to \"trexio_tools/src/converters/\" and " \
-                        "reinstall using \"pip install .\"")
-
-    #print(dir(read_elsi))
-
     if not os.path.isdir(dirpath):
         raise Exception("The provided path " + dirpath \
                         + " does not seem to be a directory.")

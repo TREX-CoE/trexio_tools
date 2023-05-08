@@ -45,6 +45,11 @@ def run_fcidump(trexfile, filename):
             if ms2 != 0:
                 occupation = 1
 
+        spins = None
+        # Used to check the order of spins in UHF files
+        if ms2 != 0 and trexio.has_mo_spin(trexfile):
+            spins = trexio.read_mo_spin(trexfile)
+
         if trexio.has_mo_class(trexfile):
         #if True:
             n_act = 0
@@ -88,8 +93,31 @@ def run_fcidump(trexfile, filename):
             # The symmetry formats between trexio and FCIDUMP differ, so this
             # information is not carried over automatically
             print("1,", end="", file=ofile)
-        print("\nISYM=1,", file=ofile)
-        print("&END", file=ofile)
+        print("\nISYM=1,", end="", file=ofile)
+        if ms2 != 0:
+            print("\nUHF=.TRUE.,", file=ofile)
+        print("\n&END", file=ofile)
+
+        # Can be used to switch up the indices of printed integrals if necessary
+        out_index = np.array([i for i in range(n_act)])
+
+        # If the orbitals are spin-dependent, the order alpha-beta-alpha-beta...
+        # is preferred
+        if ms2 != 0 and not spins is None:
+            # Check if the current orbital order needs to be switched at all
+            flag = True
+            up = spins[0]
+            for n, spin in enumerate(spins):
+                # Check whether first half of orbitals is up, second is down
+                if not (n < len(spins) // 2 and spin == up or n >= len(spins) // 2 and spin != up):
+                    flag = False
+                    break
+
+            if flag:
+                # If the desired pattern is detected, interleave spins
+                out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) for i in range(n_act)])
+
+        #print(out_index)
 
         fcidump_threshold = 1e-10
         int3 = np.zeros((n_act, n_act, 2), dtype=float)
@@ -123,7 +151,7 @@ def run_fcidump(trexfile, filename):
 
                     if i >= 0 and j >= 0 and k >= 0 and l >= 0:
                         # Convert from dirac to chemists' notation
-                        print(val, i+1, k+1, j+1, l+1, file=ofile)
+                        print(val, out_index[i]+1, out_index[k]+1, out_index[j]+1, out_index[l]+1, file=ofile)
 
                     # Since the integrals are added, the multiplicity needs to be screened
                     if not (ii >= kk and ii >= jj and ii >= ll and jj >= ll and (ii != jj or ll >= kk)):
@@ -183,7 +211,7 @@ def run_fcidump(trexfile, filename):
                 for b in range(a, n_act):
                     val = int3[a, b, 0]
                     if np.abs(val) > fcidump_threshold:
-                        print(val, b+1, a+1, 0, 0, file=ofile)
+                        print(val, out_index[b]+1, out_index[a]+1, 0, 0, file=ofile)
 
         # Core energy
         if trexio.has_nucleus_repulsion(trexfile):
