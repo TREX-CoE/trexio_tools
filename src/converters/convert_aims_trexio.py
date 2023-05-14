@@ -408,6 +408,7 @@ def load_basis_set(trexfile, dirpath, context):
     # List of aos is done, shells can be loaded
     numgrid_r = []
     numgrid_phi = []
+    numgrid_grad = [] # Not printed by aims -- needs to be computed from spline
     numgrid_kin = []
     numgrid_start = [] # len = number of radial functions
 
@@ -443,6 +444,8 @@ def load_basis_set(trexfile, dirpath, context):
             species_atoms[species_id] = curr_atom
 
         # TODO dynamically set the number of zeros in file names
+        radial_padding = 2
+        shell_padding = max(int(np.log10(len(shells))) + 1, 2)
         filename = f"{shell.fn_type}_{species_id+1}_{radial_cnt+1:0>2}_" \
             f"{shell.n:0>2}_{angular_letter(shell.l)}.dat"
         
@@ -469,8 +472,7 @@ def load_basis_set(trexfile, dirpath, context):
                 numgrid_phi.append(phi)
 
         # Repeat for kinetic energy spline
-        filename = f"kin_{shell.fn_type}_{species_id+1}_{radial_cnt+1:0>2}_" \
-            f"{shell.n:0>2}_{angular_letter(shell.l)}.dat"
+        filename = "kin_" + filename
         radial_cnt += 1
         
         #print(filename)
@@ -489,6 +491,7 @@ def load_basis_set(trexfile, dirpath, context):
                 numgrid_kin.append(kin)
 
     interp = np.zeros((0, 4), dtype=float)
+    grad_interp = np.zeros((0, 4), dtype=float)
     kin_interp = np.zeros((0, 4), dtype=float)
 
     # Compute interpolation coefficients
@@ -510,6 +513,19 @@ def load_basis_set(trexfile, dirpath, context):
         kin_spline_params = create_cubic_spline(r_sub, kin_sub)
         interp = np.concatenate((interp, spline_params)) 
         kin_interp = np.concatenate((kin_interp, kin_spline_params)) 
+
+        # Since the gradient is not output by aims, calculate it from the
+        # wave function spline
+        # It is taken as the derivative of the wave function spline
+        # Theoretically, the kinetic spline could be integrated and an
+        # average taken
+        grad_spline_params = [
+            [point[1], 2*point[2], 3*point[3], 0] for point in spline_params
+        ]
+        grad_interp = np.concatenate((grad_interp, grad_spline_params))
+
+        local_numgrid_grad = [point[1] for point in spline_params]
+        numgrid_grad = np.concatenate((numgrid_grad, local_numgrid_grad))
 
     # Scaffold starts are known for radials -> list for shells
     nucleus_index = [] # len = number of shells
@@ -592,10 +608,18 @@ def load_basis_set(trexfile, dirpath, context):
 
     trexio.write_basis_numgrid_radius(trexfile, numgrid_r)
     trexio.write_basis_numgrid_phi(trexfile, numgrid_phi)
+    trexio.write_basis_numgrid_grad(trexfile, numgrid_grad)
+    trexio.write_basis_numgrid_kin(trexfile, numgrid_kin)
     trexio.write_basis_numgrid_start(trexfile, shell_start)
     trexio.write_basis_numgrid_size(trexfile, shell_size)
 
-    trexio.write_basis_interpolator(trexfile, interp)
+    i = 3000
+    print(interp[i], "\n", grad_interp[i], "\n", kin_interp[i])
+    print(kin_interp[i]*-2, "\n", -kin_interp[i], "\n", kin_interp[i])
+
+    trexio.write_basis_interpolator_kind(trexfile, "Polynomial")
+    trexio.write_basis_interpolator_phi(trexfile, interp)
+    trexio.write_basis_interpolator_grad(trexfile, grad_interp)
     trexio.write_basis_interpolator_kin(trexfile, kin_interp)
 
     context.aos = aos

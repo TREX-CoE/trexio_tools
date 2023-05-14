@@ -23,7 +23,7 @@ def read(trexio_file):
     elif r["type"] == "Numerical":
         r["numgrid_start"]          =  trexio.read_basis_numgrid_start(trexio_file)
         r["numgrid_size"]           =  trexio.read_basis_numgrid_size(trexio_file)
-        r["interpolator"]           =  trexio.read_basis_interpolator(trexio_file)
+        r["interpolator"]           =  trexio.read_basis_interpolator_phi(trexio_file)
         r["numgrid_radius"]         =  trexio.read_basis_numgrid_radius(trexio_file)
 
     return r
