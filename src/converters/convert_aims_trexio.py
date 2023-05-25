@@ -54,6 +54,7 @@ from scipy.linalg.lapack import dgtsv # For interpolation parameters
 from scipy.linalg import block_diag # Block matrices for spin polarization
 from scipy.sparse import csc_matrix, coo_matrix # Read ELSI matrices
 
+
 hartree_to_ev = 27.2113845
 bohr_to_angstrom = 0.52917721
 
@@ -135,6 +136,10 @@ class Context:
 
         # Permutation from the FHI-aims orbital order to trexio
         self.matrix_indices = None
+        # The signs of matrix entries depends on whether the angular part
+        # of orbitals is calculated by r(nuc) - r(elec) or r(elec) - r(nuc).
+        # To enforce r(elec) - r(nuc), some signs have to be flipped
+        self.matrix_signs = None
 
     def ao_count(self):
         return len(self.aos)
@@ -408,8 +413,8 @@ def load_basis_set(trexfile, dirpath, context):
     # List of aos is done, shells can be loaded
     numgrid_r = []
     numgrid_phi = []
-    numgrid_grad = [] # Not printed by aims -- needs to be computed from spline
-    numgrid_kin = []
+    numgrid_grad = []
+    numgrid_lap = []
     numgrid_start = [] # len = number of radial functions
 
     #for ao in aos:
@@ -471,9 +476,27 @@ def load_basis_set(trexfile, dirpath, context):
                 numgrid_r.append(r)
                 numgrid_phi.append(phi)
 
-        # Repeat for kinetic energy spline
-        filename = "kin_" + filename
+        # Repeat for derivative
+        filename = "drv_" + filename
         radial_cnt += 1
+        
+        if not os.path.isfile(dirpath + "/" + filename):
+            raise Exception("Expected to find NAO derivative file " + filename \
+                            + " but did not. Since the printing of the " \
+                            "derivative is an addition within this project, " \
+                            "please check your FHIaims version.")
+
+        with open(dirpath + "/" + filename) as dfile:
+            # First line contains number of data points == len(lines)
+            lines = dfile.readlines()[1:]
+            for line in lines:
+                i = len(numgrid_grad)
+                data = line.split()
+                deriv = float(data[1])
+                numgrid_grad.append(deriv)
+
+        # Repeat for second derivative data
+        filename = "kin" + filename[3:]
         
         #print(filename)
 
@@ -486,13 +509,32 @@ def load_basis_set(trexfile, dirpath, context):
             # First line contains number of data points == len(lines)
             lines = dfile.readlines()[1:]
             for line in lines:
+                i = len(numgrid_lap)
                 data = line.split()
                 kin = float(data[1])
-                numgrid_kin.append(kin)
+                # The FHIaims kinetic spline is 
+                # kin = -0.5 d**2/dr**2 + 0.5 l*(l+1) u/r**2
+                r = numgrid_r[i]
+                deriv2 = shell.l * (shell.l + 1) * numgrid_phi[i] / r**2 - 2*kin
+                numgrid_lap.append(deriv2)
+
+    numgrid_r = np.array(numgrid_r)
+    numgrid_phi = np.array(numgrid_phi)
+
+    # Printed derivative is d u(r) / dr, but we want d(u(r)/r)/dr etc
+    # We keep the outside factor of 1/r for consistency with 
+    # the aims spline
+    if len(numgrid_grad) != 0:
+        numgrid_grad = np.array(numgrid_grad)
+        if len(numgrid_lap) != 0:
+            numgrid_lap = np.array(numgrid_lap)
+            numgrid_lap = numgrid_lap - 2*numgrid_grad/numgrid_r + 2*numgrid_phi / numgrid_r / numgrid_r
+
+        numgrid_grad = numgrid_grad - numgrid_phi / numgrid_r
 
     interp = np.zeros((0, 4), dtype=float)
     grad_interp = np.zeros((0, 4), dtype=float)
-    kin_interp = np.zeros((0, 4), dtype=float)
+    lap_interp = np.zeros((0, 4), dtype=float)
 
     # Compute interpolation coefficients
     #print(len(numgrid_phi))
@@ -503,29 +545,20 @@ def load_basis_set(trexfile, dirpath, context):
             i1 = numgrid_start[radial_at + 1]
             r_sub = numgrid_r[i0:i1]
             phi_sub = numgrid_phi[i0:i1]
-            kin_sub = numgrid_kin[i0:i1]
+            grad_sub = numgrid_grad[i0:i1]
+            lap_sub = numgrid_lap[i0:i1]
         else:
             i0 = numgrid_start[radial_at]
             r_sub = numgrid_r[i0:]
             phi_sub = numgrid_phi[i0:]
-            kin_sub = numgrid_kin[i0:]
+            grad_sub = numgrid_grad[i0:]
+            lap_sub = numgrid_lap[i0:]
         spline_params = create_cubic_spline(r_sub, phi_sub)
-        kin_spline_params = create_cubic_spline(r_sub, kin_sub)
+        grad_spline_params = create_cubic_spline(r_sub, grad_sub)
+        lap_spline_params = create_cubic_spline(r_sub, lap_sub)
         interp = np.concatenate((interp, spline_params)) 
-        kin_interp = np.concatenate((kin_interp, kin_spline_params)) 
-
-        # Since the gradient is not output by aims, calculate it from the
-        # wave function spline
-        # It is taken as the derivative of the wave function spline
-        # Theoretically, the kinetic spline could be integrated and an
-        # average taken
-        grad_spline_params = [
-            [point[1], 2*point[2], 3*point[3], 0] for point in spline_params
-        ]
         grad_interp = np.concatenate((grad_interp, grad_spline_params))
-
-        local_numgrid_grad = [point[1] for point in spline_params]
-        numgrid_grad = np.concatenate((numgrid_grad, local_numgrid_grad))
+        lap_interp = np.concatenate((lap_interp, lap_spline_params)) 
 
     # Scaffold starts are known for radials -> list for shells
     nucleus_index = [] # len = number of shells
@@ -535,13 +568,28 @@ def load_basis_set(trexfile, dirpath, context):
     normalization = []
 
     shell_r_power = np.full(len(shells), -1, dtype=int)
+    # Normalization factor for m=0
+    l_factor = [1, 1, 2, 2, 8, 8, 16, 16, 128, 128, 256]
+    l_factor = np.sqrt(np.array([
+        (2*l + 1) / l_factor[l]**2 for l in range(11)
+    ]) * (1/np.pi))/2
 
+    m_factor = [
+        [1],
+        [1, 1, 1],
+        [1, 2*3**0.5, 2*3**0.5, 3**0.5, 2*3**0.5],
+        [1, 0.5*6**0.5, 0.5*6**0.5, 15**0.5, 2*15**0.5, 0.5*10**0.5, 0.5*10**0.5],
+        [1, 2*10**0.5, 2*10**0.5, 2*5**0.5, 4*5**0.5, 2*70**0.5, 2*70**0.5, 35**0.5, 4*35**0.5]
+        # Only implemented up to g
+    ]
+
+    # Factors between different values of m in a test-convenient form
     for shell in shells:
         shell_start.append(numgrid_start[shell.numgrid_id])
         nucleus_index.append(shell.atom_id)
+        l = shell.l
         shell_ang_mom.append(shell.l)
-        #normalization.append((np.pi*atoms[shell.atom_id].species.charge)**-0.5 / 2)
-        normalization.append(np.pi**-0.5 / 2)
+        normalization.append(l_factor[l])
 
 
     for i in range(len(shells)):
@@ -551,16 +599,10 @@ def load_basis_set(trexfile, dirpath, context):
         else:
             shell_size.append(shell_start[i+1] - shell_start[i])
 
-    #print(shell_size)
-
-    #print(shell_start)
-    #print(numgrid_start)
-
-    #for i in range(len(numgrid_r) // 20):
-    #    print(numgrid_r[i], numgrid_phi[i])
-
     ao_shells = []
     ao_norms = [] #np.ones(len(aos), dtype=float)
+
+    # Convert to GAMESS convention
 
     for i in range(len(aos)):
         ao = aos[i]
@@ -568,27 +610,14 @@ def load_basis_set(trexfile, dirpath, context):
         l = ao.shell.l
         m = ao.m
 
-        # Only implemented up to g-orbitals since these norms are neither necessary for QMC nor FCIQMC
+        n = 2 * np.abs(m) - (np.sign(m) + 1) // 2
+        # Don't throw an error in case the user does not need them anyways
         if l < 5:
-            l_facs = [1, 3, 15, 105, 35]
-            l_fac = np.math.factorial(2*l+2)/np.math.factorial(l+1)/2**(l+1)
-            l_fac = l_fac**0.5
-            # For spherical harmonics the normalization factor also depends on m
-            # Trexio-order: 0, 1, -1, 2, -2 ...
-            m_fac = [[1], # s
-                     [1, 1, 1], # p
-                     [0.5*3**-0.5, 1, 1, 0.5, 1], # d
-                     [2*15**0.5, 2*10**0.5, 2*10**0.5, 0.5, 1, 2*6**0.5, 2*6**0.5], # f
-                     [3*35**0.5/280, 3*14**0.5/28, 3*14**0.5/28, 3*7**0.5/28, 
-                      3*7**0.5/14, 3*2**0.5/4, 3*2**0.5/4, 3/8, 1.5]] # g
-            n = 2 * np.abs(m) - (np.sign(m) + 1) // 2
-
-            ao_norms.append(l_fac * m_fac[l][n])
+            ao_norms.append(m_factor[l][n])
         else:
             ao_norms.append(1)
 
     ao_norms = np.array(ao_norms) # Factor in normalization of radial functions
-    #print(ao_norms**2)
 
     # All data is accumulated, write to trexio file
     trexio.write_ao_cartesian(trexfile, 0)
@@ -609,18 +638,14 @@ def load_basis_set(trexfile, dirpath, context):
     trexio.write_basis_numgrid_radius(trexfile, numgrid_r)
     trexio.write_basis_numgrid_phi(trexfile, numgrid_phi)
     trexio.write_basis_numgrid_grad(trexfile, numgrid_grad)
-    trexio.write_basis_numgrid_kin(trexfile, numgrid_kin)
+    trexio.write_basis_numgrid_lap(trexfile, numgrid_lap)
     trexio.write_basis_numgrid_start(trexfile, shell_start)
     trexio.write_basis_numgrid_size(trexfile, shell_size)
-
-    i = 3000
-    print(interp[i], "\n", grad_interp[i], "\n", kin_interp[i])
-    print(kin_interp[i]*-2, "\n", -kin_interp[i], "\n", kin_interp[i])
 
     trexio.write_basis_interpolator_kind(trexfile, "Polynomial")
     trexio.write_basis_interpolator_phi(trexfile, interp)
     trexio.write_basis_interpolator_grad(trexfile, grad_interp)
-    trexio.write_basis_interpolator_kin(trexfile, kin_interp)
+    trexio.write_basis_interpolator_lap(trexfile, lap_interp)
 
     context.aos = aos
 
@@ -674,7 +699,8 @@ def handle_2e_integral(sparse_data, indices, val, g_mat=None, density=None, rest
         # Mirroring of off-diagonal elements omitted due to lack of symmetry
 
 def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
-                      calculate_g=False, density=None, restricted=True):
+                      orbital_signs, calculate_g=False, density=None,
+                      restricted=True):
     # To reduce memory, it makes sense to calculate the G matrix on the fly
 
     # Handle both full and other type
@@ -705,12 +731,19 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
         # Load integral, save to batch and apply to g matrix
         for line in file:
             data = line.split()
-            i = orbital_indices[int(data[0]) - 1]
-            j = orbital_indices[int(data[1]) - 1]
-            k = orbital_indices[int(data[2]) - 1]
-            l = orbital_indices[int(data[3]) - 1]
+            i0 = int(data[0]) - 1
+            j0 = int(data[1]) - 1
+            k0 = int(data[2]) - 1
+            l0 = int(data[3]) - 1
+            i = orbital_indices[i0]
+            j = orbital_indices[j0]
+            k = orbital_indices[k0]
+            l = orbital_indices[l0]
             indices = [i, j, k, l]
-            val = float(data[4])
+            val = float(data[4]) * orbital_signs[i0] \
+                * orbital_signs[j0] * orbital_signs[k0] \
+                * orbital_signs[l0]
+
             if np.fabs(val) < two_e_integral_threshold:
                 continue
 
@@ -731,6 +764,7 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
                     [1, 2, 3, 0]  # j k l i
                 ]
                 found_permutations = []
+                # TODO speed this up
                 for perm in permutations:
                     p_indices = [indices[perm[0]], indices[perm[1]], indices[perm[2]], indices[perm[3]]]
                     if p_indices in found_permutations:
@@ -743,7 +777,9 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
 
     return g_mat
 
-def load_elsi_matrix(filename, matrix_indices, info=[], fix_cols=False):
+def load_elsi_matrix(filename, context, info=[], fix_cols=False):
+    matrix_indices = context.matrix_indices
+    matrix_signs = context.matrix_signs
     try:
         with open(filename, "rb") as file:
             data = file.read()
@@ -778,11 +814,14 @@ def load_elsi_matrix(filename, matrix_indices, info=[], fix_cols=False):
         for col in range(n_basis):
             for row in rows[pointer[col]:pointer[col+1]]:
                 i = matrix_indices[row]
+                sign = 1 # Cf matrix_signs in Context
                 if fix_cols: # Needed so that coefficient matrix does not change MO order
                     j = col
+                    sign = matrix_signs[row]
                 else:
                     j = matrix_indices[col]
-                matrix[i, j] = vals[val_at]
+                    sign = matrix_signs[col] * matrix_signs[row]
+                matrix[i, j] = vals[val_at] * sign
                 val_at += 1
 
         return matrix
@@ -813,25 +852,27 @@ def transform_to_mo(matrix, coeffs):
 
 def load_integrals(trexfile, dirpath, context):
     matrix_indices = context.matrix_indices
+    matrix_signs = context.matrix_signs
     restricted = context.spin_moment == 0
     # MO Coefficients
     # Columns need to be fixed so that the MO stay ordered by their energy
     # and the coefficient matrix in the MO basis diagonal
-    coeffs = load_elsi_matrix(dirpath + "/C_spin_01_kpt_000001.csc", matrix_indices, \
+    coeffs = load_elsi_matrix(dirpath + "/C_spin_01_kpt_000001.csc", context, \
                                ["coefficient matrix", "elsi_output_matrix eigenvectors"], \
                               fix_cols=True)
     coeffs_up = coeffs
-    ao_num = len(matrix_indices)
+    ao_num = coeffs.shape[0]
     mo_num = ao_num
     coeffs_dn = None
     if not coeffs is None:
         # If basis_indices.out was not found, matrix_indices needs to be set
         if len(matrix_indices) == 0:
             matrix_indices = [i for i in range(coeffs.shape[0])]
+            matrix_signs = [1 for i in range(coeffs.shape[0])]
 
         # If the system is spin polarized, join the two matrices
         if context.unrestricted() != 0:
-            coeffs_dn = load_elsi_matrix(dirpath + "/C_spin_02_kpt_000001.csc", matrix_indices, \
+            coeffs_dn = load_elsi_matrix(dirpath + "/C_spin_02_kpt_000001.csc", context, \
                                        ["coefficient matrix", "elsi_output_matrix eigenvectors"], \
                                       fix_cols=True)
 
@@ -850,7 +891,7 @@ def load_integrals(trexfile, dirpath, context):
     # It is needed to construct the ao core Hamiltonian, but since that one is spin
     # independent it is sufficient to calculate it for one spin only
     # No warning necessary since it can also be constructed from the coeffcícient matrix
-    density_up = load_elsi_matrix(dirpath + "/D_spin_01_kpt_000001.csc", matrix_indices, [])
+    density_up = load_elsi_matrix(dirpath + "/D_spin_01_kpt_000001.csc", context, [])
     if density_up is None:
         density_up = np.zeros(coeffs_up.shape, dtype=float)
         for mu in range(len(matrix_indices)):
@@ -864,7 +905,7 @@ def load_integrals(trexfile, dirpath, context):
     ao_density = density_up
 
     if context.unrestricted():
-        density_dn = load_elsi_matrix(dirpath + "/D_spin_02_kpt_000001.csc", matrix_indices, [])
+        density_dn = load_elsi_matrix(dirpath + "/D_spin_02_kpt_000001.csc", context, [])
         if density_dn is None and context.unrestricted():
             density_dn = np.zeros(coeffs_dn.shape, dtype=float)
             for mu in range(len(matrix_indices)):
@@ -898,7 +939,7 @@ def load_integrals(trexfile, dirpath, context):
     trexio.write_mo_occupation(trexfile, occupation)
 
     # Overlap
-    overlap = load_elsi_matrix(dirpath + "/S_spin_01_kpt_000001.csc", matrix_indices, \
+    overlap = load_elsi_matrix(dirpath + "/S_spin_01_kpt_000001.csc", context, \
                                ["overlap matrix", "elsi_output_matrix overlap"])
     if not overlap is None:
         trexio.write_ao_1e_int_overlap(trexfile, overlap)
@@ -906,7 +947,7 @@ def load_integrals(trexfile, dirpath, context):
         trexio.write_mo_1e_int_overlap(trexfile, overlap_mo)
 
     # Full hamiltonian; trexio supports only core Hamiltonian -> can be calculated with 2e integrals
-    ao_ham = load_elsi_matrix(dirpath + "/H_spin_01_kpt_000001.csc", matrix_indices, \
+    ao_ham = load_elsi_matrix(dirpath + "/H_spin_01_kpt_000001.csc", context, \
                                ["hamiltonian matrix", "elsi_output_matrix hamiltonian"])
     ao_ham_up = ao_ham
     ao_ham_dn = None
@@ -924,22 +965,22 @@ def load_integrals(trexfile, dirpath, context):
 
         if context.unrestricted():
             # TODO remove redundancy
-            ao_ham_dn = load_elsi_matrix(dirpath + "/H_spin_02_kpt_000001.csc", matrix_indices, \
+            ao_ham_dn = load_elsi_matrix(dirpath + "/H_spin_02_kpt_000001.csc", context, \
                                ["down spin hamiltonian matrix", "elsi_output_matrix hamiltonian"])
             ao_ham = block_diag(ao_ham_up, ao_ham_dn)
             if not ao_ham_dn is None:
                 mo_ham_dn = transform_to_mo(ao_ham_dn, coeffs_dn)
                 mo_ham = block_diag(mo_ham_up, mo_ham_dn)
 
-    mo_indices = None
-
     if context.unrestricted():
         mo_indices = [i for i in range(2*len(matrix_indices))]
+        mo_signs = np.ones(len(mo_indices))
     else:
         mo_indices = [i for i in range(len(matrix_indices))]
+        mo_signs = np.ones(len(mo_indices))
     mo_g_matrix = load_2e_integrals(trexfile, dirpath, "mo", \
                                     trexio.write_mo_2e_int_eri, mo_indices, \
-                                    not mo_ham is None, mo_density, \
+                                    mo_signs, not mo_ham is None, mo_density, \
                                     not context.unrestricted())
 
     if not mo_g_matrix is None and not mo_ham is None:
@@ -949,10 +990,9 @@ def load_integrals(trexfile, dirpath, context):
     # Note that the functionality for printing the ao 2e integrals is an
     # addition within this project and not necessarily available in
     # public versions of FHI-aims
-    # Since it is only an intermediary, one spin is sufficient
     ao_g_matrix = load_2e_integrals(trexfile, dirpath, "ao", \
-        trexio.write_ao_2e_int_eri, matrix_indices, True, ao_density, \
-                                    not context.unrestricted())
+        trexio.write_ao_2e_int_eri, matrix_indices, matrix_signs, True, \
+                                    ao_density, not context.unrestricted())
     
     if not ao_ham is None and not ao_g_matrix is None:
         # For comparing whether both spins give the same result, use this line
@@ -1012,6 +1052,7 @@ def convert_aims_trexio(trexfile, dirpath):
     indices_path = dirpath + "/basis-indices.out"
     basis_indices_found = os.path.isfile(indices_path)
     matrix_indices = [] # If basis is not known, matrices will be imported as-is
+    matrix_signs = []
     if not basis_indices_found:
         print("The basis_indices.out file anticipated at", indices_path,
                         "could not be found.")
@@ -1020,10 +1061,24 @@ def convert_aims_trexio(trexfile, dirpath):
 
         # From the aos, associate the indices of input matrices with those of output matrices
         matrix_indices = np.zeros(context.ao_count(), dtype=int)
+        matrix_signs = np.ones(context.ao_count(), dtype=int)
+        signs = [
+            [1], [-1, 1, -1], [1, -1, 1, 1, 1], [-1, 1, -1, -1, -1, 1, -1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ]
         for i, ao in enumerate(context.aos):
             matrix_indices[ao.id_num] = i
+            # For everything higher, this isn't implemented. 
+            # The signs can be found using check_basis.
+            if ao.shell.l < len(signs):
+                m = ao.m
+                n = 2 * np.abs(m) - (np.sign(m) + 1) // 2
+                matrix_signs[ao.id_num] = signs[ao.shell.l][n]
+        #print(matrix_signs)
+
 
     context.matrix_indices = matrix_indices
+    context.matrix_signs = matrix_signs
 
     load_integrals(trexfile, dirpath, context)
 
@@ -1034,10 +1089,12 @@ if __name__ == '__main__':
         raise Exception("No path to the FHI-aims output data was provided.")
 
     path = sys.argv[1]
-    outname = ""
+    outname = "tmp.h5"
     if len(sys.argv) > 2:
         outname = sys.argv[2]
 
-    convert_aims_trexio(path, outname)
+    trexfile = trexio.File(outname, "w")
+
+    convert_aims_trexio(trexfile, path)
     print("Execution finished")
 
