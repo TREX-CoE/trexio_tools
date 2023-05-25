@@ -14,7 +14,9 @@ from . import basis as trexio_basis
 ao_exponents_l_spher = [
     [[0, 0, 0]],
     [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-    [[0, 0, 2], [1, 0, 1], [0, 1, 1], [2, 0, 0], [1, 1, 0]]
+    [[0, 0, 2], [1, 0, 1], [0, 1, 1], [2, 0, 0], [1, 1, 0]],
+    [[0, 0, 3], [1, 0, 2], [0, 1, 2], [2, 0, 1],
+     [1, 1, 1], [3, 0, 0], [2, 1, 0]]
 ]
 
 ao_exponents_l_cart = []
@@ -78,18 +80,35 @@ def shell_to_ao(ao, ao_ind, r, shell_rad, m):
 
     l = shell_ang_mom[ao_shell[ao_ind]]
     nuc_coords = nucleus_coord[nucleus_index[ao_shell[ao_ind]]]
-    dx = r[0] - nuc_coords[0]
-    dy = r[1] - nuc_coords[1]
-    dz = r[2] - nuc_coords[2]
+
+    dx = nuc_coords[0] - r[0]
+    dy = nuc_coords[1] - r[1]
+    dz = nuc_coords[2] - r[2]
+
     dr = np.sqrt(dx**2 + dy**2 + dz**2)
     exps = ao["ao_exponents"][ao_ind]
     angle_part = dx**exps[0] * dy**exps[1] * dz**exps[2]
 
     if ao["cartesian"] == 0: # Some spherical harmonics need special treatment
-        if l == 2 and m == 0: # d_z^2
-            angle_part = 3*angle_part - dr**2
-        elif l == 2 and m == 2: # d_x^2-y^2
-            angle_part -= dy**2
+        if l == 2:
+            if m == 0: # d_z^2
+                angle_part = 3*angle_part - dr**2
+            elif m == 2: # d_x^2-y^2
+                angle_part -= dy**2
+        elif l == 3:
+            if m == 0: 
+                angle_part = 5*angle_part - 3*dz*dr**2
+            elif m == 1: 
+                angle_part = 5*angle_part - dx*dr**2
+            elif m == -1: 
+                angle_part = 5*angle_part - dy*dr**2
+            elif m == 2: 
+                angle_part = angle_part - dy**2*dz
+            elif m == 3:
+                angle_part = angle_part - 3*dx*dy**2
+            elif m == -3:
+                angle_part = 3*angle_part - dy**3
+        # Everything above f is not implemented
 
     ret = shell_rad * angle_part * ao_norms[ao_ind] * (dr**-l)
     return ret

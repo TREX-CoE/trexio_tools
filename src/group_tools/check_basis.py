@@ -100,18 +100,50 @@ except ImportError:
 
         print("Integration steps:", step)
         dv = step[0]*step[1]*step[2]
+        ao_num = ao["num"]
 
-        S = np.zeros( [ ao["num"], ao["num"]] )
+        restricted = True
+        if trexio.has_electron_dn_num(trexio_file) and trexio.has_electron_up_num(trexio_file):
+            if trexio.read_electron_dn_num(trexio_file) != trexio.read_electron_up_num(trexio_file):
+                restricted = False
+
+        do_mos = trexio.has_mo_num(trexio_file) and trexio.has_mo_1e_int_overlap(trexio_file) and trexio.has_mo_coefficient(trexio_file)
+        if do_mos:
+            mo_num = trexio.read_mo_num(trexio_file)
+            S_mo = np.zeros([mo_num, mo_num])
+            coeffs = trexio.read_mo_coefficient(trexio_file)
+            # As of this writing, there is a bug with non-square matrices
+            if coeffs.shape[1] != mo_num and coeffs.shape[0] != ao_num:
+                print("Bugfix")
+                #tmp = np.zeros((coeffs.shape[1], coeffs.shape[0]), coeffs.dtype)
+                #for i in range(ao_num):
+                #    tmp[i, :ao_num] = coeffs[2*i, :]
+                #    tmp[i, ao_num:] = coeffs[2*i + 1, :]
+                #coeffs = tmp
+                coeffs = coeffs.reshape((ao_num, mo_num))
+            coeffs = coeffs.T
+            #for i in range(coeffs.shape[0]):
+            #    print(i, "\t", coeffs[i])
+            S_mo_ex = trexio.read_mo_1e_int_overlap(trexio_file)
+
+
+        S = np.zeros( [ ao_num, ao_num ] )
+
         for x in linspace[0]:
           #print(".",end='',flush=True)
           for y in linspace[1]:
             for z in linspace[2]:
                chi = trexio_ao.value(ao, np.array( [x,y,z] ) )
                S += np.outer(chi, chi)*dv
+
+               if do_mos:
+                  #print("AO:", chi)
+                  chi = coeffs @ chi
+                  #print("MO:", chi)
+                  S_mo += np.outer(chi, chi)*dv
         print()
 
         S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
-        ao_num = ao["num"]
 
         # This produces a lot of output for large molecules, maybe wrap up in ``if debug`` statement ?
         for i in range(ao_num):
@@ -119,6 +151,22 @@ except ImportError:
             print("%3d %3d %15f %15f"%(i,j,S[i][j],S_ex[i,j]))
         S_diff = S - S_ex
         print("Norm of the error: %f"%(np.linalg.norm(S_diff)))
+
+        print("Diagonal entries:")
+        for i in range(ao_num):
+            print("%3d %15f"%(i,S[i][i]))
+
+        # Idem for mos
+        if do_mos:
+            for i in range(mo_num):
+              for j in range(i, mo_num):
+                print("%3d %3d %15f %15f"%(i,j,S_mo[i][j],S_mo_ex[i,j]))
+            S_diff = S_mo - S_mo_ex
+            print("Norm of the error: %f"%(np.linalg.norm(S_diff)))
+
+            print("Diagonal entries:")
+            for i in range(mo_num):
+                print("%3d %15f"%(i,S_mo[i][i]))
 
 
 
