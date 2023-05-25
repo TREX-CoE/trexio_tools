@@ -389,21 +389,50 @@ def run_cart_phe(inp, filename, to_cartesian):
     count_cart = 0
     accu = []
     shell = []
-    for i, l in enumerate(shell_ang_mom):
-      p, r = count_cart, count_sphe
-      (x,y) = cart_sphe.data[l].shape
-      count_cart += x
-      count_sphe += y
-      q, s = count_cart, count_sphe
-      accu.append( (l, p,q, r,s) )
-      if to_cartesian != 0: n = x
-      else: n = y
-      for _ in range(n):
-          shell.append(i)
+    # This code iterates over all shells, should do in the order they are in ao_shells
+    # It is assumed that all aos corresponding to one shell are contiguous in ao_shells
+    if not trexio.has_ao_shell(inp):
+      for i, l in enumerate(shell_ang_mom):
+        p, r = count_cart, count_sphe
+        (x,y) = cart_sphe.data[l].shape
+        count_cart += x
+        count_sphe += y
+        q, s = count_cart, count_sphe
+        accu.append( (l, p,q, r,s) )
+        if to_cartesian != 0: n = x
+        else: n = y
+        for _ in range(n):
+            shell.append(i)
+    else:
+        ao_shell = trexio.read_ao_shell(inp)
+        i = 0
+        while i < len(ao_shell):
+          she = ao_shell[i]
+          l = shell_ang_mom[she]
+          p, r = count_cart, count_sphe
+          (x,y) = cart_sphe.data[l].shape
+          count_cart += x
+          count_sphe += y
+          q, s = count_cart, count_sphe
+          accu.append( (l, p,q, r,s) )
+          if to_cartesian != 0:
+              n = x
+              i += y
+          else:
+              n = y
+              i += x
+          for _ in range(n):
+              shell.append(she)
 
+    #print(accu)
+    #print(trexio.read_ao_shell(inp))
+    #print(shell)
+
+    cart_normalization = np.ones(count_cart)
     R = np.zeros( (count_cart, count_sphe) )
     for (l, p,q, r,s) in accu:
       R[p:q,r:s] = cart_sphe.data[l]
+      cart_normalization[p:q] = cart_sphe.normalization[l]
 
     S = np.eye(count_sphe)
 
@@ -440,18 +469,42 @@ def run_cart_phe(inp, filename, to_cartesian):
     normalization = np.array( [ 1. ] * ao_num_in )
     if trexio.has_ao_normalization(inp):
       normalization = trexio.read_ao_normalization(inp)
+    
+    trexio.write_ao_normalization(out, cart_normalization)
 
-    trexio.write_ao_normalization(out, [ 1. for i in range(ao_num_out) ] )
+    # Update shell factors
+    """
+    Although d_z^2 is the reference for both sphe and cart,
+    the orbital equation is different -> shell_factor must be adapted
+    """
+    if trexio.has_basis_shell_factor(inp) and trexio.has_basis_shell_ang_mom(inp):
+        shell_fac = trexio.read_basis_shell_factor(inp)
+        l = trexio.read_basis_shell_ang_mom(inp)
+
+        for i in range(len(shell_fac)):
+            # TODO higher angular momenta
+            if l[i] == 2 or l[i] == 3:
+                shell_fac[i] *= 2
+        trexio.write_basis_shell_factor(out, shell_fac)
+
 
     R_norm_inv = np.array(R)
+    normalization = np.ones((len(normalization,)))
 
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
+      # As of this writing, there is a bug with non-square matrices
+      if X.shape[0] != ao_num_in:
+          X = X.reshape((ao_num_in, -1))
       for i in range(R.shape[1]):
          if normalization[i] != 1.:
-            X[:,i] *= normalization[i]
-      Y  = X @ R.T
+            X[:,i] /= normalization[i]
+      #print(X[:, 0])
+      #print()
+      print(R.shape, X.shape)
+      Y = R @ X
+      #print(Y[:, 0])
       trexio.write_mo_coefficient(out, Y)
 
     # Update 1e Integrals
@@ -503,7 +556,7 @@ def run_cart_phe(inp, filename, to_cartesian):
       trexio.delete_ao_2e_int(out)
 
     if trexio.has_ao_2e_int_eri_lr(inp):
-      trexio.delete_ao_2e_int(out)
+      trexio.delete_ao_2e_int_eri(out)
 
 
 def run_normalized_aos(t, filename):
