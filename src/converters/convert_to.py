@@ -99,7 +99,7 @@ def run_fcidump(trexfile, filename):
         print("\n&END", file=ofile)
 
         # Can be used to switch up the indices of printed integrals if necessary
-        out_index = np.array([i for i in range(n_act)])
+        out_index = np.array([i+1 for i in range(n_act)])
 
         # If the orbitals are spin-dependent, the order alpha-beta-alpha-beta...
         # is preferred
