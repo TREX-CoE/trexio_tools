@@ -81,9 +81,9 @@ def shell_to_ao(ao, ao_ind, r, shell_rad, m):
     l = shell_ang_mom[ao_shell[ao_ind]]
     nuc_coords = nucleus_coord[nucleus_index[ao_shell[ao_ind]]]
 
-    dx = nuc_coords[0] - r[0]
-    dy = nuc_coords[1] - r[1]
-    dz = nuc_coords[2] - r[2]
+    dx = r[0] - nuc_coords[0]
+    dy = r[1] - nuc_coords[1]
+    dz = r[2] - nuc_coords[2]
 
     dr = np.sqrt(dx**2 + dy**2 + dz**2)
     exps = ao["ao_exponents"][ao_ind]

@@ -64,9 +64,11 @@ class Species:
         self.symbol = symbol
         self.charge = charge
         self.numgrid_ids = []
+        self.numgrid_sizes = []
 
-    def add_numgrid_id(self, id_num):
+    def add_numgrid(self, id_num, size):
         self.numgrid_ids.append(id_num)
+        self.numgrid_sizes.append(size)
 
     def __repr__(self):
         return f"Species(id={self.id_num}, symbol={self.symbol})"
@@ -78,14 +80,14 @@ class Atom:
         self.coords = coords
 
 class OrbitalShell:
-    # numgrid_id is set later on
     def __init__(self, id_num, atom_id, fn_type, n, l):
         self.id_num = id_num
         self.atom_id = atom_id
         self.fn_type = fn_type[:2].lower() # Needed to find the u(r) file
         self.n = n
         self.l = l
-        self.numgrid_id = -1 # Dummy value
+        self.numgrid_id = -1 # Dummy values
+        self.numgrid_size = -1
 
     def __repr__(self):
         #return f"OS(id_num={self.id_num})"
@@ -137,7 +139,7 @@ class Context:
         # Permutation from the FHI-aims orbital order to trexio
         self.matrix_indices = None
         # The signs of matrix entries depends on whether the angular part
-        # of orbitals is calculated by r(nuc) - r(elec) or r(elec) - r(nuc).
+        # of orbitals is calculated by r(elec) - r(nuc) or r(nuc) - r(elec).
         # To enforce r(elec) - r(nuc), some signs have to be flipped
         self.matrix_signs = None
 
@@ -442,8 +444,9 @@ def load_basis_set(trexfile, dirpath, context):
         # Only load this data once per species
         if species_id in species_atoms:
             if curr_atom != species_atoms[species_id]:
-                # Still need to set numgrid_id!
+                # Still need to set numgrid_id and size
                 shell.numgrid_id = species_list[species_id].numgrid_ids[shell_in_atom]
+                shell.numgrid_size = species_list[species_id].numgrid_sizes[shell_in_atom]
                 continue
         else:
             species_atoms[species_id] = curr_atom
@@ -467,8 +470,9 @@ def load_basis_set(trexfile, dirpath, context):
             start = len(numgrid_r)
             numgrid_id = len(numgrid_start)
             numgrid_start.append(start)
-            species_list[species_id].add_numgrid_id(numgrid_id)
+            species_list[species_id].add_numgrid(numgrid_id, len(lines))
             shell.numgrid_id = numgrid_id
+            shell.numgrid_size = len(lines)
             for line in lines:
                 data = line.split()
                 r = float(data[0])
@@ -521,16 +525,18 @@ def load_basis_set(trexfile, dirpath, context):
     numgrid_r = np.array(numgrid_r)
     numgrid_phi = np.array(numgrid_phi)
 
-    # Printed derivative is d u(r) / dr, but we want d(u(r)/r)/dr etc
-    # We keep the outside factor of 1/r for consistency with 
-    # the aims spline
-    if len(numgrid_grad) != 0:
-        numgrid_grad = np.array(numgrid_grad)
-        if len(numgrid_lap) != 0:
-            numgrid_lap = np.array(numgrid_lap)
-            numgrid_lap = numgrid_lap - 2*numgrid_grad/numgrid_r + 2*numgrid_phi / numgrid_r / numgrid_r
+    # Printed derivative is d u(r) / dr
+    # It would appear logical to directly store d( u(r)/r ) / dr, 
+    # which can be calculated via the chain rule, but storing d u(r) / dr
+    # allows to calculate the gradients and Laplacian directly via the chain rule, so
+    # this is more useful
+    #if len(numgrid_grad) != 0:
+    #    numgrid_grad = np.array(numgrid_grad)
+    #    if len(numgrid_lap) != 0:
+    #        numgrid_lap = np.array(numgrid_lap)
+    #        numgrid_lap = numgrid_lap - 2*numgrid_grad/numgrid_r + 2*numgrid_phi / numgrid_r / numgrid_r
 
-        numgrid_grad = numgrid_grad - numgrid_phi / numgrid_r
+    #    numgrid_grad = numgrid_grad - numgrid_phi / numgrid_r
 
     interp = np.zeros((0, 4), dtype=float)
     grad_interp = np.zeros((0, 4), dtype=float)
@@ -586,18 +592,12 @@ def load_basis_set(trexfile, dirpath, context):
     # Factors between different values of m in a test-convenient form
     for shell in shells:
         shell_start.append(numgrid_start[shell.numgrid_id])
+        shell_size.append(shell.numgrid_size)
         nucleus_index.append(shell.atom_id)
         l = shell.l
         shell_ang_mom.append(shell.l)
         normalization.append(l_factor[l])
 
-
-    for i in range(len(shells)):
-        #print(shell_start[i])
-        if shell.numgrid_id == len(numgrid_start) - 1:
-            shell_size.append(len(numgrid_r) - shell_start[-1])
-        else:
-            shell_size.append(shell_start[i+1] - shell_start[i])
 
     ao_shells = []
     ao_norms = [] #np.ones(len(aos), dtype=float)
@@ -881,7 +881,7 @@ def load_integrals(trexfile, dirpath, context):
                 mo_num = 2*ao_num
 
         trexio.write_mo_num(trexfile, mo_num)
-        trexio.write_mo_coefficient(trexfile, coeffs)
+        trexio.write_mo_coefficient(trexfile, coeffs.T)
     else:
         print("Coefficient matrix could not be found. Integrals cannot be loaded.")
         return
@@ -935,7 +935,10 @@ def load_integrals(trexfile, dirpath, context):
         for i in range(context.elec_cnt // 2):
             mo_density[i, i] = 2
 
+    #mo_density[0] = 0
+    #mo_density[ao_num + 4] = 1
     occupation = [mo_density[i, i] for i in range(mo_num)]
+    #print(occupation[:ao_num], "\n", occupation[ao_num:])
     trexio.write_mo_occupation(trexfile, occupation)
 
     # Overlap
@@ -1063,8 +1066,7 @@ def convert_aims_trexio(trexfile, dirpath):
         matrix_indices = np.zeros(context.ao_count(), dtype=int)
         matrix_signs = np.ones(context.ao_count(), dtype=int)
         signs = [
-            [1], [-1, 1, -1], [1, -1, 1, 1, 1], [-1, 1, -1, -1, -1, 1, -1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1]
+            [1], [1, -1, 1], [1, -1, 1, 1, 1], [1, -1, 1, 1, 1, -1, 1]
         ]
         for i, ao in enumerate(context.aos):
             matrix_indices[ao.id_num] = i

@@ -77,7 +77,7 @@ def run_fcidump(trexfile, filename):
             # Consider everything active
             n_act = mo_num
             n_core = 0
-            orb_ids = [i for i in range(n_act)]
+            orb_ids = np.array([i for i in range(n_act)])
             act_ids = orb_ids
 
         if n_core != 0 and ms2 != 0:
@@ -115,7 +115,15 @@ def run_fcidump(trexfile, filename):
 
             if flag:
                 # If the desired pattern is detected, interleave spins
-                out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) for i in range(n_act)])
+                out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) + 1 for i in range(n_act)])
+
+        #print(orb_ids, act_ids, out_index)
+        #orb_ids = orb_ids - 1
+        #orb_ids[0] = -2
+        #act_ids = act_ids[1:]
+        #n_act -= 1
+        #out_index = out_index[1:] - 1
+        #print(orb_ids, act_ids, out_index)
 
         #print(out_index)
 
@@ -151,7 +159,7 @@ def run_fcidump(trexfile, filename):
 
                     if i >= 0 and j >= 0 and k >= 0 and l >= 0:
                         # Convert from dirac to chemists' notation
-                        print(val, out_index[i]+1, out_index[k]+1, out_index[j]+1, out_index[l]+1, file=ofile)
+                        print(val, out_index[i], out_index[k], out_index[j], out_index[l], file=ofile)
 
                     # Since the integrals are added, the multiplicity needs to be screened
                     if not (ii >= kk and ii >= jj and ii >= ll and jj >= ll and (ii != jj or ll >= kk)):
@@ -211,7 +219,7 @@ def run_fcidump(trexfile, filename):
                 for b in range(a, n_act):
                     val = int3[a, b, 0]
                     if np.abs(val) > fcidump_threshold:
-                        print(val, out_index[b]+1, out_index[a]+1, 0, 0, file=ofile)
+                        print(val, out_index[b], out_index[a], 0, 0, file=ofile)
 
         # Core energy
         if trexio.has_nucleus_repulsion(trexfile):
@@ -494,17 +502,10 @@ def run_cart_phe(inp, filename, to_cartesian):
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
-      # As of this writing, there is a bug with non-square matrices
-      if X.shape[0] != ao_num_in:
-          X = X.reshape((ao_num_in, -1))
       for i in range(R.shape[1]):
          if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-      #print(X[:, 0])
-      #print()
-      print(R.shape, X.shape)
-      Y = R @ X
-      #print(Y[:, 0])
+             X[i,:] /= normalization[i]
+      Y = X @ R.T
       trexio.write_mo_coefficient(out, Y)
 
     # Update 1e Integrals
