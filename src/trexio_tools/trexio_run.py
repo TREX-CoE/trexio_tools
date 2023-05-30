@@ -15,11 +15,15 @@ Options:
       -n, --n_points=N_POINTS       Number of integration points.  [default: 81]
       -i, --input=INPUT_FILE        Name of the input file.
       -o, --output=OUTPUT_FILE      Name of the output file.
-      -b, --back_end=BACK_END       [hdf5 | text]  The TREXIO back end.  [default: hdf5]
+      -b, --back_end=BACK_END       [hdf5 | text | auto]  The TREXIO back end.  [default: hdf5]
       -s, --back_end_from=BACK_END  [hdf5 | text | auto]  The input TREXIO back end.  [default: auto]
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
+<<<<<<< HEAD
       -t, --type=TYPE               [gaussian | gamess | fcidump | molden | cartesian | FHI-aims ] File format.
+=======
+      -t, --type=TYPE               [gaussian | gamess | pyscf | fcidump | molden | cartesian ] File format.
+>>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4
       -x, --motype=MO_TYPE          [natural | initial | guga-initial | guga-natural] The type of the molecular orbitals.
 """
 
@@ -52,13 +56,13 @@ def main(filename=None, args=None):
             back_end = trexio.TREXIO_HDF5
         elif str(args["--back_end"]).lower() == "text":
             back_end = trexio.TREXIO_TEXT
+        elif str(args["--back_end"]).lower() == "auto":
+            back_end = trexio.TREXIO_AUTO
         else:
-            raise ValueError("Supported back ends: text, hdf5.")
+            raise ValueError("Supported back ends: text, hdf5, auto.")
     else:
         if args["convert-backend"]:
             raise Exception("Missing argument for the target back end: specify --back_end or -b.")
-        else:
-            back_end = trexio.TREXIO_HDF5
 
     if args["--back_end_from"]:
         if str(args["--back_end_from"]).lower() == "hdf5":
@@ -78,7 +82,7 @@ def main(filename=None, args=None):
         if trexio_file is None:
             raise IOError
 
-        from group_tools.check_basis import run
+        from .group_tools.check_basis import run
         run(trexio_file,n_points)
 
     elif args["check-mos"]:
@@ -86,19 +90,19 @@ def main(filename=None, args=None):
         if trexio_file is None:
             raise IOError
 
-        from group_tools.check_mos import run
+        from .group_tools.check_mos import run
         run(trexio_file,n_points)
 
     elif args["convert-from"]:
-        from converters.convert_from import run
+        from .converters.convert_from import run
         run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"])
 
     elif args["convert-to"]:
-        from converters.convert_to import run
+        from .converters.convert_to import run
         run(args["TREXIO_FILE"], args["--output"], args["--type"])
 
     elif args["convert-backend"]:
-        from converters.convert_back_end import run
+        from .converters.convert_back_end import run
         run(
             args["--input"],
             args["--output"],

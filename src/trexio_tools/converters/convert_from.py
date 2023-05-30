@@ -4,9 +4,16 @@ Convert output file from a given code/format into TREXIO
 """
 
 import os
+<<<<<<< HEAD:src/converters/convert_from.py
 from group_tools import basis as trexio_basis
 from group_tools import determinant as trexio_det
 from . import convert_aims_trexio
+=======
+from trexio_tools.group_tools import basis as trexio_basis
+from trexio_tools.group_tools import determinant as trexio_det
+
+from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
+>>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4:src/trexio_tools/converters/convert_from.py
 
 try:
     import trexio
@@ -523,7 +530,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     # Electrons
     # ---------
 
-    elec_num = int(sum(occup))
+    elec_num = int(sum(occup)+0.5)
     if multiplicity is None:
         up_num = 0
         dn_num = 0
@@ -580,7 +587,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     prim_id = -1
     iatom = 0
     for line in gto:
-       buffer = line.split()
+       buffer = line.replace('D','E').split()
        if len(buffer) == 2 and buffer[1] == "0":
            iatom = int(buffer[0])-1
        elif len(buffer) == 3 and float(buffer[2]) == 1.0:
@@ -749,22 +756,32 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     trexio.write_mo_symmetry(trexio_file, sym)
     trexio.write_mo_coefficient(trexio_file, MoMatrix)
 
+
 def run(trexio_filename, filename, filetype, back_end, motype=None):
 
-    if os.path.exists(filename):
-        os.system("rm -rf -- "+trexio_filename)
+    if os.path.exists(trexio_filename):
+        print(f"TREXIO file {trexio_filename} already exists and will be removed before conversion.")
+        if back_end == trexio.TREXIO_HDF5:
+            os.remove(trexio_filename)
+        else:
+            raise NotImplementedError(f"Please remove the {trexio_filename} directory manually.")
 
-    trexio_file = trexio.File(trexio_filename,mode='w',back_end=back_end)
+    if "pyscf" not in filetype.lower():
+        trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
 
     if filetype.lower() == "gaussian":
         run_resultsFile(trexio_file, filename, motype)
     elif filetype.lower() == "gamess":
         run_resultsFile(trexio_file, filename, motype)
+    elif filetype.lower() == "pyscf":
+        back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
+        run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename, back_end=back_end_str)
     elif filetype.lower() == "fcidump":
-        run_fcidump(trexio_file, filename)
+        raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
+        #run_fcidump(trexio_file, filename)
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
     elif filetype.lower() == "fhiaims":
         run_fhiaims(trexio_file, filename)
     else:
-        raise TypeError("Unknown file type")
+        raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")

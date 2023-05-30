@@ -432,10 +432,13 @@ def run_cart_phe(inp, filename, to_cartesian):
           for _ in range(n):
               shell.append(she)
 
+<<<<<<< HEAD:src/converters/convert_to.py
     #print(accu)
     #print(trexio.read_ao_shell(inp))
     #print(shell)
 
+=======
+>>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4:src/trexio_tools/converters/convert_to.py
     cart_normalization = np.ones(count_cart)
     R = np.zeros( (count_cart, count_sphe) )
     for (l, p,q, r,s) in accu:
@@ -495,6 +498,10 @@ def run_cart_phe(inp, filename, to_cartesian):
                 shell_fac[i] *= 2
         trexio.write_basis_shell_factor(out, shell_fac)
 
+<<<<<<< HEAD:src/converters/convert_to.py
+=======
+    trexio.write_ao_normalization(out, cart_normalization)
+>>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4:src/trexio_tools/converters/convert_to.py
 
     R_norm_inv = np.array(R)
     normalization = np.ones((len(normalization,)))
@@ -562,14 +569,14 @@ def run_cart_phe(inp, filename, to_cartesian):
 
 def run_normalized_aos(t, filename):
     # Start by copying the file
-    os.system('cp %s %s' % (t.filename, filename))
+    os.system('cp -r %s %s' % (t.filename, filename))
     run_cart_phe(t, filename, to_cartesian=-1)
     return
 
 
 def run_cartesian(t, filename):
     # Start by copying the file
-    os.system('cp %s %s' % (t.filename, filename))
+    os.system('cp -r %s %s' % (t.filename, filename))
     cartesian = trexio.read_ao_cartesian(t)
     if cartesian > 0:
         return
@@ -579,7 +586,7 @@ def run_cartesian(t, filename):
 
 def run_spherical(t, filename):
     # Start by copying the file
-    os.system('cp %s %s' % (t.filename, filename))
+    os.system('cp -r %s %s' % (t.filename, filename))
     cartesian = trexio.read_ao_cartesian(t)
     if cartesian == 0:
         return
@@ -588,14 +595,9 @@ def run_spherical(t, filename):
     return
 
 
-
-
 def run(trexio_filename, filename, filetype):
 
-    try:
-        trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_TEXT)
-    except:
-        trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_HDF5)
+    trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_AUTO)
 
     if filetype.lower() == "molden":
         run_molden(trexio_file, filename)
@@ -605,12 +607,16 @@ def run(trexio_filename, filename, filetype):
         run_spherical(trexio_file, filename)
 #    elif filetype.lower() == "normalized_aos":
 #        run_normalized_aos(trexio_file, filename)
+<<<<<<< HEAD:src/converters/convert_to.py
 #    elif filetype.lower() == "gamess":
 #        run_resultsFile(trexio_file, filename)
     elif filetype.lower() == "fcidump":
         run_fcidump(trexio_file, filename)
 #    elif filetype.lower() == "molden":
+=======
+#    elif filetype.lower() == "fcidump":
+>>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4:src/trexio_tools/converters/convert_to.py
 #        run_fcidump(trexio_file, filename)
     else:
-        raise TypeError("Unknown file type")
+        raise NotImplementedError(f"Conversion from TREXIO to {filetype} is not supported.")
 

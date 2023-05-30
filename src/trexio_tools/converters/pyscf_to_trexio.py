@@ -3,25 +3,25 @@
 # maintainer: Kosuke Nakano
 # email: "kousuke_1123@icloud.com"
 
-# load python packages
-import os
-import numpy as np
-
-# load pyscf packages
-from pyscf import scf
-from pyscf.pbc import scf as pbcscf
-
 # Logger
 from logging import getLogger
-
 logger = getLogger("pyscf-trexio").getChild(__name__)
+
 
 def pyscf_to_trexio(
     pyscf_checkfile: str = "pyscf.chk",
     trexio_filename: str = "trexio.hdf5",
-    twist_average_in: bool = False,
-    force_wf_complex: bool = False,
+    back_end: str = "hdf5"
 ):
+    """PySCF to TREXIO converter."""
+
+    # load python packages
+    import os
+    import numpy as np
+    # load pyscf packages
+    from pyscf import scf
+    from pyscf.pbc import scf as pbcscf
+
     # ## pySCF -> TREX-IO
     # - how to install trexio
     # - pip install trexio
@@ -52,15 +52,24 @@ def pyscf_to_trexio(
             twist_average = False
             logger.info("Single-k calculation")
             k_list = [k]
-            logger.info(k_list)
+            if all([k_i == 0.0 for k_i in list(k)]):
+                logger.info("k = gamma point")
+                logger.info("The generated WF will be real.")
+                force_wf_complex = False
+            else:
+                logger.info("k = general point")
+                logger.info("The generated WF will be complex.")
+                force_wf_complex = True
         except KeyError:
             twist_average = True
             logger.info("Twisted-average calculation")
-            logger.info("Separated TREXIO files are generated")
+            logger.info("Separate TREXIO files are generated")
             logger.info(
-                "The Correspondence between the index \
+                "The correspondence between the index \
                     and k is written in kp_info.dat"
             )
+            logger.info("The generated WFs will be complex.")
+            force_wf_complex = True
             with open("kp_info.dat", "w") as f:
                 f.write("# k_index, kx, ky, kz\n")
             k_list = mf["kpts"]
@@ -72,24 +81,21 @@ def pyscf_to_trexio(
     else:
         twist_average = False
         k_list = [[0.0, 0.0, 0.0]]
-
-    assert twist_average_in == twist_average
+        force_wf_complex = False
 
     # if pbc_flag == true, check if ecp or pseudo
     if pbc_flag:
         if len(mol._pseudo) > 0:
             logger.error(
-                "TREXIO does not support 'pseudo' format for PBC. \
-                    Plz. use 'ecp'"
+                "TREXIO does not support 'pseudo' format for PBC. Use 'ecp'."
             )
             raise NotImplementedError
 
     if twist_average:
         logger.warning(
-            f"WF at each k point is saved as a separated file, \
-                kXXXX_{trexio_filename}"
+            f"WF at each k point is saved in a separate file kXXXX_{trexio_filename}"
         )
-        logger.warning("k points info. is stored in kp_info.dat.")
+        logger.warning("k points information is stored in kp_info.dat file.")
 
     # each k WF is stored as a separate file!!
     # for an open-boundary calculation, and a single-k one,
@@ -110,10 +116,22 @@ def pyscf_to_trexio(
             filename = trexio_filename
 
         if os.path.exists(filename):
-            os.remove(filename)
+            logger.warning(f"TREXIO file {filename} already exists and will be removed before conversion.")
+            if back_end.lower() == "hdf5":
+                os.remove(filename)
+            else:
+                raise NotImplementedError(f"Please remove the {filename} directory manually.")
+
+        # trexio back end handling
+        if back_end.lower() == "hdf5":
+            trexio_back_end = trexio.TREXIO_HDF5
+        elif back_end.lower() == "text":
+            trexio_back_end = trexio.TREXIO_TEXT
+        else:
+            raise NotImplementedError(f"{back_end} back-end is not supported.")
 
         # trexio file
-        trexio_file = trexio.File(filename, mode="w", back_end=trexio.TREXIO_HDF5)
+        trexio_file = trexio.File(filename, mode="w", back_end=trexio_back_end)
 
         ##########################################
         # PBC info
@@ -172,7 +190,7 @@ def pyscf_to_trexio(
         # for p -> px, py, pz
         # for l >= d -> m=(-l ... 0 ... +l)
 
-        basis_type = "G"  # thanks anthony!
+        basis_type = "Gaussian"  # thanks anthony!
         basis_shell_num = int(np.sum([mol.atom_nshells(i) for i in range(nucleus_num)]))
         nucleus_index = []
         for i in range(nucleus_num):
@@ -654,6 +672,13 @@ def cli():
         type=str,
         default="trexio.hdf5",
     )
+    parser.add_argument(
+        "-b",
+        "--back_end",
+        help="trexio I/O back-end",
+        type=str,
+        default="hdf5",
+    )
 
     # parse the input values
     args = parser.parse_args()
@@ -662,6 +687,7 @@ def cli():
     pyscf_to_trexio(
         pyscf_checkfile=args.pyscf_checkfile,
         trexio_filename=args.trexio_filename,
+        back_end=args.back_end
     )
 
 

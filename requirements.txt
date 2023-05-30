@@ -2,3 +2,9 @@ trexio>=1.2.0
 resultsFile>=2.4
 scipy>=0.12.0
 docopt
+
+# NOTE: only install pyscf if you use the pyscf->trexio converter !
+# It is quite a heavy package with a lot of functionalities which
+# you may not need
+
+pyscf
