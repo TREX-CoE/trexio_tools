@@ -95,11 +95,11 @@ def run_converter(filename_from, filename_to, back_end_to, back_end_from=None, o
 
     try:
         # For proper python package
-        from converters.converter_generated import data_handler
+        from .converter_generated import data_handler
     except:
         try:
             # For argparse-based CLI
-            from converter_generated import data_handler
+            from .converter_generated import data_handler
         except:
             raise ImportError('The generated (JSON-based) data_handler.py module cannot be imported.')
 
