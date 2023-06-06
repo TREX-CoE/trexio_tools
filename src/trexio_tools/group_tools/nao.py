@@ -16,7 +16,9 @@ ao_exponents_l_spher = [
     [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
     [[0, 0, 2], [1, 0, 1], [0, 1, 1], [2, 0, 0], [1, 1, 0]],
     [[0, 0, 3], [1, 0, 2], [0, 1, 2], [2, 0, 1],
-     [1, 1, 1], [3, 0, 0], [2, 1, 0]]
+     [1, 1, 1], [3, 0, 0], [2, 1, 0]],
+    [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], 
+     [0, 0, 0], [0, 0, 0], [0, 0, 0]] # too complicated
 ]
 
 ao_exponents_l_cart = []
@@ -108,7 +110,26 @@ def shell_to_ao(ao, ao_ind, r, shell_rad, m):
                 angle_part = angle_part - 3*dx*dy**2
             elif m == -3:
                 angle_part = 3*angle_part - dy**3
-        # Everything above f is not implemented
+        elif l == 4:
+            if m == -4: 
+                angle_part = dx*dy*(dx**2-dy**2)
+            elif m == -3:
+                angle_part = dy*(3*dx**2-dy**2)*dz
+            elif m == -2:
+                angle_part = dx*dy*(7*dz**2-dr**2)
+            elif m == -1:
+                angle_part = dy*(7*dz**3 - 3*dz*dr**2)
+            elif m == 0:
+                angle_part = 35*dz**4 - 30*dz**2*dr**2 + 3*dr**4
+            elif m == 1:
+                angle_part = dx*(7*dz**3 - 3*dz*dr**2)
+            elif m == 2:
+                angle_part = (dx**2 - dy**2) * (7*dz**2 - dr**2)
+            elif m == 3:
+                angle_part = dx*(dx**2-3*dy**2)*dz
+            elif m == 4:
+                angle_part = dx**2*(dx**2 - 3*dy**2) - dy**2*(3*dx**2 - dy**2)
+        # Everything above g is not implemented
 
     ret = shell_rad * angle_part * ao_norms[ao_ind] * (dr**-l)
     return ret

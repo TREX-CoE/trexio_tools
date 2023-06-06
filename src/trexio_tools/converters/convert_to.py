@@ -507,6 +507,8 @@ def run_cart_phe(inp, filename, to_cartesian):
             # TODO higher angular momenta
             if l[i] == 2 or l[i] == 3:
                 shell_fac[i] *= 2
+            elif l[i] == 4:
+                shell_fac[i] *= 8
         trexio.write_basis_shell_factor(out, shell_fac)
 
     #trexio.write_ao_normalization(out, cart_normalization)

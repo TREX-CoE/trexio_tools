@@ -672,32 +672,37 @@ def get_occupation_and_class(trexfile, dirpath, context):
     occupation = np.zeros(mo_num, dtype=int)
     if readable:
         with open(filename) as file:
-            lines = file.readlines()
-            header = "  Writing Kohn-Sham eigenvalues.\n"
-            last_header = 0
+            try:
+                lines = file.readlines()
+                header = "  Writing Kohn-Sham eigenvalues.\n"
+                last_header = 0
 
-            for iline, line in enumerate(lines):
-                if line == header:
-                    last_header = iline
+                for iline, line in enumerate(lines):
+                    if line == header:
+                        last_header = iline
 
-            if context.unrestricted():
-                i_up0 = last_header + 5
-                for iline in range(0, mo_num // 2):
-                    line = lines[i_up0 + iline]
-                    occ = int(float(line.split()[1]))
-                    occupation[iline] = occ
+                if context.unrestricted():
+                    i_up0 = last_header + 5
+                    for iline in range(0, mo_num // 2):
+                        line = lines[i_up0 + iline]
+                        occ = int(float(line.split()[1]))
+                        occupation[iline] = occ
 
-                i_dn0 = last_header + 9 + mo_num // 2
-                for iline in range(0, mo_num // 2):
-                    line = lines[i_dn0 + iline]
-                    occ = int(float(line.split()[1]))
-                    occupation[mo_num // 2 + iline] = occ
-            else:
-                i0 = last_header + 3
-                for iline in range(0, mo_num):
-                    line = lines[i0 + iline]
-                    occ = int(float(line.split()[1]))
-                    occupation[iline] = occ
+                    i_dn0 = last_header + 9 + mo_num // 2
+                    for iline in range(0, mo_num // 2):
+                        line = lines[i_dn0 + iline]
+                        occ = int(float(line.split()[1]))
+                        occupation[mo_num // 2 + iline] = occ
+                else:
+                    i0 = last_header + 3
+                    for iline in range(0, mo_num):
+                        line = lines[i0 + iline]
+                        print(line)
+                        occ = int(float(line.split()[1]))
+                        occupation[iline] = occ
+            except:
+                # For large systems, not all virtual orbitals are printed
+                pass
 
     else:
         # Don't print the warning if this is just a ground state
@@ -1288,7 +1293,7 @@ def convert_aims_trexio(trexfile, dirpath):
         matrix_indices = np.zeros(context.ao_count(), dtype=int)
         matrix_signs = np.ones(context.ao_count(), dtype=int)
         signs = [
-            [1], [1, -1, 1], [1, -1, 1, 1, 1], [1, -1, 1, 1, 1, -1, 1]
+            [1], [1, -1, 1], [1, -1, 1, 1, 1], [1, -1, 1, 1, 1, -1, 1], [1, -1, 1, 1, 1, -1, 1, 1, 1]
         ]
         for i, ao in enumerate(context.aos):
             matrix_indices[ao.id_num] = i
