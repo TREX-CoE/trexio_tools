@@ -4,16 +4,10 @@ Convert output file from a given code/format into TREXIO
 """
 
 import os
-<<<<<<< HEAD:src/converters/convert_from.py
-from group_tools import basis as trexio_basis
-from group_tools import determinant as trexio_det
-from . import convert_aims_trexio
-=======
 from trexio_tools.group_tools import basis as trexio_basis
 from trexio_tools.group_tools import determinant as trexio_det
-
+from . import convert_aims_trexio
 from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
->>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4:src/trexio_tools/converters/convert_from.py
 
 try:
     import trexio

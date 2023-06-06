@@ -29,6 +29,7 @@ control.in must contain the following keywords to load integrals:
     Within this project, the functionality to print atomic orbital four
     center integrals has been added, so the following keyword might not be
     available for other users
+    output core_hamiltonian
     output_ao_coulomb_integral [full or qtmp]
 """ 
 
@@ -63,12 +64,12 @@ class Species:
         self.id_num = id_num
         self.symbol = symbol
         self.charge = charge
-        self.numgrid_ids = []
-        self.numgrid_sizes = []
+        self.nao_grid_ids = []
+        self.nao_grid_sizes = []
 
-    def add_numgrid(self, id_num, size):
-        self.numgrid_ids.append(id_num)
-        self.numgrid_sizes.append(size)
+    def add_nao_grid(self, id_num, size):
+        self.nao_grid_ids.append(id_num)
+        self.nao_grid_sizes.append(size)
 
     def __repr__(self):
         return f"Species(id={self.id_num}, symbol={self.symbol})"
@@ -86,8 +87,8 @@ class OrbitalShell:
         self.fn_type = fn_type[:2].lower() # Needed to find the u(r) file
         self.n = n
         self.l = l
-        self.numgrid_id = -1 # Dummy values
-        self.numgrid_size = -1
+        self.nao_grid_id = -1 # Dummy values
+        self.nao_grid_size = -1
 
     def __repr__(self):
         #return f"OS(id_num={self.id_num})"
@@ -127,6 +128,7 @@ class Context:
         self.species = None
         self.system_charge = None
         self.spin_moment = None
+        self.has_core_hole = False
 
         self.atoms = None
         self.nuclear_charge = None
@@ -136,6 +138,10 @@ class Context:
         self.elec_up = None
         self.elec_dn = None
 
+        self.ao_num = None
+        self.mo_num = None
+
+        self.mo_occupation = None
         # Permutation from the FHI-aims orbital order to trexio
         self.matrix_indices = None
         # The signs of matrix entries depends on whether the angular part
@@ -147,7 +153,7 @@ class Context:
         return len(self.aos)
 
     # Occupation number per orbital
-    def occupation(self):
+    def nspin(self):
         if spin_moment == 0:
             return 2
         return 1
@@ -273,6 +279,11 @@ def read_control(control_path, context):
                 fixed_spin_moment = int(data[1]) # = 2S = N_up - N_down
             elif data[0] == "spin":
                 spin_type = data[1] # collinear or none
+            elif data[0] == "force_occupation_projector":
+                context.has_core_hole = True
+
+                spin = int(data[2])
+                # aims can dynamically change the orbital index, so we can't just take it from here
 
     # aims also allows to set the spin in a different way, so inform user
     # to add redundant information if necessary
@@ -413,11 +424,11 @@ def load_basis_set(trexfile, dirpath, context):
     # And must at some point be converted to cartesian orbs
 
     # List of aos is done, shells can be loaded
-    numgrid_r = []
-    numgrid_phi = []
-    numgrid_grad = []
-    numgrid_lap = []
-    numgrid_start = [] # len = number of radial functions
+    nao_grid_r = []
+    nao_grid_phi = []
+    nao_grid_grad = []
+    nao_grid_lap = []
+    nao_grid_start = [] # len = number of radial functions
 
     #for ao in aos:
     #    print(ao)
@@ -444,9 +455,9 @@ def load_basis_set(trexfile, dirpath, context):
         # Only load this data once per species
         if species_id in species_atoms:
             if curr_atom != species_atoms[species_id]:
-                # Still need to set numgrid_id and size
-                shell.numgrid_id = species_list[species_id].numgrid_ids[shell_in_atom]
-                shell.numgrid_size = species_list[species_id].numgrid_sizes[shell_in_atom]
+                # Still need to set nao_grid_id and size
+                shell.nao_grid_id = species_list[species_id].nao_grid_ids[shell_in_atom]
+                shell.nao_grid_size = species_list[species_id].nao_grid_sizes[shell_in_atom]
                 continue
         else:
             species_atoms[species_id] = curr_atom
@@ -467,18 +478,18 @@ def load_basis_set(trexfile, dirpath, context):
         with open(dirpath + "/" + filename) as dfile:
             # First line contains number of data points == len(lines)
             lines = dfile.readlines()[1:]
-            start = len(numgrid_r)
-            numgrid_id = len(numgrid_start)
-            numgrid_start.append(start)
-            species_list[species_id].add_numgrid(numgrid_id, len(lines))
-            shell.numgrid_id = numgrid_id
-            shell.numgrid_size = len(lines)
+            start = len(nao_grid_r)
+            nao_grid_id = len(nao_grid_start)
+            nao_grid_start.append(start)
+            species_list[species_id].add_nao_grid(nao_grid_id, len(lines))
+            shell.nao_grid_id = nao_grid_id
+            shell.nao_grid_size = len(lines)
             for line in lines:
                 data = line.split()
                 r = float(data[0])
                 phi = float(data[1])
-                numgrid_r.append(r)
-                numgrid_phi.append(phi)
+                nao_grid_r.append(r)
+                nao_grid_phi.append(phi)
 
         # Repeat for derivative
         filename = "drv_" + filename
@@ -494,10 +505,10 @@ def load_basis_set(trexfile, dirpath, context):
             # First line contains number of data points == len(lines)
             lines = dfile.readlines()[1:]
             for line in lines:
-                i = len(numgrid_grad)
+                i = len(nao_grid_grad)
                 data = line.split()
                 deriv = float(data[1])
-                numgrid_grad.append(deriv)
+                nao_grid_grad.append(deriv)
 
         # Repeat for second derivative data
         filename = "kin" + filename[3:]
@@ -513,52 +524,52 @@ def load_basis_set(trexfile, dirpath, context):
             # First line contains number of data points == len(lines)
             lines = dfile.readlines()[1:]
             for line in lines:
-                i = len(numgrid_lap)
+                i = len(nao_grid_lap)
                 data = line.split()
                 kin = float(data[1])
                 # The FHIaims kinetic spline is 
                 # kin = -0.5 d**2/dr**2 + 0.5 l*(l+1) u/r**2
-                r = numgrid_r[i]
-                deriv2 = shell.l * (shell.l + 1) * numgrid_phi[i] / r**2 - 2*kin
-                numgrid_lap.append(deriv2)
+                r = nao_grid_r[i]
+                deriv2 = shell.l * (shell.l + 1) * nao_grid_phi[i] / r**2 - 2*kin
+                nao_grid_lap.append(deriv2)
 
-    numgrid_r = np.array(numgrid_r)
-    numgrid_phi = np.array(numgrid_phi)
+    nao_grid_r = np.array(nao_grid_r)
+    nao_grid_phi = np.array(nao_grid_phi)
 
     # Printed derivative is d u(r) / dr
     # It would appear logical to directly store d( u(r)/r ) / dr, 
     # which can be calculated via the chain rule, but storing d u(r) / dr
     # allows to calculate the gradients and Laplacian directly via the chain rule, so
     # this is more useful
-    #if len(numgrid_grad) != 0:
-    #    numgrid_grad = np.array(numgrid_grad)
-    #    if len(numgrid_lap) != 0:
-    #        numgrid_lap = np.array(numgrid_lap)
-    #        numgrid_lap = numgrid_lap - 2*numgrid_grad/numgrid_r + 2*numgrid_phi / numgrid_r / numgrid_r
+    #if len(nao_grid_grad) != 0:
+    #    nao_grid_grad = np.array(nao_grid_grad)
+    #    if len(nao_grid_lap) != 0:
+    #        nao_grid_lap = np.array(nao_grid_lap)
+    #        nao_grid_lap = nao_grid_lap - 2*nao_grid_grad/nao_grid_r + 2*nao_grid_phi / nao_grid_r / nao_grid_r
 
-    #    numgrid_grad = numgrid_grad - numgrid_phi / numgrid_r
+    #    nao_grid_grad = nao_grid_grad - nao_grid_phi / nao_grid_r
 
     interp = np.zeros((0, 4), dtype=float)
     grad_interp = np.zeros((0, 4), dtype=float)
     lap_interp = np.zeros((0, 4), dtype=float)
 
     # Compute interpolation coefficients
-    #print(len(numgrid_phi))
+    #print(len(nao_grid_phi))
     buffer_zero = np.zeros((1), dtype=float)
     for radial_at in range(radial_cnt):
         if radial_at < radial_cnt - 1:
-            i0 = numgrid_start[radial_at]
-            i1 = numgrid_start[radial_at + 1]
-            r_sub = numgrid_r[i0:i1]
-            phi_sub = numgrid_phi[i0:i1]
-            grad_sub = numgrid_grad[i0:i1]
-            lap_sub = numgrid_lap[i0:i1]
+            i0 = nao_grid_start[radial_at]
+            i1 = nao_grid_start[radial_at + 1]
+            r_sub = nao_grid_r[i0:i1]
+            phi_sub = nao_grid_phi[i0:i1]
+            grad_sub = nao_grid_grad[i0:i1]
+            lap_sub = nao_grid_lap[i0:i1]
         else:
-            i0 = numgrid_start[radial_at]
-            r_sub = numgrid_r[i0:]
-            phi_sub = numgrid_phi[i0:]
-            grad_sub = numgrid_grad[i0:]
-            lap_sub = numgrid_lap[i0:]
+            i0 = nao_grid_start[radial_at]
+            r_sub = nao_grid_r[i0:]
+            phi_sub = nao_grid_phi[i0:]
+            grad_sub = nao_grid_grad[i0:]
+            lap_sub = nao_grid_lap[i0:]
         spline_params = create_cubic_spline(r_sub, phi_sub)
         grad_spline_params = create_cubic_spline(r_sub, grad_sub)
         lap_spline_params = create_cubic_spline(r_sub, lap_sub)
@@ -591,8 +602,8 @@ def load_basis_set(trexfile, dirpath, context):
 
     # Factors between different values of m in a test-convenient form
     for shell in shells:
-        shell_start.append(numgrid_start[shell.numgrid_id])
-        shell_size.append(shell.numgrid_size)
+        shell_start.append(nao_grid_start[shell.nao_grid_id])
+        shell_size.append(shell.nao_grid_size)
         nucleus_index.append(shell.atom_id)
         l = shell.l
         shell_ang_mom.append(shell.l)
@@ -627,7 +638,7 @@ def load_basis_set(trexfile, dirpath, context):
 
     trexio.write_basis_type(trexfile, "Numerical")
     trexio.write_basis_shell_num(trexfile, len(shells))
-    trexio.write_basis_numgrid_num(trexfile, len(numgrid_r))
+    trexio.write_basis_nao_grid_num(trexfile, len(nao_grid_r))
     trexio.write_basis_interp_coeff_cnt(trexfile, 4)
 
     trexio.write_basis_nucleus_index(trexfile, nucleus_index)
@@ -635,12 +646,12 @@ def load_basis_set(trexfile, dirpath, context):
     trexio.write_basis_r_power(trexfile, shell_r_power)
     trexio.write_basis_shell_factor(trexfile, normalization)
 
-    trexio.write_basis_numgrid_radius(trexfile, numgrid_r)
-    trexio.write_basis_numgrid_phi(trexfile, numgrid_phi)
-    trexio.write_basis_numgrid_grad(trexfile, numgrid_grad)
-    trexio.write_basis_numgrid_lap(trexfile, numgrid_lap)
-    trexio.write_basis_numgrid_start(trexfile, shell_start)
-    trexio.write_basis_numgrid_size(trexfile, shell_size)
+    trexio.write_basis_nao_grid_radius(trexfile, nao_grid_r)
+    trexio.write_basis_nao_grid_phi(trexfile, nao_grid_phi)
+    trexio.write_basis_nao_grid_grad(trexfile, nao_grid_grad)
+    trexio.write_basis_nao_grid_lap(trexfile, nao_grid_lap)
+    trexio.write_basis_nao_grid_start(trexfile, shell_start)
+    trexio.write_basis_nao_grid_size(trexfile, shell_size)
 
     trexio.write_basis_interpolator_kind(trexfile, "Polynomial")
     trexio.write_basis_interpolator_phi(trexfile, interp)
@@ -648,6 +659,96 @@ def load_basis_set(trexfile, dirpath, context):
     trexio.write_basis_interpolator_lap(trexfile, lap_interp)
 
     context.aos = aos
+
+def get_occupation_and_class(trexfile, dirpath, context):
+    # This is only tricky for core holes, but we cannot infer with
+    # certainty which mo is unoccupied without the output file
+    
+    # Try to find the output file
+    filename = dirpath + "/aims.out"
+    readable = os.path.isfile(filename)
+    mo_num = context.mo_num
+    ao_num = context.ao_num
+    occupation = np.zeros(mo_num, dtype=int)
+    if readable:
+        with open(filename) as file:
+            lines = file.readlines()
+            header = "  Writing Kohn-Sham eigenvalues.\n"
+            last_header = 0
+
+            for iline, line in enumerate(lines):
+                if line == header:
+                    last_header = iline
+
+            if context.unrestricted():
+                i_up0 = last_header + 5
+                for iline in range(0, mo_num // 2):
+                    line = lines[i_up0 + iline]
+                    occ = int(float(line.split()[1]))
+                    occupation[iline] = occ
+
+                i_dn0 = last_header + 9 + mo_num // 2
+                for iline in range(0, mo_num // 2):
+                    line = lines[i_dn0 + iline]
+                    occ = int(float(line.split()[1]))
+                    occupation[mo_num // 2 + iline] = occ
+            else:
+                i0 = last_header + 3
+                for iline in range(0, mo_num):
+                    line = lines[i0 + iline]
+                    occ = int(float(line.split()[1]))
+                    occupation[iline] = occ
+
+    else:
+        # Don't print the warning if this is just a ground state
+        if context.has_core_hole:
+            print(f"File \"%s\" could not be found. It should be the FHI-aims output file and is needed to load the MO occupation. Please provide it or set the occupation manually in the trexio file.", filename)
+
+        if context.spin_moment == 0:
+            # RHF
+            for i in range(context.elec_cnt // 2):
+                occupation[i] = 2
+        else:
+            for i in range(context.elec_up):
+                occupation[i] = 1
+            for i in range(context.elec_dn):
+                occupation[i + context.mo_num // 2] = 1
+
+    trexio.write_mo_occupation(trexfile, occupation)
+
+    # Since aims is an all-electron code, marking electrons as core for
+    # a frozen core treatment makes little sense; the only purpose of
+    # this part is thus to mark core holes as inactive
+
+    orb_class = []
+
+    spin_counted = 0 # Counted electrons for current spin
+    # Standard is for RHF
+    spin_max = context.elec_cnt # Number of electrons for current spin
+    if context.unrestricted():
+        spin_max = context.elec_up
+
+    for iorb in range(mo_num):
+        occ = occupation[iorb]
+        if occ == 0:
+            if spin_counted < spin_max:
+                # This should be a core hole
+                orb_class.append("inactive")
+            else:
+                orb_class.append("active")
+        else:
+            orb_class.append("active")
+
+            if occ != 0:
+                spin_counted += occ
+
+        if context.unrestricted() and iorb == ao_num - 1:
+            # Change from up to down spin
+            spin_counted = 0
+            spin_max = context.elec_dn
+
+    #print(orb_class)
+    trexio.write_mo_class(trexfile, orb_class)
 
 def handle_2e_integral(sparse_data, indices, val, g_mat=None, density=None, restricted=True, mo=True):
     sparse_data.add(indices, val)
@@ -688,34 +789,25 @@ def handle_2e_integral(sparse_data, indices, val, g_mat=None, density=None, rest
                 # The core Hamiltonian only needs to be calculated for one spin
                 g_mat[i, k] += (density[j, l] + density[j + o, l + o]) * val
                 g_mat[i, l] -= density[k, j] * val
-
-                # Calculating the core Hamiltonian for both spins is redundant,
-                # but comparing them can be useful for testing
-                #g_mat[i, k]         += (density[j, l] + density[j + o, l + o]) * val
-                #g_mat[o + i, o + k] += (density[j, l] + density[j + o, l + o]) * val
-
-                #g_mat[i, l]         -= density[k, j] * val
-                #g_mat[o + i, o + l] -= density[o + k, o + j] * val
         # Mirroring of off-diagonal elements omitted due to lack of symmetry
 
-def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
+def load_2e_integrals_ao(trexfile, dirpath, orbital_indices,
                       orbital_signs, calculate_g=False, density=None,
                       restricted=True):
     # To reduce memory, it makes sense to calculate the G matrix on the fly
 
     # Handle both full and other type
-    filename = dirpath + "/bielec_" + suffix + ".out"
+    filename = dirpath + "/bielec_ao.out"
     symmetry = True
     if not os.path.isfile(filename):
-        filename = dirpath + "/coulomb_integrals_" + suffix + ".out"
+        filename = dirpath + "/coulomb_integrals_ao.out"
         symmetry = False
         if not os.path.isfile(filename):
-            print(f"No two-electron integral file could be found; "\
+            print(f"No ao two-electron integral file could be found; "\
                    "if the integrals are needed, please check that one of the "\
                    "corresponding options is set in control.in.")
             return None
 
-    mo = suffix == "mo"
     g_mat = None # No need to do the allocation if unnecessary
     if density is None:
         calculate_g = False
@@ -725,7 +817,7 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
         g_mat = np.zeros((orb_cnt, orb_cnt), dtype=float)
 
     with open(filename) as file:
-        sparse_data = SparseData(trexfile, write, 1000)
+        sparse_data = SparseData(trexfile, trexio.write_ao_2e_int_eri, 1000)
         two_e_integral_threshold = 1e-10
 
         # Load integral, save to batch and apply to g matrix
@@ -748,7 +840,7 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
                 continue
 
             if not symmetry:
-                handle_2e_integral(sparse_data, indices, val, g_mat, density, restricted, mo)
+                handle_2e_integral(sparse_data, indices, val, g_mat, density, restricted, mo=False)
             else:
                 # Permute indices and handle individually
                 # All orbitals are real, so the symmetry is eightfold
@@ -770,12 +862,136 @@ def load_2e_integrals(trexfile, dirpath, suffix, write, orbital_indices,
                     if p_indices in found_permutations:
                         continue
                     found_permutations.append(p_indices)
-                    handle_2e_integral(sparse_data, p_indices, val, g_mat, density, restricted, mo)
+                    handle_2e_integral(sparse_data, p_indices, val, g_mat, density, restricted, mo=False)
 
         # Flush the remaining integrals if there are any
         sparse_data.write_batch()
 
     return g_mat
+
+# The routine is a bit simpler for mo since there is no shuffling,
+# so it is probably worth to have this leaner routine
+def load_2e_integrals_mo(trexfile, dirpath, calculate_g=False, density=None,
+                         restricted=True):
+    # To reduce memory, it makes sense to calculate the G matrix on the fly
+
+    # Handle both full and other type
+    filename = dirpath + "/bielec_mo.out"
+    symmetry = True
+    if not os.path.isfile(filename):
+        filename = dirpath + "/coulomb_integrals_mo.out"
+        symmetry = False
+        if not os.path.isfile(filename):
+            print(f"No mo two-electron integral file could be found; "\
+                   "if the integrals are needed, please check that one of the "\
+                   "corresponding options is set in control.in.")
+            return None
+
+    g_mat = None # No need to do the allocation if unnecessary
+    if density is None:
+        calculate_g = False
+
+    if calculate_g:
+        orb_cnt = density.shape[0]
+        g_mat = np.zeros((orb_cnt, orb_cnt), dtype=float)
+
+    with open(filename) as file:
+        sparse_data = SparseData(trexfile, trexio.write_mo_2e_int_eri, 1000)
+        two_e_integral_threshold = 1e-10
+
+        # Load integral, save to batch and apply to g matrix
+        for line in file:
+            data = line.split()
+            i = int(data[0]) - 1
+            j = int(data[1]) - 1
+            k = int(data[2]) - 1
+            l = int(data[3]) - 1
+            indices = [i, j, k, l]
+            val = float(data[4])
+
+            if np.fabs(val) < two_e_integral_threshold:
+                continue
+
+            if not symmetry:
+                handle_2e_integral(sparse_data, indices, val, g_mat, density, 
+                                   restricted, mo=True)
+            else:
+                # Permute indices and handle individually
+                # All orbitals are real, so the symmetry is eightfold
+                # But filter out duplicates
+                permutations = [
+                    [0, 1, 2, 3], # i j k l
+                    [1, 0, 3, 2], # j i l k
+                    [2, 3, 0, 1], # k l i j
+                    [3, 2, 1, 0], # l k j i
+                    [2, 1, 0, 3], # k j i l
+                    [3, 0, 1, 2], # l i j k
+                    [0, 3, 2, 1], # i l k j
+                    [1, 2, 3, 0]  # j k l i
+                ]
+                found_permutations = []
+                # TODO speed this up
+                for perm in permutations:
+                    p_indices = [indices[perm[0]], indices[perm[1]], 
+                                 indices[perm[2]], indices[perm[3]]]
+                    if p_indices in found_permutations:
+                        continue
+                    found_permutations.append(p_indices)
+                    handle_2e_integral(sparse_data, p_indices, val, g_mat, 
+                                       density, restricted, mo=True)
+
+        # Flush the remaining integrals if there are any
+        sparse_data.write_batch()
+
+    return g_mat
+
+def load_plaintext_matrix_ao(filename, context, info, shape):
+    matrix_indices = context.matrix_indices
+    matrix_signs = context.matrix_signs
+
+    matrix = np.zeros(shape, dtype=float)
+
+    try:
+        with open(filename, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                data = line.split()
+                a = int(data[1]) - 1
+                b = int(data[2]) - 1
+                i = matrix_indices[a]
+                j = matrix_indices[b]
+                val = float(data[0]) * matrix_signs[a] * matrix_signs[b]
+                matrix[i, j] = val
+                matrix[j, i] = val
+        return matrix
+    except Exception as err:
+        print(err)
+        if len(info) > 1: # Can be used to mute warning
+            print(f"Matrix file {filename} could not be found; if the {info[0]}" \
+                + f" is needed, please check that \"{info[1]}\" is set in control.in.")
+    return None
+
+def load_plaintext_matrix_mo(filename, context, info, shape):
+    matrix = np.zeros(shape, dtype=float)
+
+    try:
+        with open(filename, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                data = line.split()
+                i = int(data[1]) - 1
+                j = int(data[2]) - 1
+                val = float(data[0])
+                matrix[i, j] = val
+                matrix[j, i] = val
+        return matrix
+    except Exception as err:
+        print(err)
+        if len(info) > 1: # Can be used to mute warning
+            print(f"Matrix file {filename} could not be found; if the {info[0]}" \
+                + f" is needed, please check that \"{info[1]}\" is set in control.in.")
+    return None
+
 
 def load_elsi_matrix(filename, context, info=[], fix_cols=False):
     matrix_indices = context.matrix_indices
@@ -827,7 +1043,7 @@ def load_elsi_matrix(filename, context, info=[], fix_cols=False):
         return matrix
     except Exception as err:
         print(err)
-        if len(info) > 1: # Can be used to mute warning
+        if len(info) > 1: # Not provided -> warning muted
             print(f"Matrix file {filename} could not be found; if the {info[0]}" \
                 + f" is needed, please check that \"{info[1]}\" is set in control.in.")
     return None
@@ -861,10 +1077,13 @@ def load_integrals(trexfile, dirpath, context):
                                ["coefficient matrix", "elsi_output_matrix eigenvectors"], \
                               fix_cols=True)
     coeffs_up = coeffs
-    ao_num = coeffs.shape[0]
-    mo_num = ao_num
     coeffs_dn = None
     if not coeffs is None:
+        ao_num = coeffs.shape[0]
+        # Could have been set earlier, but only used by integral part
+        context.ao_num = ao_num
+        mo_num = ao_num
+
         # If basis_indices.out was not found, matrix_indices needs to be set
         if len(matrix_indices) == 0:
             matrix_indices = [i for i in range(coeffs.shape[0])]
@@ -882,15 +1101,16 @@ def load_integrals(trexfile, dirpath, context):
 
         trexio.write_mo_num(trexfile, mo_num)
         trexio.write_mo_coefficient(trexfile, coeffs.T)
+
+        context.mo_num = mo_num
     else:
         print("Coefficient matrix could not be found. Integrals cannot be loaded.")
         return
 
-    # 1 body density matrix - only useful to construct ao core Hamiltonian
-    # Since trexio does not store the density matrix for ao
-    # It is needed to construct the ao core Hamiltonian, but since that one is spin
-    # independent it is sufficient to calculate it for one spin only
-    # No warning necessary since it can also be constructed from the coeffcícient matrix
+    get_occupation_and_class(trexfile, dirpath, context)
+    occupation = context.mo_occupation
+
+    # trexio does not store this matrix, but it is useful in constructing the Fock operator for testing
     density_up = load_elsi_matrix(dirpath + "/D_spin_01_kpt_000001.csc", context, [])
     if density_up is None:
         density_up = np.zeros(coeffs_up.shape, dtype=float)
@@ -898,9 +1118,14 @@ def load_integrals(trexfile, dirpath, context):
             for nu in range(len(matrix_indices)):
                 ret = 0
 
-                for a in range(context.elec_up):
-                    ret += coeffs_up[mu, a] * coeffs_up[nu, a]
-                density_up[mu, nu] = context.occupation()*ret
+                # The counter should go up to the number of up-spin MOs,
+                # which is here always the same as ao_num
+                # This "overcomplicated" expression is necessary because\
+                # of core holes
+                for a in range(context.ao_num):
+                    ret += coeffs_up[mu, a] * coeffs_up[nu, a] \
+                        * occupation[a]
+                density_up[mu, nu] = ret
 
     ao_density = density_up
 
@@ -912,9 +1137,12 @@ def load_integrals(trexfile, dirpath, context):
                 for nu in range(len(matrix_indices)):
                     ret = 0
 
-                    for a in range(context.elec_dn):
-                        ret += coeffs_dn[mu, a] * coeffs_dn[nu, a]
-                    density_dn[mu, nu] = context.occupation()*ret
+                    # The counter should go up to the number of up-spin 
+                    # MOs, which is here always the same as ao_num
+                    for a in range(context.ao_num):
+                        ret += coeffs_dn[mu, a] * coeffs_dn[nu, a] \
+                            * occupation[a]
+                    density_dn[mu, nu] = ret
 
         ao_density = block_diag(density_up, density_dn)
 
@@ -935,80 +1163,75 @@ def load_integrals(trexfile, dirpath, context):
         for i in range(context.elec_cnt // 2):
             mo_density[i, i] = 2
 
-    #mo_density[0] = 0
-    #mo_density[ao_num + 4] = 1
-    occupation = [mo_density[i, i] for i in range(mo_num)]
-    #print(occupation[:ao_num], "\n", occupation[ao_num:])
-    trexio.write_mo_occupation(trexfile, occupation)
-
     # Overlap
     overlap = load_elsi_matrix(dirpath + "/S_spin_01_kpt_000001.csc", context, \
                                ["overlap matrix", "elsi_output_matrix overlap"])
     if not overlap is None:
         trexio.write_ao_1e_int_overlap(trexfile, overlap)
-        overlap_mo = transform_to_mo(overlap, coeffs) #coeffs.transpose() * overlap * coeffs
-        trexio.write_mo_1e_int_overlap(trexfile, overlap_mo)
+        mo_overlap = transform_to_mo(overlap, coeffs) #coeffs.transpose() * overlap * coeffs
+        trexio.write_mo_1e_int_overlap(trexfile, mo_overlap)
 
     # Full hamiltonian; trexio supports only core Hamiltonian -> can be calculated with 2e integrals
-    ao_ham = load_elsi_matrix(dirpath + "/H_spin_01_kpt_000001.csc", context, \
-                               ["hamiltonian matrix", "elsi_output_matrix hamiltonian"])
-    ao_ham_up = ao_ham
-    ao_ham_dn = None
+    # After having modified aims to print the core Hamiltonian, this code
+    # is obsolete but can still be used for verification
+    #ao_ham_full = load_elsi_matrix(dirpath + "/H_spin_01_kpt_000001.csc", context, \
+    #                           ["hamiltonian matrix", "elsi_output_matrix hamiltonian"])
+
+    ao_core_ham = load_plaintext_matrix_ao(dirpath + "/core_hamiltonian_ao1.out", 
+            context, ["ao core hamiltonian matrix", "output core_hamiltonian"], (ao_num, ao_num));
+
+    if not ao_core_ham is None:
+        trexio.write_ao_1e_int_core_hamiltonian(trexfile, ao_core_ham)
 
     # MO 2e integrals are directly loaded into the trexio file
     # G-matrix is only useful if the Hamiltonian has been found
-    # Since the MOs are not affected by changes in the basis, there is no index transformation
-    mo_ham = None
-    mo_ham_up = None
-    mo_ham_dn = None
-    
-    if not ao_ham is None:
-        mo_ham_up = transform_to_mo(ao_ham_up, coeffs_up)
-        mo_ham = mo_ham_up
+    # Since the MOs are not affected by changes in the basis, there is no index transformation etc
 
-        if context.unrestricted():
-            # TODO remove redundancy
-            ao_ham_dn = load_elsi_matrix(dirpath + "/H_spin_02_kpt_000001.csc", context, \
-                               ["down spin hamiltonian matrix", "elsi_output_matrix hamiltonian"])
-            ao_ham = block_diag(ao_ham_up, ao_ham_dn)
-            if not ao_ham_dn is None:
-                mo_ham_dn = transform_to_mo(ao_ham_dn, coeffs_dn)
-                mo_ham = block_diag(mo_ham_up, mo_ham_dn)
+    mo_core_ham_up = load_plaintext_matrix_mo(dirpath + "/core_hamiltonian_mo1.out", 
+            context, ["mo core hamiltonian matrix", "output core_hamiltonian"], (coeffs_up.shape[1], coeffs_up.shape[1]));
+    mo_core_ham = mo_core_ham_up
 
     if context.unrestricted():
-        mo_indices = [i for i in range(2*len(matrix_indices))]
-        mo_signs = np.ones(len(mo_indices))
-    else:
-        mo_indices = [i for i in range(len(matrix_indices))]
-        mo_signs = np.ones(len(mo_indices))
-    mo_g_matrix = load_2e_integrals(trexfile, dirpath, "mo", \
-                                    trexio.write_mo_2e_int_eri, mo_indices, \
-                                    mo_signs, not mo_ham is None, mo_density, \
+        mo_core_ham_dn = load_plaintext_matrix_mo(dirpath + "/core_hamiltonian_mo2.out", 
+                context, ["mo core hamiltonian matrix", "output core_hamiltonian"], (coeffs_dn.shape[1], coeffs_dn.shape[1]));
+
+        if not mo_core_ham_dn is None and not mo_core_ham_up is None:
+            mo_core_ham = block_diag(mo_core_ham_up, mo_core_ham_dn)
+
+    if not mo_core_ham is None:
+        trexio.write_mo_1e_int_core_hamiltonian(trexfile, mo_core_ham)
+
+    # Obsolete, but interesting for testing
+    #if not ao_ham is None:
+    #    mo_core_ham_up2 = transform_to_mo(ao_core_ham_up, coeffs_up)
+    #    mo_core_ham2 = mo_core_ham_up
+
+    #    if context.unrestricted():
+    #            mo_core_ham_dn2 = transform_to_mo(ao_ham, coeffs_dn)
+    #            mo_core_ham2 = block_diag(mo_core_ham_up, mo_core_ham_dn)
+
+    mo_g_matrix = load_2e_integrals_mo(trexfile, dirpath,
+                                    False and not mo_ham is None, mo_density,
                                     not context.unrestricted())
 
-    if not mo_g_matrix is None and not mo_ham is None:
-            mo_core_ham = mo_ham - mo_g_matrix
-            trexio.write_mo_1e_int_core_hamiltonian(trexfile, mo_core_ham)
+    # Testing only
+    #if not mo_g_matrix is None and not mo_ham is None:
+    #        mo_core_ham2 = mo_ham - mo_g_matrix
+
+    #for i in range(mo_core_ham.shape[0]):
+    #    for j in range(i, mo_core_ham.shape[1]):
+    #        print(i, j, mo_core_ham[i, j], mo_core_ham_dir[i, j])
 
     # Note that the functionality for printing the ao 2e integrals is an
     # addition within this project and not necessarily available in
     # public versions of FHI-aims
-    ao_g_matrix = load_2e_integrals(trexfile, dirpath, "ao", \
-        trexio.write_ao_2e_int_eri, matrix_indices, matrix_signs, True, \
+    ao_g_matrix = load_2e_integrals_ao(trexfile, dirpath,
+                                    matrix_indices, matrix_signs, 
+                                    False and not mo_ham is None,
                                     ao_density, not context.unrestricted())
     
-    if not ao_ham is None and not ao_g_matrix is None:
-        # For comparing whether both spins give the same result, use this line
-        #ao_core_ham = ao_ham - ao_g_matrix
-        ao_core_ham = ao_ham_up - ao_g_matrix
-        trexio.write_ao_1e_int_core_hamiltonian(trexfile, ao_core_ham)
-
-        if context.unrestricted() and not trexio.has_mo_1e_int_core_hamiltonian(trexfile):
-            # The MO hamiltonian can also be accessed from its ao version for reference
-            mo_core_ham_up = transform_to_mo(ao_core_ham, coeffs_up)
-            mo_core_ham_dn = transform_to_mo(ao_core_ham, coeffs_dn)
-            mo_core_ham = block_diag(mo_core_ham_up, mo_core_ham_dn)
-            trexio.write_mo_1e_int_core_hamiltonian(trexfile, mo_core_ham)
+    #if not ao_ham is None and not ao_g_matrix is None:
+    #    ao_core_ham2 = ao_ham_up - ao_g_matrix
 
 def convert_aims_trexio(trexfile, dirpath):
     if not os.path.isdir(dirpath):
@@ -1041,7 +1264,6 @@ def convert_aims_trexio(trexfile, dirpath):
 
     # Populate the electron group
     context.elec_cnt = int(context.nuclear_charge - context.system_charge)
-    # aims always has N_up >= N_down
     context.elec_up = (context.elec_cnt + context.spin_moment) // 2
     context.elec_dn = context.elec_cnt - context.elec_up
     

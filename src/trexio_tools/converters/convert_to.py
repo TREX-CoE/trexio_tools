@@ -109,13 +109,31 @@ def run_fcidump(trexfile, filename):
             up = spins[0]
             for n, spin in enumerate(spins):
                 # Check whether first half of orbitals is up, second is down
-                if not (n < len(spins) // 2 and spin == up or n >= len(spins) // 2 and spin != up):
+                if not (n < len(spins) // 2 and spin == up \
+                        or n >= len(spins) // 2 and spin != up):
                     flag = False
                     break
 
             if flag:
                 # If the desired pattern is detected, interleave spins
-                out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) + 1 for i in range(n_act)])
+                active_up = 0
+                # It is assumed that the initial number of up and down orbitals is equal
+                for iup in range(len(spins) // 2):
+                    if orb_ids[iup] > -1:
+                        out_index[active_up] = 1 + 2*active_up
+                        active_up += 1
+
+                active_dn = 0
+                for idn in range(len(spins) // 2, len(spins)):
+                    if orb_ids[idn] > -1:
+                        out_index[active_up + active_dn] = 2 + 2*active_dn
+                        active_dn += 1
+
+                # This works if there were no core holes
+                #out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) + 1 for i in range(n_act)])
+
+        print(orb_ids)
+        print(out_index)
 
         #print(orb_ids, act_ids, out_index)
         #orb_ids = orb_ids - 1
@@ -432,13 +450,6 @@ def run_cart_phe(inp, filename, to_cartesian):
           for _ in range(n):
               shell.append(she)
 
-<<<<<<< HEAD:src/converters/convert_to.py
-    #print(accu)
-    #print(trexio.read_ao_shell(inp))
-    #print(shell)
-
-=======
->>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4:src/trexio_tools/converters/convert_to.py
     cart_normalization = np.ones(count_cart)
     R = np.zeros( (count_cart, count_sphe) )
     for (l, p,q, r,s) in accu:
@@ -498,10 +509,7 @@ def run_cart_phe(inp, filename, to_cartesian):
                 shell_fac[i] *= 2
         trexio.write_basis_shell_factor(out, shell_fac)
 
-<<<<<<< HEAD:src/converters/convert_to.py
-=======
-    trexio.write_ao_normalization(out, cart_normalization)
->>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4:src/trexio_tools/converters/convert_to.py
+    #trexio.write_ao_normalization(out, cart_normalization)
 
     R_norm_inv = np.array(R)
     normalization = np.ones((len(normalization,)))
@@ -607,16 +615,11 @@ def run(trexio_filename, filename, filetype):
         run_spherical(trexio_file, filename)
 #    elif filetype.lower() == "normalized_aos":
 #        run_normalized_aos(trexio_file, filename)
-<<<<<<< HEAD:src/converters/convert_to.py
 #    elif filetype.lower() == "gamess":
 #        run_resultsFile(trexio_file, filename)
     elif filetype.lower() == "fcidump":
         run_fcidump(trexio_file, filename)
 #    elif filetype.lower() == "molden":
-=======
-#    elif filetype.lower() == "fcidump":
->>>>>>> dc2ca81af2fee57b0eebfcce66a6a7c7a2be3bf4:src/trexio_tools/converters/convert_to.py
-#        run_fcidump(trexio_file, filename)
     else:
         raise NotImplementedError(f"Conversion from TREXIO to {filetype} is not supported.")
 
