@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#>>>>!/usr/bin/env python3
 
 import trexio
 import numpy as np
@@ -21,10 +21,10 @@ def read(trexio_file):
         r["coefficient"]    =  trexio.read_basis_coefficient(trexio_file)
         r["prim_factor"]    =  trexio.read_basis_prim_factor(trexio_file)
     elif r["type"] == "Numerical":
-        r["numgrid_start"]          =  trexio.read_basis_numgrid_start(trexio_file)
-        r["numgrid_size"]           =  trexio.read_basis_numgrid_size(trexio_file)
+        r["nao_grid_start"]          =  trexio.read_basis_nao_grid_start(trexio_file)
+        r["nao_grid_size"]           =  trexio.read_basis_nao_grid_size(trexio_file)
         r["interpolator"]           =  trexio.read_basis_interpolator_phi(trexio_file)
-        r["numgrid_radius"]         =  trexio.read_basis_numgrid_radius(trexio_file)
+        r["nao_grid_radius"]         =  trexio.read_basis_nao_grid_radius(trexio_file)
 
     return r
 

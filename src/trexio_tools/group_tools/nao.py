@@ -130,16 +130,16 @@ def value(ao,r):
 
     nucleus_index   = basis["nucleus_index"]
 
-    numgrid_start   = basis["numgrid_start"]
-    numgrid_size    = basis["numgrid_size"]
-    numgrid_r       = basis["numgrid_radius"]
+    nao_grid_start   = basis["nao_grid_start"]
+    nao_grid_size    = basis["nao_grid_size"]
+    nao_grid_r       = basis["nao_grid_radius"]
     interpolator    = basis["interpolator"]
     shell_factor    = basis["shell_factor"]
     norm            = ao["factor"]
     ao_shell        = ao["shell"]
 
     amplitudes = trexio.evaluate_nao_radial_all(nucleus_index, coord, 
-                                      numgrid_start, numgrid_size, numgrid_r, interpolator, shell_factor, r)
+                                      nao_grid_start, nao_grid_size, nao_grid_r, interpolator, shell_factor, r)
 
     ao_amp = np.zeros(ao_num, dtype=float)
     last_shell = ao_shell[0]
