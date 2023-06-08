@@ -121,8 +121,9 @@ class AtomicOrbital:
         return abs(self.m) < abs(other.m)
 
 class Context:
-    def __init__(self, dirpath):
+    def __init__(self, dirpath, aimsoutpath):
         self.dirpath = dirpath
+        self.aimsoutpath = aimsoutpath
 
         # Everything is initialized to None so availability can be checked
         self.species = None
@@ -408,6 +409,7 @@ def load_basis_set(trexfile, dirpath, context):
                         len(shells), atom_id, fn_type, n, l
                     ))
                     shell_entries = 2*abs(m) + 1 # Always starts with -l
+                    print(index, fn_type, atom_id, n, l, m)
 
                 normalization = 1
                 aos.append(AtomicOrbital(index, shells[-1], m, normalization))
@@ -442,6 +444,7 @@ def load_basis_set(trexfile, dirpath, context):
     last_atom = -1
 
     for shell in shells:
+        print(shell)
         # Need to get species id of atom
         curr_atom = atoms[shell.atom_id]
         species_id = curr_atom.species.id_num
@@ -665,7 +668,7 @@ def get_occupation_and_class(trexfile, dirpath, context):
     # certainty which mo is unoccupied without the output file
     
     # Try to find the output file
-    filename = dirpath + "/aims.out"
+    filename = context.aimsoutpath
     readable = os.path.isfile(filename)
     mo_num = context.mo_num
     ao_num = context.ao_num
@@ -697,7 +700,6 @@ def get_occupation_and_class(trexfile, dirpath, context):
                     i0 = last_header + 3
                     for iline in range(0, mo_num):
                         line = lines[i0 + iline]
-                        print(line)
                         occ = int(float(line.split()[1]))
                         occupation[iline] = occ
             except:
@@ -802,7 +804,7 @@ def load_2e_integrals_ao(trexfile, dirpath, orbital_indices,
     # To reduce memory, it makes sense to calculate the G matrix on the fly
 
     # Handle both full and other type
-    filename = dirpath + "/bielec_ao.out"
+    filename = dirpath + "/bielec_ao"
     symmetry = True
     if not os.path.isfile(filename):
         filename = dirpath + "/coulomb_integrals_ao.out"
@@ -881,7 +883,7 @@ def load_2e_integrals_mo(trexfile, dirpath, calculate_g=False, density=None,
     # To reduce memory, it makes sense to calculate the G matrix on the fly
 
     # Handle both full and other type
-    filename = dirpath + "/bielec_mo.out"
+    filename = dirpath + "/bielec_mo"
     symmetry = True
     if not os.path.isfile(filename):
         filename = dirpath + "/coulomb_integrals_mo.out"
@@ -1238,7 +1240,8 @@ def load_integrals(trexfile, dirpath, context):
     #if not ao_ham is None and not ao_g_matrix is None:
     #    ao_core_ham2 = ao_ham_up - ao_g_matrix
 
-def convert_aims_trexio(trexfile, dirpath):
+def convert_aims_trexio(trexfile, aimsoutpath):
+    dirpath = os.path.dirname(os.path.abspath(aimsoutpath))
     if not os.path.isdir(dirpath):
         raise Exception("The provided path " + dirpath \
                         + " does not seem to be a directory.")
@@ -1248,7 +1251,7 @@ def convert_aims_trexio(trexfile, dirpath):
     trexio.write_metadata_author_num(trexfile, 1)
     trexio.write_metadata_author(trexfile, [os.environ["USER"]])
 
-    context = Context(dirpath)
+    context = Context(dirpath, aimsoutpath)
 
     control_path = dirpath + "/control.in"
     read_control(control_path, context)
