@@ -66,6 +66,9 @@ class Species:
         self.charge = charge
         self.nao_grid_ids = []
         self.nao_grid_sizes = []
+        # Species list is loaded from control.in bc it contains all info,
+        # but (shell) order is determined by geometry
+        self.geom_index = 10000 # -1 would disturb sorting for unused species
 
     def add_nao_grid(self, id_num, size):
         self.nao_grid_ids.append(id_num)
@@ -323,6 +326,8 @@ def import_geometry(trexfile, geom_path, context):
 
     with open(geom_path) as gfile:
         lines = gfile.readlines()
+        # Species need to be sorted by order in geometry.in
+        geom_index = 0
 
         for line in lines:
             data = line.split()
@@ -337,6 +342,9 @@ def import_geometry(trexfile, geom_path, context):
                 species = find_species(species_list, species_label)
                 if species == None:
                     raise Exception("Unknown species found in geometry.in: " + species)
+                if species.geom_index == 10000:
+                    species.geom_index = geom_index
+                    geom_index += 1
                 charge = 1.0*species.charge
                 if data[0] == "empty":
                     species_label = "Empty"
@@ -409,21 +417,13 @@ def load_basis_set(trexfile, dirpath, context):
                         len(shells), atom_id, fn_type, n, l
                     ))
                     shell_entries = 2*abs(m) + 1 # Always starts with -l
-                    print(index, fn_type, atom_id, n, l, m)
 
                 normalization = 1
                 aos.append(AtomicOrbital(index, shells[-1], m, normalization))
                 shell_entries -= 1
 
     # aos need to be brought in the correct order (0, -1, 1 etc)
-    #for ao in aos:
-    #    print(ao.shell.atom_id, end="\t")
-    #print()
     aos.sort()
-    #or ao in aos:
-    #   print(ao.shell.atom_id, end="\t")
-    #rint()
-    # And must at some point be converted to cartesian orbs
 
     # List of aos is done, shells can be loaded
     nao_grid_r = []
@@ -432,11 +432,6 @@ def load_basis_set(trexfile, dirpath, context):
     nao_grid_lap = []
     nao_grid_start = [] # len = number of radial functions
 
-    #for ao in aos:
-    #    print(ao)
-    #for shell in shells:
-    #    print(shell)
-
     species_atoms = {}
     radial_cnt = 0
 
@@ -444,10 +439,10 @@ def load_basis_set(trexfile, dirpath, context):
     last_atom = -1
 
     for shell in shells:
-        print(shell)
         # Need to get species id of atom
         curr_atom = atoms[shell.atom_id]
-        species_id = curr_atom.species.id_num
+        species = curr_atom.species
+        species_id = species.id_num
 
         if curr_atom != last_atom:
             shell_in_atom = -1
@@ -465,14 +460,9 @@ def load_basis_set(trexfile, dirpath, context):
         else:
             species_atoms[species_id] = curr_atom
 
-        # TODO dynamically set the number of zeros in file names
-        radial_padding = 2
-        shell_padding = max(int(np.log10(len(shells))) + 1, 2)
-        filename = f"{shell.fn_type}_{species_id+1}_{radial_cnt+1:0>2}_" \
+        filename = f"{shell.fn_type}_{species.geom_index+1}_{radial_cnt+1:0>2}_" \
             f"{shell.n:0>2}_{angular_letter(shell.l)}.dat"
         
-        #print(filename)
-
         # Load the actual data file
         if not os.path.isfile(dirpath + "/" + filename):
             raise Exception("Expected to find NAO data file " + filename \
@@ -515,8 +505,6 @@ def load_basis_set(trexfile, dirpath, context):
 
         # Repeat for second derivative data
         filename = "kin" + filename[3:]
-        
-        #print(filename)
 
         # Load the actual data file
         if not os.path.isfile(dirpath + "/" + filename):
@@ -557,7 +545,6 @@ def load_basis_set(trexfile, dirpath, context):
     lap_interp = np.zeros((0, 4), dtype=float)
 
     # Compute interpolation coefficients
-    #print(len(nao_grid_phi))
     buffer_zero = np.zeros((1), dtype=float)
     for radial_at in range(radial_cnt):
         if radial_at < radial_cnt - 1:
@@ -754,7 +741,6 @@ def get_occupation_and_class(trexfile, dirpath, context):
             spin_counted = 0
             spin_max = context.elec_dn
 
-    #print(orb_class)
     trexio.write_mo_class(trexfile, orb_class)
 
 def handle_2e_integral(sparse_data, indices, val, g_mat=None, density=None, restricted=True, mo=True):
@@ -1264,6 +1250,8 @@ def convert_aims_trexio(trexfile, aimsoutpath):
 
     geom_path = dirpath + "/geometry.in"
     import_geometry(trexfile, geom_path, context)
+    # Species list needs to be sorted by order of appearance in geometry.in
+    context.species.sort(key=lambda x: x.geom_index)
     if context.atoms == None:
         # geometry.in contains the number of electrons, so the export makes
         # no sense without it
