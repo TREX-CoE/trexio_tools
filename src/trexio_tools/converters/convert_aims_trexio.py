@@ -460,13 +460,13 @@ def load_basis_set(trexfile, dirpath, context):
         else:
             species_atoms[species_id] = curr_atom
 
-        filename = f"{shell.fn_type}_{species.geom_index+1}_{radial_cnt+1:0>2}_" \
+        filename = f"{shell.fn_type}_{species_id+1}_{radial_cnt+1:0>2}_" \
             f"{shell.n:0>2}_{angular_letter(shell.l)}.dat"
         
         # Load the actual data file
         if not os.path.isfile(dirpath + "/" + filename):
             raise Exception("Expected to find NAO data file " + filename \
-                            + " but did not.")
+                            + " but did not. This can be fixed by making sure that the species appear in control.in in the order they are in geometry.in")
 
         with open(dirpath + "/" + filename) as dfile:
             # First line contains number of data points == len(lines)
@@ -784,7 +784,7 @@ def handle_2e_integral(sparse_data, indices, val, g_mat=None, density=None, rest
                 g_mat[i, l] -= density[k, j] * val
         # Mirroring of off-diagonal elements omitted due to lack of symmetry
 
-def load_2e_integrals_ao(trexfile, dirpath, orbital_indices,
+def load_2e_integrals_ao(trexfile, dirpath, orb_cnt, orbital_indices,
                       orbital_signs, calculate_g=False, density=None,
                       restricted=True):
     # To reduce memory, it makes sense to calculate the G matrix on the fly
@@ -849,12 +849,14 @@ def load_2e_integrals_ao(trexfile, dirpath, orbital_indices,
                     [1, 2, 3, 0]  # j k l i
                 ]
                 found_permutations = []
-                # TODO speed this up
                 for perm in permutations:
-                    p_indices = [indices[perm[0]], indices[perm[1]], indices[perm[2]], indices[perm[3]]]
-                    if p_indices in found_permutations:
+                    hash = ((indices[perm[0]]*orb_cnt + indices[perm[1]])\
+                             *orb_cnt + indices[perm[2]])*orb_cnt \
+                             + indices[perm[3]]
+                    if hash in found_permutations:
                         continue
-                    found_permutations.append(p_indices)
+                    found_permutations.append(hash)
+                    p_indices = [indices[perm[0]], indices[perm[1]], indices[perm[2]], indices[perm[3]]]
                     handle_2e_integral(sparse_data, p_indices, val, g_mat, density, restricted, mo=False)
 
         # Flush the remaining integrals if there are any
@@ -864,8 +866,8 @@ def load_2e_integrals_ao(trexfile, dirpath, orbital_indices,
 
 # The routine is a bit simpler for mo since there is no shuffling,
 # so it is probably worth to have this leaner routine
-def load_2e_integrals_mo(trexfile, dirpath, calculate_g=False, density=None,
-                         restricted=True):
+def load_2e_integrals_mo(trexfile, dirpath, orb_cnt, calculate_g=False, 
+                         density=None, restricted=True):
     # To reduce memory, it makes sense to calculate the G matrix on the fly
 
     # Handle both full and other type
@@ -923,13 +925,14 @@ def load_2e_integrals_mo(trexfile, dirpath, calculate_g=False, density=None,
                     [1, 2, 3, 0]  # j k l i
                 ]
                 found_permutations = []
-                # TODO speed this up
                 for perm in permutations:
-                    p_indices = [indices[perm[0]], indices[perm[1]], 
-                                 indices[perm[2]], indices[perm[3]]]
-                    if p_indices in found_permutations:
+                    hash = ((indices[perm[0]]*orb_cnt + indices[perm[1]])\
+                             *orb_cnt + indices[perm[2]])*orb_cnt \
+                             + indices[perm[3]]
+                    if hash in found_permutations:
                         continue
-                    found_permutations.append(p_indices)
+                    found_permutations.append(hash)
+                    p_indices = [indices[perm[0]], indices[perm[1]], indices[perm[2]], indices[perm[3]]]
                     handle_2e_integral(sparse_data, p_indices, val, g_mat, 
                                        density, restricted, mo=True)
 
@@ -1203,7 +1206,7 @@ def load_integrals(trexfile, dirpath, context):
     #            mo_core_ham_dn2 = transform_to_mo(ao_ham, coeffs_dn)
     #            mo_core_ham2 = block_diag(mo_core_ham_up, mo_core_ham_dn)
 
-    mo_g_matrix = load_2e_integrals_mo(trexfile, dirpath,
+    mo_g_matrix = load_2e_integrals_mo(trexfile, dirpath, mo_num,
                                     False and not mo_ham is None, mo_density,
                                     not context.unrestricted())
 
@@ -1218,7 +1221,7 @@ def load_integrals(trexfile, dirpath, context):
     # Note that the functionality for printing the ao 2e integrals is an
     # addition within this project and not necessarily available in
     # public versions of FHI-aims
-    ao_g_matrix = load_2e_integrals_ao(trexfile, dirpath,
+    ao_g_matrix = load_2e_integrals_ao(trexfile, dirpath, ao_num,
                                     matrix_indices, matrix_signs, 
                                     False and not mo_ham is None,
                                     ao_density, not context.unrestricted())
@@ -1251,7 +1254,8 @@ def convert_aims_trexio(trexfile, aimsoutpath):
     geom_path = dirpath + "/geometry.in"
     import_geometry(trexfile, geom_path, context)
     # Species list needs to be sorted by order of appearance in geometry.in
-    context.species.sort(key=lambda x: x.geom_index)
+    # This sometimes fixes the not-finding of spline data
+    #context.species.sort(key=lambda x: x.geom_index)
     if context.atoms == None:
         # geometry.in contains the number of electrons, so the export makes
         # no sense without it
