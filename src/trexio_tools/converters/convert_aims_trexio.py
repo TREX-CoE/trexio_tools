@@ -133,6 +133,7 @@ class Context:
         self.system_charge = None
         self.spin_moment = None
         self.has_core_hole = False
+        self.rohf = False
 
         self.atoms = None
         self.nuclear_charge = None
@@ -163,7 +164,7 @@ class Context:
         return 1
     
     def unrestricted(self):
-        return self.spin_moment != 0
+        return self.spin_moment != 0 and not self.rohf
 
 class SparseData:
     def __init__(self, trexfile, write_function, batch_size):
@@ -291,8 +292,6 @@ def read_control(control_path, context):
 
     # aims also allows to set the spin in a different way, so inform user
     # to add redundant information if necessary
-    if spin_type == "none" and fixed_spin_moment != 0:
-        raise Exception("fixed_spin_moment is set, but spin is set to none!")
     if spin_type == "collinear" and fixed_spin_moment == 0:
         raise Exception("Spin type is collinear, but no fixed_spin_moment \
                         is set in control.in!")
@@ -727,7 +726,7 @@ def get_occupation_and_class(trexfile, dirpath, context):
         if occ == 0:
             if spin_counted < spin_max:
                 # This should be a core hole
-                orb_class.append("inactive")
+                orb_class.append("inactive core")
             else:
                 orb_class.append("active")
         else:
@@ -1264,9 +1263,13 @@ def convert_aims_trexio(trexfile, aimsoutpath):
 
     # Populate the electron group
     context.elec_cnt = int(context.nuclear_charge - context.system_charge)
-    context.elec_up = (context.elec_cnt + context.spin_moment) // 2
+    elec_up = (context.elec_cnt + context.spin_moment) // 2
+    if context.spin_moment == 0 and 2*elec_up != context.elec_cnt: # ROHF case
+        elec_up = context.elec_cnt - elec_up # Ensure elec_up > elec_dn
+        context.rohf = True
+    context.elec_up = elec_up
     context.elec_dn = context.elec_cnt - context.elec_up
-    
+
     trexio.write_electron_num(trexfile, context.elec_cnt)
     trexio.write_electron_up_num(trexfile, context.elec_up)
     trexio.write_electron_dn_num(trexfile, context.elec_dn)
