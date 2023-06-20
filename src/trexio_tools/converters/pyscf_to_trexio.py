@@ -138,9 +138,16 @@ def pyscf_to_trexio(
         ##########################################
         if pbc_flag:
             Bohr = 0.5291772109
-            a = np.array(mol.a[0]) / Bohr  # angstrom -> bohr
-            b = np.array(mol.a[1]) / Bohr  # angstrom -> bohr
-            c = np.array(mol.a[2]) / Bohr  # angstrom -> bohr
+            if isinstance(mol.a, list):
+                a = np.array(mol.a[0]) / Bohr  # angstrom -> bohr
+                b = np.array(mol.a[1]) / Bohr  # angstrom -> bohr
+                c = np.array(mol.a[2]) / Bohr  # angstrom -> bohr
+            else:
+                hmatrix=np.fromstring(mol.a, dtype=np.float64, sep=' ').reshape((3,3),order='C')
+                a=np.array(hmatrix[0,:])/ Bohr  # angstrom -> bohr
+                b=np.array(hmatrix[1,:])/ Bohr  # angstrom -> bohr
+                c=np.array(hmatrix[2,:])/ Bohr  # angstrom -> bohr
+
             k_point = k_vec
             periodic = True
         else:
