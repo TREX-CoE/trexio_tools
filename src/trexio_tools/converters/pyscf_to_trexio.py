@@ -304,7 +304,8 @@ def pyscf_to_trexio(
                 mo_energy = mo_energy_read[ns]
                 mo_coeff = mo_coeff_read[ns]
 
-            mo_num = len(mo_coeff)
+            mo_num = len(mo_coeff[0])
+            
             mo_spin_all += [spin for _ in range(mo_num)]
 
             # mo reordering because mo_coeff[:,mo_i]!!
