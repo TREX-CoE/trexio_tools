@@ -8,6 +8,7 @@ from trexio_tools.group_tools import basis as trexio_basis
 from trexio_tools.group_tools import determinant as trexio_det
 
 from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
+from .orca_to_trexio import orca_to_trexio as run_orca
 
 try:
     import trexio
@@ -767,6 +768,9 @@ def run(trexio_filename, filename, filetype, back_end, motype=None):
     elif filetype.lower() == "pyscf":
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
         run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename, back_end=back_end_str)
+    elif filetype.lower() == "orca":
+        back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
+        run_orca(trexio_filename=trexio_filename, pyscf_checkfile=filename, back_end=back_end_str)
     elif filetype.lower() == "fcidump":
         raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
         #run_fcidump(trexio_file, filename)
