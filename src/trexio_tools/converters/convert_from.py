@@ -770,7 +770,7 @@ def run(trexio_filename, filename, filetype, back_end, motype=None):
         run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename, back_end=back_end_str)
     elif filetype.lower() == "orca":
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
-        run_orca(trexio_filename=trexio_filename, pyscf_checkfile=filename, back_end=back_end_str)
+        run_orca(filename=trexio_filename, orca_json=filename, back_end=back_end_str)
     elif filetype.lower() == "fcidump":
         raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
         #run_fcidump(trexio_file, filename)
