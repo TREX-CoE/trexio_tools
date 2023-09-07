@@ -20,7 +20,7 @@ Options:
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
       -t, --type=TYPE               [gaussian | gamess | pyscf | fcidump | molden | cartesian ] File format.
-      -x, --motype=MO_TYPE          [natural | initial | guga-initial | guga-natural] The type of the molecular orbitals.
+      -x, --motype=MO_TYPE          Type of the molecular orbitals. For example, GAMESS has RHF, MCSCF, GUGA, and Natural as possible MO types.
 """
 
 from docopt import docopt
