@@ -13,7 +13,7 @@ def orca_to_trexio(
     # - how to install trexio
     # - pip install trexio
 
-    from pyscf.gto import gaussian_int, gto_norm
+    # import trexio
     import trexio
 
     # Logger
@@ -46,15 +46,12 @@ def orca_to_trexio(
     multiplicity = data["Molecule"]["Multiplicity"]
     for i in range(natoms):
         atom = data["Molecule"]["Atoms"][i]
-        #print(f"Atom Number {i}")
         coord.append(atom["Coords"])
         chemical_symbol_list.append(atom["ElementLabel"])
         atom_charges_list.append(atom["NuclearCharge"])
         elec_num += atom["NuclearCharge"]
-        #for k in data["Molecule"]["Atoms"][i].keys():
-        #    print(k)
     elec_num = elec_num - total_charge
-    #print(f"coord = {coord} elec_num={elec_num}")
+
     # Assuming multiplicity = (elec_up - elec_dn) + 1
     electron_up_num = int((elec_num + multiplicity - 1)//2)
     electron_dn_num = int(elec_num - electron_up_num)
@@ -83,16 +80,18 @@ def orca_to_trexio(
         shell_ids = []
         for k in range(nshells):
             shell_ids.append(i)
-            bas_angular.append(atom["BasisFunctions"][i]["Shell"])
-            bas_nprim.append(len(atom["BasisFunctions"][i]["Exponents"]))
-            bas_exp.append(atom["BasisFunctions"][i]["Exponents"])
-            bas_ctr_coeff.append(atom["BasisFunctions"][i]["Coefficients"])
+            bas_angular.append(atom["BasisFunctions"][k]["Shell"])
+            bas_nprim.append(len(atom["BasisFunctions"][k]["Exponents"]))
+            bas_exp.append(atom["BasisFunctions"][k]["Exponents"])
+            bas_ctr_coeff.append(atom["BasisFunctions"][k]["Coefficients"])
         atom_shell_ids.append(shell_ids)
-
+    S_matrix = np.array(data["Molecule"]["S-Matrix"])
+    T_matrix = np.array(data["Molecule"]["T-Matrix"])
+    H_matrix = np.array(data["Molecule"]["H-Matrix"])
      ##########################################
     # basis set info
     ##########################################
-    # check the orders of the spherical atomic basis in pyscf!!
+    # check the orders of the spherical atomic basis in orca!!
     # gto.spheric_labels(mol, fmt="%d, %s, %s, %s")
     # for s -> s
     # for p -> px, py, pz
@@ -130,7 +129,13 @@ def orca_to_trexio(
             basis_shell_index.append(i)
 
     # normalization factors
-    basis_shell_factor = [1.0 for _ in range(basis_shell_num)]  # 1.0 in pySCF
+    basis_shell_factor = [1.0 for _ in range(basis_shell_num)]  # 1.0 in ORCA
+
+    def gto_norm(alpha, ax, ay, az):
+        val = ((alpha + alpha)/np.pi)**(3/4)*((4*alpha)**((ax + ay + az)//2))/((scipy.special.factorial2(2*ax - 1) * \
+                                                                        scipy.special.factorial2(2*ay - 1) * \
+                                                                        scipy.special.factorial2(2*az - 1)**(1/2)))
+        return(val)
 
     # gto_norm(l, expnt) => l is angmom, expnt is exponent
     # Note!! Here, the normalization factor of the spherical part
@@ -143,7 +148,7 @@ def orca_to_trexio(
         expnt = basis_exponent[prim_i]
         l_num = shell_ang_mom[basis_shell_index[prim_i]]
         basis_prim_factor.append(
-            gto_norm(l_num, expnt) / np.sqrt(4 * np.pi) * np.sqrt(2 * l_num + 1)
+            gto_norm(expnt, l_num, l_num, l_num)
         )
 
     ##########################################
@@ -184,6 +189,9 @@ def orca_to_trexio(
     trexio.write_ao_num(trexio_file, ao_num)  #
     trexio.write_ao_shell(trexio_file, ao_shell)  #
     trexio.write_ao_normalization(trexio_file, ao_normalization)  #
+    trexio.write_ao_1e_int_overlap(trexio_file, S_matrix)
+    trexio.write_ao_1e_int_kinetic(trexio_file, T_matrix)
+    trexio.write_ao_1e_int_potential_n_e(trexio_file, H_matrix)
     ##########################################
     # mo info
     ##########################################
@@ -238,8 +246,6 @@ def orca_to_trexio(
 
         mo_spin_all += [spin for _ in range(mo_num)]
 
-        # mo reordering because mo_coeff[:,mo_i]!!
-        mo_coeff = [mo_coeff[:][mo_i] for mo_i in range(mo_num)]
 
         logger.debug(mo_num)
         logger.debug(len(mo_coeff))
