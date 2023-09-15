@@ -41,16 +41,35 @@ def orca_to_trexio(
     coord = []
     chemical_symbol_list = []
     atom_charges_list = []
+    ecp_charge_list = []
+    ecp_charge = 0
     elec_num = 0
     total_charge = data["Molecule"]["Charge"]
     multiplicity = data["Molecule"]["Multiplicity"]
+    has_ecp = []
     for i in range(natoms):
         atom = data["Molecule"]["Atoms"][i]
         coord.append(atom["Coords"])
         chemical_symbol_list.append(atom["ElementLabel"])
-        atom_charges_list.append(atom["NuclearCharge"])
         elec_num += atom["NuclearCharge"]
-    elec_num = elec_num - total_charge
+        try:
+            atom["ECPs"]
+            has_ecp.append(True)
+            N_core = atom["ECPs"]["N_core"]
+            ecp_charge_list.append(N_core)
+            ecp_charge += N_core
+        except:
+            has_ecp.append(False)
+        atom_charges_list.append(atom["NuclearCharge"])
+    elec_num = elec_num - total_charge - ecp_charge
+
+    # Check coordinate type
+    coord_type = data["Molecule"]["CoordinateUnits"]
+    coord = np.array(coord)
+    if coord_type == "Angs":
+        # Convert to Bohrs
+        for i in range(natoms):
+            coord[i] = 1.8897259886 * coord[i]
 
     # Assuming multiplicity = (elec_up - elec_dn) + 1
     electron_up_num = int((elec_num + multiplicity - 1)//2)
@@ -75,20 +94,25 @@ def orca_to_trexio(
     basis_shell_num = 0
     for i in range(nucleus_num):
         atom = data["Molecule"]["Atoms"][i]
-        nshells = len(atom["BasisFunctions"])
+        nshells = len(atom["Basis"])
         atom_nshells.append(nshells)
         shell_ids = []
         for k in range(nshells):
             shell_ids.append(i)
-            bas_angular.append(atom["BasisFunctions"][k]["Shell"])
-            bas_nprim.append(len(atom["BasisFunctions"][k]["Exponents"]))
-            bas_exp.append(atom["BasisFunctions"][k]["Exponents"])
-            bas_ctr_coeff.append(atom["BasisFunctions"][k]["Coefficients"])
+            bas_angular.append(atom["Basis"][k]["Shell"])
+            bas_nprim.append(len(atom["Basis"][k]["Exponents"]))
+            bas_exp.append(atom["Basis"][k]["Exponents"])
+            bas_ctr_coeff.append(atom["Basis"][k]["Coefficients"])
         atom_shell_ids.append(shell_ids)
-    S_matrix = np.array(data["Molecule"]["S-Matrix"])
-    T_matrix = np.array(data["Molecule"]["T-Matrix"])
-    H_matrix = np.array(data["Molecule"]["H-Matrix"])
-     ##########################################
+
+    try:
+        S_matrix = np.array(data["Molecule"]["S-Matrix"])
+        T_matrix = np.array(data["Molecule"]["T-Matrix"])
+        H_matrix = np.array(data["Molecule"]["H-Matrix"])
+        readS = True
+    except:
+        readS = False
+    ##########################################
     # basis set info
     ##########################################
     # check the orders of the spherical atomic basis in orca!!
@@ -148,7 +172,7 @@ def orca_to_trexio(
         expnt = basis_exponent[prim_i]
         l_num = shell_ang_mom[basis_shell_index[prim_i]]
         basis_prim_factor.append(
-            gto_norm(expnt, l_num, l_num, l_num)
+            gto_norm(expnt, l_num, 0, 0)
         )
 
     ##########################################
@@ -189,9 +213,11 @@ def orca_to_trexio(
     trexio.write_ao_num(trexio_file, ao_num)  #
     trexio.write_ao_shell(trexio_file, ao_shell)  #
     trexio.write_ao_normalization(trexio_file, ao_normalization)  #
-    trexio.write_ao_1e_int_overlap(trexio_file, S_matrix)
-    trexio.write_ao_1e_int_kinetic(trexio_file, T_matrix)
-    trexio.write_ao_1e_int_potential_n_e(trexio_file, H_matrix)
+    if readS:
+        trexio.write_ao_1e_int_overlap(trexio_file, S_matrix)
+        trexio.write_ao_1e_int_kinetic(trexio_file, T_matrix)
+        trexio.write_ao_1e_int_potential_n_e(trexio_file, H_matrix)
+
     ##########################################
     # mo info
     ##########################################
@@ -451,6 +477,76 @@ def orca_to_trexio(
     trexio.write_mo_occupation(trexio_file, mo_occupation_all)  #
 
     trexio.write_mo_spin(trexio_file, mo_spin_all)  #
+    ##########################################
+    # ECP
+    ##########################################
+    # internal format of ORCA
+    # See Manual 5.0.4 pg : 497
+    """
+    -------------
+    atom:
+      nelec  (number of core electrons)
+      lmax (max. angular momentum for Ul to indicate |l><l|)
+      [shells]
+        [Exp]
+        (exp_1)
+        (exp_2)
+        ...
+        [Coef]
+        (coef_1)
+        (coef_2)
+        ...
+        [Radial power r^p]
+        (p_1)
+        (p_2)
+        ...
+    ------------
+    """
+
+    ecp_num = 0
+    ecp_max_ang_mom_plus_1 = []
+    ecp_z_core = []
+    ecp_nucleus_index = []
+    ecp_ang_mom = []
+    ecp_coefficient = []
+    ecp_exponent = []
+    ecp_power = []
+    for i in range(nucleus_num):
+        if has_ecp[i]:
+            ecps = data["Molecule"]["Atoms"][i]["ECPs"]
+            ecp_z_core.append(ecps["N_core"])
+            ecp_max_ang_mom_plus_1.append(dict_ang_mom[ecps["lmax"]])
+            ecp_num += len(ecps["potential"])
+            ecp_nucleus_index.append(i)
+            for k in range(len(ecps["potential"])):
+                ecpi = ecps["potential"][k]["ecp"]
+                ecp_ang_mom.extend(dict_ang_mom[ecps["potential"][k]["Shell"]])
+                ecp_exponent.extend(ecpi[0])
+                ecp_coefficient.extend(ecpi[1])
+                ecp_power.extend(ecpi[2])
+
+
+        else:
+            # special case!! H and He.
+            # For the sake of clarity, here I put a dummy coefficient (0.0)
+            # for the ul-s part here.
+            ecp_num += 1
+            ecp_nucleus_index.append(i)
+            ecp_ang_mom.append(0)
+            ecp_coefficient.append(0.0)
+            ecp_exponent.append(1.0)
+            ecp_power.append(0)
+
+    # write to the trex file
+    trexio.write_ecp_num(trexio_file, ecp_num)
+    trexio.write_ecp_max_ang_mom_plus_1(trexio_file, ecp_max_ang_mom_plus_1)
+    trexio.write_ecp_z_core(trexio_file, ecp_z_core)
+    trexio.write_ecp_nucleus_index(trexio_file, ecp_nucleus_index)
+    trexio.write_ecp_ang_mom(trexio_file, ecp_ang_mom)
+    trexio.write_ecp_coefficient(trexio_file, ecp_coefficient)
+    trexio.write_ecp_exponent(trexio_file, ecp_exponent)
+    trexio.write_ecp_power(trexio_file, ecp_power)
+
 
     # close the TREX-IO file
     trexio_file.close()
