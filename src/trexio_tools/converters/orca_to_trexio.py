@@ -46,6 +46,7 @@ def orca_to_trexio(
     elec_num = 0
     total_charge = data["Molecule"]["Charge"]
     multiplicity = data["Molecule"]["Multiplicity"]
+    orbital_labels = data["Molecule"]["MolecularOrbitals"]["OrbitalLabels"]
     has_ecp = []
     for i in range(natoms):
         atom = data["Molecule"]["Atoms"][i]
@@ -84,6 +85,20 @@ def orca_to_trexio(
     trexio.write_nucleus_coord(trexio_file, coord)
     trexio.write_nucleus_charge(trexio_file, atom_charges_list)
     trexio.write_nucleus_label(trexio_file, chemical_symbol_list)
+    ##########################################
+    # basis set info
+    ##########################################
+    # check the orders of the spherical atomic basis in orca!!
+    # L, ml
+    # pz, px, py                    = (0,+1,-1)
+    # dz2, dxz, dyz, dx2y2, dxy     = (0,+1,-1,+2,-2)
+    # gto.spheric_labels(mol, fmt="%d, %s, %s, %s")
+    # ORCA ordering                      -- TREXIO ordering
+    # -----------------------------------------------------
+    # for s -> s                         -- trexio: (0)
+    # for p -> pz, px, py                -- trexio: (-1,0,1)
+    # for d -> dz2, dxz, dyz, dx2y2, dxy -- trexio: (-2, -1, 0, 1, 2)
+    # for l -> m=(0 -1 +1 -2 +2 ... -l +l) -- (-l, ..., 0, ..., +l)
     nucleus_num = natoms
     atom_nshells = []
     atom_shell_ids = []
@@ -112,15 +127,6 @@ def orca_to_trexio(
         readS = True
     except:
         readS = False
-    ##########################################
-    # basis set info
-    ##########################################
-    # check the orders of the spherical atomic basis in orca!!
-    # gto.spheric_labels(mol, fmt="%d, %s, %s, %s")
-    # for s -> s
-    # for p -> px, py, pz
-    # for l >= d -> m=(-l ... 0 ... +l)
-
     dict_ang_mom = dict()
     dict_ang_mom['s'] = 0
     dict_ang_mom['p'] = 1
@@ -156,7 +162,7 @@ def orca_to_trexio(
     basis_shell_factor = [1.0 for _ in range(basis_shell_num)]  # 1.0 in ORCA
 
     def gto_norm(alpha, ax, ay, az):
-        val = ((alpha + alpha)/np.pi)**(3/4)*((4*alpha)**((ax + ay + az)//2))/((scipy.special.factorial2(2*ax - 1) * \
+        val = ((alpha + alpha)/np.pi)**(3/4)*((4*alpha)**((ax + ay + az)/2))/((scipy.special.factorial2(2*ax - 1) * \
                                                                         scipy.special.factorial2(2*ay - 1) * \
                                                                         scipy.special.factorial2(2*az - 1)**(1/2)))
         return(val)
@@ -192,9 +198,9 @@ def orca_to_trexio(
     # ao info
     ##########################################
     # to be fixed!! for Victor case mol.cart is false, but the basis seems cartesian...
-    cart = True
+    cart = False
     if cart:
-        ao_cartesian = 99999
+        ao_cartesian = 1
     else:
         ao_cartesian = 0  # spherical basis representation
     ao_shell = []
@@ -413,7 +419,7 @@ def orca_to_trexio(
                     perm_list += list(np.array(reorder_index) + perm_n)
                     perm_n = perm_n + len(reorder_index)
 
-            mo_coefficient.append(mo_coeff_buffer)
+            mo_coefficient.append(mo)
             # permutation_matrix.append(perm_list)
 
         mo_coefficient_all += mo_coefficient
