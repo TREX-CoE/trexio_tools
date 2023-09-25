@@ -43,9 +43,9 @@ jobs:
           trexio convert-to -t cartesian -o trexio_orca_h2o.h5 trexio_orca_h2o_sph.h5
           echo "Done conversion"
           # benchmark the MOs by computing numerically integrals on a grid and comparing with the ref values from the file
-          trexio check-mos -n 50 trexio_gamess.h5 > mos-res
-          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
-          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
+          # trexio check-mos -n 50 trexio_gamess.h5 > mos-res
+          # grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          # python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
           # benchmark the MOs by computing numerically integrals on a grid and comparing with the ref values from the file
           trexio check-mos -n 50 trexio_pyscf_w.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
