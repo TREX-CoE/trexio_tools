@@ -49,3 +49,6 @@ converts data from the `GAMESS_CAS.log` output file of the GAMESS code
 (note also `-t gamess` argument) into the TREXIO file called `trexio_cas.hdf5`
 using `-b hdf5` back end of TREXIO. 
 
+converts data from the `ORCA.json` output file of the ORCA code
+into the TREXIO file called `trexio_cas.hdf5` using `-b hdf5` back end of TREXIO. 
+
