@@ -164,7 +164,7 @@ def orca_to_trexio(
     def gto_norm(alpha, ax, ay, az):
         val = ((alpha + alpha)/np.pi)**(3/4)*((4*alpha)**((ax + ay + az)/2))/((scipy.special.factorial2(2*ax - 1) * \
                                                                         scipy.special.factorial2(2*ay - 1) * \
-                                                                        scipy.special.factorial2(2*az - 1)**(1/2)))
+                                                                        scipy.special.factorial2(2*az - 1))**(1/2))
         return(val)
 
     # gto_norm(l, expnt) => l is angmom, expnt is exponent
@@ -509,49 +509,49 @@ def orca_to_trexio(
     ------------
     """
 
-    ecp_num = 0
-    ecp_max_ang_mom_plus_1 = []
-    ecp_z_core = []
-    ecp_nucleus_index = []
-    ecp_ang_mom = []
-    ecp_coefficient = []
-    ecp_exponent = []
-    ecp_power = []
-    for i in range(nucleus_num):
-        if has_ecp[i]:
-            ecps = data["Molecule"]["Atoms"][i]["ECPs"]
-            ecp_z_core.append(ecps["N_core"])
-            ecp_max_ang_mom_plus_1.append(dict_ang_mom[ecps["lmax"]])
-            ecp_num += len(ecps["potential"])
-            ecp_nucleus_index.append(i)
-            for k in range(len(ecps["potential"])):
-                ecpi = ecps["potential"][k]["ecp"]
-                ecp_ang_mom.extend(dict_ang_mom[ecps["potential"][k]["Shell"]])
-                ecp_exponent.extend(ecpi[0])
-                ecp_coefficient.extend(ecpi[1])
-                ecp_power.extend(ecpi[2])
+    #ecp_num = 0
+    #ecp_max_ang_mom_plus_1 = []
+    #ecp_z_core = []
+    #ecp_nucleus_index = []
+    #ecp_ang_mom = []
+    #ecp_coefficient = []
+    #ecp_exponent = []
+    #ecp_power = []
+    #for i in range(nucleus_num):
+    #    if has_ecp[i]:
+    #        ecps = data["Molecule"]["Atoms"][i]["ECPs"]
+    #        ecp_z_core.append(ecps["N_core"])
+    #        ecp_max_ang_mom_plus_1.append(dict_ang_mom[ecps["lmax"]])
+    #        ecp_num += len(ecps["potential"])
+    #        ecp_nucleus_index.append(i)
+    #        for k in range(len(ecps["potential"])):
+    #            ecpi = ecps["potential"][k]["ecp"]
+    #            ecp_ang_mom.extend(dict_ang_mom[ecps["potential"][k]["Shell"]])
+    #            ecp_exponent.extend(ecpi[0])
+    #            ecp_coefficient.extend(ecpi[1])
+    #            ecp_power.extend(ecpi[2])
 
 
-        else:
-            # special case!! H and He.
-            # For the sake of clarity, here I put a dummy coefficient (0.0)
-            # for the ul-s part here.
-            ecp_num += 1
-            ecp_nucleus_index.append(i)
-            ecp_ang_mom.append(0)
-            ecp_coefficient.append(0.0)
-            ecp_exponent.append(1.0)
-            ecp_power.append(0)
+    #    else:
+    #        # special case!! H and He.
+    #        # For the sake of clarity, here I put a dummy coefficient (0.0)
+    #        # for the ul-s part here.
+    #        ecp_num += 1
+    #        ecp_nucleus_index.append(i)
+    #        ecp_ang_mom.append(0)
+    #        ecp_coefficient.append(0.0)
+    #        ecp_exponent.append(1.0)
+    #        ecp_power.append(0)
 
-    # write to the trex file
-    trexio.write_ecp_num(trexio_file, ecp_num)
-    trexio.write_ecp_max_ang_mom_plus_1(trexio_file, ecp_max_ang_mom_plus_1)
-    trexio.write_ecp_z_core(trexio_file, ecp_z_core)
-    trexio.write_ecp_nucleus_index(trexio_file, ecp_nucleus_index)
-    trexio.write_ecp_ang_mom(trexio_file, ecp_ang_mom)
-    trexio.write_ecp_coefficient(trexio_file, ecp_coefficient)
-    trexio.write_ecp_exponent(trexio_file, ecp_exponent)
-    trexio.write_ecp_power(trexio_file, ecp_power)
+    ## write to the trex file
+    #trexio.write_ecp_num(trexio_file, ecp_num)
+    #trexio.write_ecp_max_ang_mom_plus_1(trexio_file, ecp_max_ang_mom_plus_1)
+    #trexio.write_ecp_z_core(trexio_file, ecp_z_core)
+    #trexio.write_ecp_nucleus_index(trexio_file, ecp_nucleus_index)
+    #trexio.write_ecp_ang_mom(trexio_file, ecp_ang_mom)
+    #trexio.write_ecp_coefficient(trexio_file, ecp_coefficient)
+    #trexio.write_ecp_exponent(trexio_file, ecp_exponent)
+    #trexio.write_ecp_power(trexio_file, ecp_power)
 
 
     # close the TREX-IO file
