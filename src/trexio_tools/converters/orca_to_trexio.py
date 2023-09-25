@@ -161,10 +161,17 @@ def orca_to_trexio(
     # normalization factors
     basis_shell_factor = [1.0 for _ in range(basis_shell_num)]  # 1.0 in ORCA
 
+    def my_factorial2(n):
+        if n < 0:
+            return(1)
+        else:
+            return(scipy.special.factorial2(n))
+
+
     def gto_norm(alpha, ax, ay, az):
-        val = ((alpha + alpha)/np.pi)**(3/4)*((4*alpha)**((ax + ay + az)/2))/((scipy.special.factorial2(2*ax - 1) * \
-                                                                        scipy.special.factorial2(2*ay - 1) * \
-                                                                        scipy.special.factorial2(2*az - 1))**(1/2))
+        val = ((alpha + alpha)/np.pi)**(3/4)*((4*alpha)**((ax + ay + az)/2))/((my_factorial2(2*ax - 1) * \
+                                                                        my_factorial2(2*ay - 1) * \
+                                                                        my_factorial2(2*az - 1))**(1/2))
         return(val)
 
     # gto_norm(l, expnt) => l is angmom, expnt is exponent
