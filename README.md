@@ -49,3 +49,16 @@ converts data from the `GAMESS_CAS.log` output file of the GAMESS code
 (note also `-t gamess` argument) into the TREXIO file called `trexio_cas.hdf5`
 using `-b hdf5` back end of TREXIO. 
 
+and,
+
+`trexio convert-from -t orca -i data/h2o.json -b hdf5 trexio_orca.hdf5`
+
+Note that since ORCA AOs and MOs are in spherical coordinates, one needs to convert
+these to cartesian to be able to use `trexio` functions.
+
+`trexio convert-to -t cartesian -o trexio_orca_cart.hdf5 trexio_orca.hdf5`
+
+converts data from the `h2o.json` output file of the ORCA code
+into the TREXIO file called `trexio_orca.hdf5` using `-b hdf5` back end of TREXIO
+followed by converting the spherical AOs and MOs to cartesian coordinates.
+

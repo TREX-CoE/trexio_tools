@@ -19,8 +19,8 @@ Options:
       -s, --back_end_from=BACK_END  [hdf5 | text | auto]  The input TREXIO back end.  [default: auto]
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
-      -t, --type=TYPE               [gaussian | gamess | pyscf | fcidump | molden | cartesian | FHI-aims ] File format.
-      -x, --motype=MO_TYPE          [natural | initial | guga-initial | guga-natural] The type of the molecular orbitals.
+      -t, --type=TYPE               [gaussian | gamess | pyscf | orca | fcidump | molden | cartesian ] File format.
+      -x, --motype=MO_TYPE          Type of the molecular orbitals. For example, GAMESS has RHF, MCSCF, GUGA, and Natural as possible MO types.
 """
 
 from docopt import docopt
