@@ -9,6 +9,8 @@
 
 import trexio
 import numpy as np
+from scipy.special import sph_harm, factorial
+
 from . import basis as trexio_basis
 
 ao_exponents_l_spher = [
@@ -89,9 +91,30 @@ def shell_to_ao(ao, ao_ind, r, shell_rad, m):
 
     dr = np.sqrt(dx**2 + dy**2 + dz**2)
     exps = ao["ao_exponents"][ao_ind]
-    angle_part = dx**exps[0] * dy**exps[1] * dz**exps[2]
+    # Angular part for cartesian polynomials
+    angle_part = dx**exps[0] * dy**exps[1] * dz**exps[2] * dr**-l
+    ret = shell_rad * angle_part * ao_norms[ao_ind]
 
-    if ao["cartesian"] == 0: # Some spherical harmonics need special treatment
+    if ao["cartesian"] == 0: # Spherical harmonics are taken from scipy
+        # Note that scipy switches theta and phi from their definition 
+        # in this code
+        theta = np.arccos(dz/dr)
+        phi = np.sign(dy)*np.arccos(dx/(dx**2+dy**2)**(0.5))
+        #print(dx, dy, dz, dr, theta, phi)
+
+        tmp = sph_harm(np.abs(m), l, theta, theta)
+        tmp2 = tmp
+        if m == 0:
+            tmp = np.real(tmp)
+        if m < 0:
+            tmp = np.sqrt(2)*(-1)**m*np.imag(tmp)
+        if m > 0:
+            tmp = np.sqrt(2)*(-1)**m*np.real(tmp)
+
+        tmp *= np.sqrt(factorial(l-np.abs(m))/factorial(l+np.abs(m)))
+
+        tmp *= 2*(np.pi)**0.5 * (2*l+1)**-0.5
+
         if l == 2:
             if m == 0: # d_z^2
                 angle_part = 3*angle_part - dr**2
@@ -129,9 +152,12 @@ def shell_to_ao(ao, ao_ind, r, shell_rad, m):
                 angle_part = dx*(dx**2-3*dy**2)*dz
             elif m == 4:
                 angle_part = dx**2*(dx**2 - 3*dy**2) - dy**2*(3*dx**2 - dy**2)
-        # Everything above g is not implemented
+        #if l == 0:
+        #    print(l, m, tmp, angle_part)
+        angle_part = tmp
 
-    ret = shell_rad * angle_part * ao_norms[ao_ind] * (dr**-l)
+        ret = shell_rad * angle_part
+
     return ret
 
 def value(ao,r):
