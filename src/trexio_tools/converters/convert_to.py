@@ -464,7 +464,7 @@ def run_cart_phe(inp, filename, to_cartesian):
     # Update shell factors
     """
     Although d_z^2 is the reference for both sphe and cart,
-    the orbital equation is different -> shell_factor must be adapted
+    the actual definition of said orbital is different -> shell_factor must be adapted
     """
     if trexio.has_basis_shell_factor(inp) and trexio.has_basis_shell_ang_mom(inp):
         shell_fac = trexio.read_basis_shell_factor(inp)
@@ -477,6 +477,21 @@ def run_cart_phe(inp, filename, to_cartesian):
             elif l[i] == 4:
                 shell_fac[i] *= 8
         trexio.write_basis_shell_factor(out, shell_fac)
+
+    """
+    If spherical harmonics are used for the angular part, radial and angular
+    coordinates are completely seperated. The cartesian polynomials, however,
+    mix radial and angular coordinates. Thus, r_power needs to be adapted to cancel
+    out the radial dependence of the the polynomials.
+    """
+    r_power = trexio.read_basis_r_power(inp)
+    r_power_sign = -1
+    if to_cartesian == 0:
+        r_power_sign = +1
+    for i, ang_mom in enumerate(shell_ang_mom):
+        r_power[i] = ang_mom * r_power_sign
+
+    trexio.write_basis_r_power(out, r_power)
 
     #trexio.write_ao_normalization(out, cart_normalization)
 
