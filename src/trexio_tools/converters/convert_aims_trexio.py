@@ -831,32 +831,7 @@ def load_2e_integrals_ao(trexfile, dirpath, orb_cnt, orbital_indices,
             if np.fabs(val) < two_e_integral_threshold:
                 continue
 
-            if not symmetry:
-                handle_2e_integral(sparse_data, indices, val, g_mat, density, restricted, mo=False)
-            else:
-                # Permute indices and handle individually
-                # All orbitals are real, so the symmetry is eightfold
-                # But filter out duplicates
-                permutations = [
-                    [0, 1, 2, 3], # i j k l
-                    [1, 0, 3, 2], # j i l k
-                    [2, 3, 0, 1], # k l i j
-                    [3, 2, 1, 0], # l k j i
-                    [2, 1, 0, 3], # k j i l
-                    [3, 0, 1, 2], # l i j k
-                    [0, 3, 2, 1], # i l k j
-                    [1, 2, 3, 0]  # j k l i
-                ]
-                found_permutations = []
-                for perm in permutations:
-                    hash = ((indices[perm[0]]*orb_cnt + indices[perm[1]])\
-                             *orb_cnt + indices[perm[2]])*orb_cnt \
-                             + indices[perm[3]]
-                    if hash in found_permutations:
-                        continue
-                    found_permutations.append(hash)
-                    p_indices = [indices[perm[0]], indices[perm[1]], indices[perm[2]], indices[perm[3]]]
-                    handle_2e_integral(sparse_data, p_indices, val, g_mat, density, restricted, mo=False)
+            handle_2e_integral(sparse_data, indices, val, g_mat, density, restricted, mo=False)
 
         # Flush the remaining integrals if there are any
         sparse_data.write_batch()
@@ -906,34 +881,8 @@ def load_2e_integrals_mo(trexfile, dirpath, orb_cnt, calculate_g=False,
             if np.fabs(val) < two_e_integral_threshold:
                 continue
 
-            if not symmetry:
-                handle_2e_integral(sparse_data, indices, val, g_mat, density, 
-                                   restricted, mo=True)
-            else:
-                # Permute indices and handle individually
-                # All orbitals are real, so the symmetry is eightfold
-                # But filter out duplicates
-                permutations = [
-                    [0, 1, 2, 3], # i j k l
-                    [1, 0, 3, 2], # j i l k
-                    [2, 3, 0, 1], # k l i j
-                    [3, 2, 1, 0], # l k j i
-                    [2, 1, 0, 3], # k j i l
-                    [3, 0, 1, 2], # l i j k
-                    [0, 3, 2, 1], # i l k j
-                    [1, 2, 3, 0]  # j k l i
-                ]
-                found_permutations = []
-                for perm in permutations:
-                    hash = ((indices[perm[0]]*orb_cnt + indices[perm[1]])\
-                             *orb_cnt + indices[perm[2]])*orb_cnt \
-                             + indices[perm[3]]
-                    if hash in found_permutations:
-                        continue
-                    found_permutations.append(hash)
-                    p_indices = [indices[perm[0]], indices[perm[1]], indices[perm[2]], indices[perm[3]]]
-                    handle_2e_integral(sparse_data, p_indices, val, g_mat, 
-                                       density, restricted, mo=True)
+            handle_2e_integral(sparse_data, indices, val, g_mat, density, 
+                               restricted, mo=True)
 
         # Flush the remaining integrals if there are any
         sparse_data.write_batch()
