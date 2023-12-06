@@ -51,13 +51,8 @@ def run_fcidump(trexfile, filename):
             spins = trexio.read_mo_spin(trexfile)
 
         if trexio.has_mo_class(trexfile):
-        #if True:
             n_act = 0
             n_core = 0
-            #n_c = 3
-            #classes = np.array(["core"]*n_c)
-            #classes = np.append(classes, ["active"]*(mo_num - n_c))
-            #print(classes)
             classes = trexio.read_mo_class(trexfile)
             # Id of an active orbital among the other active orbs
             # -1 means core, -2 means deleted
@@ -102,48 +97,22 @@ def run_fcidump(trexfile, filename):
         out_index = np.array([i+1 for i in range(n_act)])
 
         # If the orbitals are spin-dependent, the order alpha-beta-alpha-beta...
-        # is preferred
+        # should be used for ouput (as it is expected e.g. by NECI)
         if ms2 != 0 and not spins is None:
-            # Check if the current orbital order needs to be switched at all
-            flag = True
+            # Check if the current order is alpha-alpha...beta-beta
+            must_switch = False
             up = spins[0]
             for n, spin in enumerate(spins):
                 # Check whether first half of orbitals is up, second is down
                 if not (n < len(spins) // 2 and spin == up \
                         or n >= len(spins) // 2 and spin != up):
-                    flag = False
+                    must_switch = True
                     break
 
-            if flag:
+            if must_switch:
                 # If the desired pattern is detected, interleave spins
-                active_up = 0
-                # It is assumed that the initial number of up and down orbitals is equal
-                for iup in range(len(spins) // 2):
-                    if orb_ids[iup] > -1:
-                        out_index[active_up] = 1 + 2*active_up
-                        active_up += 1
-
-                active_dn = 0
-                for idn in range(len(spins) // 2, len(spins)):
-                    if orb_ids[idn] > -1:
-                        out_index[active_up + active_dn] = 2 + 2*active_dn
-                        active_dn += 1
-
-                # This works if there were no core holes
-                #out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) + 1 for i in range(n_act)])
-
-        print(orb_ids)
-        print(out_index)
-
-        #print(orb_ids, act_ids, out_index)
-        #orb_ids = orb_ids - 1
-        #orb_ids[0] = -2
-        #act_ids = act_ids[1:]
-        #n_act -= 1
-        #out_index = out_index[1:] - 1
-        #print(orb_ids, act_ids, out_index)
-
-        #print(out_index)
+                # The (1-n_act) term sets back the beta orbitals by the number of alpha orbitals
+                out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) + 1 for i in range(n_act)])
 
         fcidump_threshold = 1e-10
         int3 = np.zeros((n_act, n_act, 2), dtype=float)
@@ -230,7 +199,6 @@ def run_fcidump(trexfile, filename):
                 jj = act_ids[j]
                 for i in range(n_act):
                     ii = act_ids[i]
-                    # TODO spin polarization
                     int3[i, j, 0] = core_ham[ii, jj] + occupation*int3[i, j, 0] - int3[i, j, 1]
 
             for a in range(n_act):
@@ -247,7 +215,6 @@ def run_fcidump(trexfile, filename):
                     core += occupation*core_ham[i, i]
                     for j in range(mo_num):
                         if orb_ids[j] == -1:
-                            # TODO spin polarization
                             core += occupation*int2[i, j, 0] - int2[i, j, 1]
 
             print(core, 0, 0, 0, 0, file=ofile)
