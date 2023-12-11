@@ -382,40 +382,26 @@ def run_cart_phe(inp, filename, to_cartesian):
     count_cart = 0
     accu = []
     shell = []
-    # This code iterates over all shells, should do in the order they are in ao_shells
-    # It is assumed that all aos corresponding to one shell are contiguous in ao_shells
-    if not trexio.has_ao_shell(inp):
-      for i, l in enumerate(shell_ang_mom):
-        p, r = count_cart, count_sphe
-        (x,y) = cart_sphe.data[l].shape
-        count_cart += x
-        count_sphe += y
-        q, s = count_cart, count_sphe
-        accu.append( (l, p,q, r,s) )
-        if to_cartesian != 0: n = x
-        else: n = y
-        for _ in range(n):
-            shell.append(i)
-    else:
-        ao_shell = trexio.read_ao_shell(inp)
-        i = 0
-        while i < len(ao_shell):
-          she = ao_shell[i]
-          l = shell_ang_mom[she]
-          p, r = count_cart, count_sphe
-          (x,y) = cart_sphe.data[l].shape
-          count_cart += x
-          count_sphe += y
-          q, s = count_cart, count_sphe
-          accu.append( (l, p,q, r,s) )
-          if to_cartesian != 0:
-              n = x
-              i += y
-          else:
-              n = y
-              i += x
-          for _ in range(n):
-              shell.append(she)
+    # This code iterates over all shells, and should do it in the order they are in ao_shells
+    ao_shell = trexio.read_ao_shell(inp)
+    i = 0
+    while i < len(ao_shell):
+      she = ao_shell[i]
+      l = shell_ang_mom[she]
+      p, r = count_cart, count_sphe
+      (x,y) = cart_sphe.data[l].shape
+      count_cart += x
+      count_sphe += y
+      q, s = count_cart, count_sphe
+      accu.append( (l, p,q, r,s) )
+      if to_cartesian != 0:
+          n = x
+          i += y
+      else:
+          n = y
+          i += x
+      for _ in range(n):
+          shell.append(she)
 
     cart_normalization = np.ones(count_cart)
     R = np.zeros( (count_cart, count_sphe) )

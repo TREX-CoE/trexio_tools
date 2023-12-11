@@ -18,6 +18,7 @@ try:
           raise Exception(
             "One-electron overlap integrals are missing in the TREXIO file. Required for check-basis."
             )
+
         trexio_filename = trexio_file.filename
         context = qmckl.context_create()
         qmckl.trexio_read(context, trexio_filename)
@@ -91,7 +92,6 @@ except ImportError:
         rmin = np.array( list([ np.min(nucleus["coord"][:,a]) for a in range(3) ]) )
         rmax = np.array( list([ np.max(nucleus["coord"][:,a]) for a in range(3) ]) )
 
-        # TODO Extension of NAO is finite -> use this
         shift = np.array([8.,8.,8.])
         linspace = [ None for i in range(3) ]
         step = [ None for i in range(3) ]
