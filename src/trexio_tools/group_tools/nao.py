@@ -108,14 +108,13 @@ def shell_to_ao(ao, ao_ind, r, shell_rad, m):
 
         shell_rad /= l_factor[l]
 
-        tmp = sph_harm(np.abs(m), l, phi, theta)
-        tmp2 = tmp
+        angle_part = sph_harm(np.abs(m), l, phi, theta)
         if m == 0:
-            tmp = np.real(tmp)
+            angle_part = np.real(angle_part)
         if m < 0:
-            tmp = np.sqrt(2)*(-1)**m*np.imag(tmp)
+            angle_part = np.sqrt(2)*(-1)**m*np.imag(angle_part)
         if m > 0:
-            tmp = np.sqrt(2)*(-1)**m*np.real(tmp)
+            angle_part = np.sqrt(2)*(-1)**m*np.real(angle_part)
 
         # ao_norm is handled by scipy
         ret = shell_rad * angle_part
