@@ -13,16 +13,6 @@ from scipy.special import sph_harm, factorial
 
 from . import basis as trexio_basis
 
-ao_exponents_l_spher = [
-    [[0, 0, 0]],
-    [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-    [[0, 0, 2], [1, 0, 1], [0, 1, 1], [2, 0, 0], [1, 1, 0]],
-    [[0, 0, 3], [1, 0, 2], [0, 1, 2], [2, 0, 1],
-     [1, 1, 1], [3, 0, 0], [2, 1, 0]],
-    [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], 
-     [0, 0, 0], [0, 0, 0], [0, 0, 0]] # too complicated
-]
-
 ao_exponents_l_cart = []
 #    [[0, 0, 0]],
 #    [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
@@ -47,10 +37,8 @@ def read(trexio_file):
     r["factor"]    = trexio.read_ao_normalization(trexio_file)
     r["cartesian"]    = trexio.read_ao_cartesian(trexio_file)
 
-    ao_exponents_l = ao_exponents_l_spher
-
-    if r["cartesian"] == 1:
-        ao_exponents_l = ao_exponents_l_cart
+    # Since this varibale is not used for spherical harmonics, this is fine
+    ao_exponents_l = ao_exponents_l_cart
 
     ao_num = r["num"]
     basis = r["basis"]
