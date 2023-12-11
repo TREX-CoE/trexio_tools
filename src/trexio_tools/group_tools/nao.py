@@ -9,6 +9,8 @@
 
 import trexio
 import numpy as np
+from scipy.special import sph_harm, factorial
+
 from . import basis as trexio_basis
 
 ao_exponents_l_spher = [
@@ -88,50 +90,36 @@ def shell_to_ao(ao, ao_ind, r, shell_rad, m):
     dz = r[2] - nuc_coords[2]
 
     dr = np.sqrt(dx**2 + dy**2 + dz**2)
-    exps = ao["ao_exponents"][ao_ind]
-    angle_part = dx**exps[0] * dy**exps[1] * dz**exps[2]
+    if ao["cartesian"] == 1:
+        exps = ao["ao_exponents"][ao_ind]
+        angle_part = dx**exps[0] * dy**exps[1] * dz**exps[2] * dr**-l
+        ret = shell_rad * angle_part * ao_norms[ao_ind]
+    else:
+        theta = np.arccos(dz/dr)
+        phi = np.sign(dy)*np.arccos(dx/(dx**2+dy**2)**(0.5))
 
-    if ao["cartesian"] == 0: # Some spherical harmonics need special treatment
-        if l == 2:
-            if m == 0: # d_z^2
-                angle_part = 3*angle_part - dr**2
-            elif m == 2: # d_x^2-y^2
-                angle_part -= dy**2
-        elif l == 3:
-            if m == 0: 
-                angle_part = 5*angle_part - 3*dz*dr**2
-            elif m == 1: 
-                angle_part = 5*angle_part - dx*dr**2
-            elif m == -1: 
-                angle_part = 5*angle_part - dy*dr**2
-            elif m == 2: 
-                angle_part = angle_part - dy**2*dz
-            elif m == 3:
-                angle_part = angle_part - 3*dx*dy**2
-            elif m == -3:
-                angle_part = 3*angle_part - dy**3
-        elif l == 4:
-            if m == -4: 
-                angle_part = dx*dy*(dx**2-dy**2)
-            elif m == -3:
-                angle_part = dy*(3*dx**2-dy**2)*dz
-            elif m == -2:
-                angle_part = dx*dy*(7*dz**2-dr**2)
-            elif m == -1:
-                angle_part = dy*(7*dz**3 - 3*dz*dr**2)
-            elif m == 0:
-                angle_part = 35*dz**4 - 30*dz**2*dr**2 + 3*dr**4
-            elif m == 1:
-                angle_part = dx*(7*dz**3 - 3*dz*dr**2)
-            elif m == 2:
-                angle_part = (dx**2 - dy**2) * (7*dz**2 - dr**2)
-            elif m == 3:
-                angle_part = dx*(dx**2-3*dy**2)*dz
-            elif m == 4:
-                angle_part = dx**2*(dx**2 - 3*dy**2) - dy**2*(3*dx**2 - dy**2)
-        # Everything above g is not implemented
+        # Convert from Gamess convetion to FHI-aims convention (each radial
+        # function is normalized with an s-orbital) since it is more
+        # convenient here
+        l_factor = [1, 1, 2, 2, 8, 8, 16, 16, 128, 128, 256]
+        l_factor = np.sqrt(np.array([
+            (2*l + 1) / l_factor[l]**2 for l in range(11)
+            ]) * (1/np.pi))/2
 
-    ret = shell_rad * angle_part * ao_norms[ao_ind] * (dr**-l)
+        shell_rad /= l_factor[l]
+
+        tmp = sph_harm(np.abs(m), l, phi, theta)
+        tmp2 = tmp
+        if m == 0:
+            tmp = np.real(tmp)
+        if m < 0:
+            tmp = np.sqrt(2)*(-1)**m*np.imag(tmp)
+        if m > 0:
+            tmp = np.sqrt(2)*(-1)**m*np.real(tmp)
+
+        # ao_norm is handled by scipy
+        ret = shell_rad * angle_part
+
     return ret
 
 def value(ao,r):
@@ -160,7 +148,7 @@ def value(ao,r):
     ao_shell        = ao["shell"]
 
     amplitudes = trexio.evaluate_nao_radial_all(nucleus_index, coord, 
-                                      nao_grid_start, nao_grid_size, nao_grid_r, interpolator, shell_factor, r)
+        nao_grid_start, nao_grid_size, nao_grid_r, interpolator, shell_factor, r)
 
     ao_amp = np.zeros(ao_num, dtype=float)
     last_shell = ao_shell[0]
