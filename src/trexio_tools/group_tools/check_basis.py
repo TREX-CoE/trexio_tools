@@ -81,10 +81,13 @@ except ImportError:
             "One-electron overlap integrals are missing in the TREXIO file. Required for check-basis."
             )
 
+        print(trexio.read_basis_type(trexio_file))
+        if trexio.read_basis_type(trexio_file) == "Numerical":
+            from . import nao as trexio_ao
         ao = trexio_ao.read(trexio_file)
         basis = ao["basis"]
         nucleus = basis["nucleus"]
-        assert basis["type"] == "Gaussian"
+        assert basis["type"] == "Gaussian" or basis["type"] == "Numerical"
 
         rmin = np.array( list([ np.min(nucleus["coord"][:,a]) for a in range(3) ]) )
         rmax = np.array( list([ np.max(nucleus["coord"][:,a]) for a in range(3) ]) )
@@ -97,8 +100,10 @@ except ImportError:
 
         print("Integration steps:", step)
         dv = step[0]*step[1]*step[2]
+        ao_num = ao["num"]
 
-        S = np.zeros( [ ao["num"], ao["num"]] )
+        S = np.zeros( [ ao_num, ao_num ] )
+
         for x in linspace[0]:
           #print(".",end='',flush=True)
           for y in linspace[1]:
@@ -108,7 +113,6 @@ except ImportError:
         print()
 
         S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
-        ao_num = ao["num"]
 
         # This produces a lot of output for large molecules, maybe wrap up in ``if debug`` statement ?
         for i in range(ao_num):
@@ -117,5 +121,6 @@ except ImportError:
         S_diff = S - S_ex
         print("Norm of the error: %f"%(np.linalg.norm(S_diff)))
 
-
-
+        print("Diagonal entries:")
+        for i in range(ao_num):
+            print("%3d %15f"%(i,S[i][i]))

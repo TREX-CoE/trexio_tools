@@ -5,7 +5,7 @@ Set of tools to interact with trexio files.
 Usage:
       trexio check-basis      [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio check-mos        [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
-      trexio convert-to       -t TYPE -o OUTPUT_FILE        TREXIO_FILE
+      trexio convert-to       -t TYPE -o OUTPUT_FILE [-y SPIN_ORDER]  TREXIO_FILE
       trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END]  [-x MO_TYPE]  TREXIO_FILE
       trexio convert-backend  -i INPUT_FILE  -o OUTPUT_FILE  -b BACK_END  -j TREX_JSON_FILE  [-s BACK_END_FROM]  [-w OVERWRITE]
       trexio (-h | --help)
@@ -21,6 +21,7 @@ Options:
       -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
       -t, --type=TYPE               [gaussian | gamess | pyscf | orca | fcidump | molden | cartesian ] File format.
       -x, --motype=MO_TYPE          Type of the molecular orbitals. For example, GAMESS has RHF, MCSCF, GUGA, and Natural as possible MO types.
+      -y, --spin_order=TYPE         [block | interleave] How to organize spin orbitals when converting to FCIDUMP [default: block]
 """
 
 from docopt import docopt
@@ -95,7 +96,7 @@ def main(filename=None, args=None):
 
     elif args["convert-to"]:
         from .converters.convert_to import run
-        run(args["TREXIO_FILE"], args["--output"], args["--type"])
+        run(args["TREXIO_FILE"], args["--output"], args["--type"], args["--spin_order"])
 
     elif args["convert-backend"]:
         from .converters.convert_back_end import run
