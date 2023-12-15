@@ -466,7 +466,6 @@ def run_cart_phe(inp, filename, to_cartesian):
     
     trexio.write_ao_normalization(out, cart_normalization)
 
-    # Update shell factors
     """
     Although d_z^2 is the reference for both sphe and cart,
     the actual definition of said orbital is different -> shell_factor must be adapted
@@ -501,10 +500,7 @@ def run_cart_phe(inp, filename, to_cartesian):
 
     trexio.write_basis_r_power(out, r_power)
 
-    #trexio.write_ao_normalization(out, cart_normalization)
-
     R_norm_inv = np.array(R)
-    normalization = np.ones((len(normalization,)))
 
     # Update MOs
     if trexio.has_mo_coefficient(inp):
@@ -559,12 +555,9 @@ def run_cart_phe(inp, filename, to_cartesian):
       trexio.write_ao_1e_int_core_hamiltonian(out, R_norm_inv @ X @ R_norm_inv.T)
 
     # Remove 2e integrals: too expensive to transform
-    if trexio.has_ao_2e_int_eri(inp):
+    if trexio.has_ao_2e_int(inp):
       print("Warning: Two-electron integrals are not converted")
       trexio.delete_ao_2e_int(out)
-
-    if trexio.has_ao_2e_int_eri_lr(inp):
-      trexio.delete_ao_2e_int_eri(out)
 
 
 def run_normalized_aos(t, filename):
