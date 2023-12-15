@@ -16,16 +16,19 @@ except:
     sys.exit(1)
 
 """
-Basic converter from trexio to fcidump
+Converter from trexio to fcidump
 Symmetry labels are not included
 
 Written by Johannes Günzl, TU Dresden 2023
 """
-def run_fcidump(trexfile, filename):
+def run_fcidump(trexfile, filename, spin_order):
     # The Fortran implementation takes i_start and i_end as arguments; here,
     # whether an orbital is active is taken from the field in the file
     # Active orbitals are carried over as-is, core orbitals are incorporated
     # into the integrals; all others are deleted
+
+    if not spin_order in ["block", "interleave"]:
+        raise ValueError("Supported spin_order options: block (default), interleave")
 
     with open(filename, "w") as ofile:
         if not trexio.has_mo_num(trexfile):
@@ -98,21 +101,37 @@ def run_fcidump(trexfile, filename):
 
         # If the orbitals are spin-dependent, the order alpha-beta-alpha-beta...
         # should be used for ouput (as it is expected e.g. by NECI)
-        if ms2 != 0 and not spins is None:
+        if not spins is None and not np.all(spins == spins[0]):
+            current_spin_order = "none"
             # Check if the current order is alpha-alpha...beta-beta
-            must_switch = False
             up = spins[0]
             for n, spin in enumerate(spins):
                 # Check whether first half of orbitals is up, second is down
                 if not (n < len(spins) // 2 and spin == up \
                         or n >= len(spins) // 2 and spin != up):
-                    must_switch = True
                     break
+                current_spin_order = "block"
 
-            if must_switch:
-                # If the desired pattern is detected, interleave spins
-                # The (1-n_act) term sets back the beta orbitals by the number of alpha orbitals
-                out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) + 1 for i in range(n_act)])
+            if current_spin_order == "none":
+                for n, spin in enumerate(spins):
+                    if not (n % 2 == 0 and spin == up \
+                            or n % 2 == 1 and spin != up):
+                        break
+                    current_spin_order = "interleave"
+
+            if current_spin_order == "none":
+                print("WARNING: Spin order within the TREXIO file was not recognized.", \
+                        "The order will be kept as-is.")
+
+            if not current_spin_order == spin_order:
+                print("WARNING: The order of spin orbitals will be changed as requested.", \
+                        "This might break compatibility with other data in the TREXIO file, " \
+                        "e.g. CI determinant information")
+                if current_spin_order == "block" and spin_order == "interleave":
+                    # The (1-n_act) term sets back the beta orbitals by the number of alpha orbitals
+                    out_index = np.array([2*i + (1 - n_act)*(i // (n_act // 2)) + 1 for i in range(n_act)])
+                elif current_spin_order == "interleave" and spin_order == "block":
+                    out_index = np.array((i%2)*(n_act // 2) + i // 2 + 1 for i in range(n_act))
 
         fcidump_threshold = 1e-10
         int3 = np.zeros((n_act, n_act, 2), dtype=float)
@@ -576,7 +595,7 @@ def run_spherical(t, filename):
     return
 
 
-def run(trexio_filename, filename, filetype):
+def run(trexio_filename, filename, filetype, spin_order):
 
     trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_AUTO)
 
@@ -591,7 +610,7 @@ def run(trexio_filename, filename, filetype):
 #    elif filetype.lower() == "gamess":
 #        run_resultsFile(trexio_file, filename)
     elif filetype.lower() == "fcidump":
-        run_fcidump(trexio_file, filename)
+        run_fcidump(trexio_file, filename, spin_order)
 #    elif filetype.lower() == "molden":
     else:
         raise NotImplementedError(f"Conversion from TREXIO to {filetype} is not supported.")
