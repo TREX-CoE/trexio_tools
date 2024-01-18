@@ -7,4 +7,4 @@ docopt
 # It is quite a heavy package with a lot of functionalities which
 # you may not need
 
-pyscf
+pyscf==2.3.0
