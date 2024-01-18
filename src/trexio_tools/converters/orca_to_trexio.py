@@ -161,6 +161,9 @@ def orca_to_trexio(
     # normalization factors
     basis_shell_factor = [1.0 for _ in range(basis_shell_num)]  # 1.0 in ORCA
 
+    # power of r is always zero for Gaussian functions
+    basis_r_power = [0.0 for _ in range(basis_shell_num) ]
+
     def my_factorial2(n):
         if n < 0:
             return(1)
@@ -197,6 +200,7 @@ def orca_to_trexio(
     trexio.write_basis_nucleus_index(trexio_file, nucleus_index)  #
     trexio.write_basis_shell_ang_mom(trexio_file, shell_ang_mom)  #
     trexio.write_basis_shell_factor(trexio_file, basis_shell_factor)  #
+    trexio.write_basis_r_power(trexio_file, basis_r_power)  #
     trexio.write_basis_shell_index(trexio_file, basis_shell_index)  #
     trexio.write_basis_exponent(trexio_file, basis_exponent)  #
     trexio.write_basis_coefficient(trexio_file, basis_coefficient)  #

@@ -222,6 +222,9 @@ def pyscf_to_trexio(
         # normalization factors
         basis_shell_factor = [1.0 for _ in range(basis_shell_num)]  # 1.0 in pySCF
 
+        # power of r is always zero for Gaussian functions
+        basis_r_power = [0.0 for _ in range(basis_shell_num) ]
+
         # gto_norm(l, expnt) => l is angmom, expnt is exponent
         # Note!! Here, the normalization factor of the spherical part
         # are not included. The normalization factor is computed according
@@ -507,6 +510,7 @@ def pyscf_to_trexio(
         trexio.write_basis_prim_num(trexio_file, basis_prim_num)  #
         trexio.write_basis_nucleus_index(trexio_file, nucleus_index)  #
         trexio.write_basis_shell_ang_mom(trexio_file, shell_ang_mom)  #
+        trexio.write_basis_r_power(trexio_file, basis_r_power)  #
         trexio.write_basis_shell_factor(trexio_file, basis_shell_factor)  #
         trexio.write_basis_shell_index(trexio_file, basis_shell_index)  #
         trexio.write_basis_exponent(trexio_file, basis_exponent)  #
