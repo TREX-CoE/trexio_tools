@@ -202,7 +202,7 @@ def run_resultsFile(trexio_file, filename, motype=None):
     trexio.write_basis_prim_factor(trexio_file,prim_factor)
 
     # For Gaussian basis sets, basis_r_power is zero
-    basis_r_power = [0.0 for _ in range(basis_shell_num) ]
+    basis_r_power = [0.0 for _ in range(shell_num) ]
     trexio.write_basis_r_power(trexio_file,basis_r_power)
 
     # AO
