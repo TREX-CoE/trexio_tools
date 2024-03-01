@@ -272,11 +272,11 @@ def run_molden(t, filename):
         coefficient = trexio.read_basis_coefficient(t)
         prim_factor = trexio.read_basis_prim_factor(t)
 
-#        # For Gaussian basis sets, basis_r_power is zero by default
-#        if trexio.has_basis_r_power(trexio_file):
-#            basis_r_power = trexio.read_basis_r_power(trexio_file)
-#        else:
-#            basis_r_power = [0.0 for _ in range(basis_shell_num) ]
+        # For Gaussian basis sets, basis_r_power is zero by default
+        if trexio.has_basis_r_power(trexio_file):
+            basis_r_power = trexio.read_basis_r_power(trexio_file)
+        else:
+            basis_r_power = [0.0 for _ in range(basis_shell_num) ]
 
         contr = [ { "exponent"      : [],
                     "coefficient"   : [],
