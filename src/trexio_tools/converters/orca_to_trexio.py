@@ -136,7 +136,7 @@ def orca_to_trexio(
     dict_ang_mom['h'] = 5
     dict_ang_mom['i'] = 6
 
-    basis_type = "Gaussian"  # thanks anthony!
+    basis_type = "Gaussian"
     basis_shell_num = int(np.sum([atom_nshells[i] for i in range(nucleus_num)]))
     nucleus_index = []
     for i in range(nucleus_num):
