@@ -34,7 +34,15 @@ def orca_to_trexio(
     except:
         print(f"File {filename} does not exist.")
 
-    trexio_file = trexio.File(filename, mode='w', back_end=trexio.TREXIO_HDF5)
+    # trexio back end handling
+    if back_end.lower() == "hdf5":
+        trexio_back_end = trexio.TREXIO_HDF5
+    elif back_end.lower() == "text":
+        trexio_back_end = trexio.TREXIO_TEXT
+    else:
+        raise NotImplementedError(f"{back_end} back-end is not supported.")
+
+    trexio_file = trexio.File(filename, mode='w', back_end=trexio_back_end)
 
     natoms = len(data["Molecule"]["Atoms"])
     #print(f"Natoms={natoms}")
