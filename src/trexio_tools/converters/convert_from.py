@@ -416,6 +416,15 @@ def run_resultsFile(filename, trexio_filename, motype=None, back_end=trexio.TREX
         trexio.write_state_label(trexio_file, [f"state{i}" for i in range(res.num_states)])
         trexio.write_state_file_name(trexio_file, [f"{trexio_basename}_state_{i}.hdf5" for i in range(res.num_states)])
 
+        # CSF group
+        # ---------
+        try:
+            num_csfs = len(res.csf_coefficients[s])
+        except:
+            num_csfs = len(res.det_coefficients[0])
+
+        offset_file = 0
+        trexio.write_csf_coefficient(trexio_file, offset_file, num_csfs, res.csf_coefficients[s])
 
         # Determinants
         # ---------
