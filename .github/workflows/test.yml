@@ -41,7 +41,7 @@ jobs:
           trexio convert-from -t pyscf     -i data/water.chk            -b hdf5  trexio_pyscf_h2o_sph.hdf5
           trexio convert-from -t pyscf     -i data/diamond_single_k.chk -b hdf5  trexio_pyscf_1k.hdf5
           trexio convert-from -t pyscf     -i data/diamond_k_grid.chk   -b hdf5  trexio_pyscf_Nk.hdf5
-          trexio convert-from -t orca      -i data/h2o.json             -b hdf5  trexio_orca_h2o_sph.hdf5
+          trexio convert-from -t orca      -i data/h2o.json             trexio_orca_h2o_sph.hdf5
           trexio convert-to -t cartesian -o trexio_orca_h2o.hdf5 trexio_orca_h2o_sph.hdf5
           trexio convert-to -t cartesian -o trexio_pyscf_h2o.hdf5 trexio_pyscf_h2o_sph.hdf5
           echo "==  Done conversion  =="
