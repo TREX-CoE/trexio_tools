@@ -62,4 +62,4 @@ jobs:
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
           # benchmark helper converters
-          trexio convert-to -t molden -o trexio_molden.hdf5 trexio_gamess.hdf5
+          trexio convert-to -t molden -o trexio_molden.hdf5 trexio_gamess_state_0.hdf5
