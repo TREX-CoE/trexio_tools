@@ -6,7 +6,7 @@ Usage:
       trexio check-basis      [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio check-mos        [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio convert-to       -t TYPE -o OUTPUT_FILE [-y SPIN_ORDER]  TREXIO_FILE
-      trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END]  [-x MO_TYPE]  TREXIO_FILE
+      trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END]  [-x MO_TYPE]  [-m MULTIPLICITY]  TREXIO_FILE
       trexio convert-backend  -i INPUT_FILE  -o OUTPUT_FILE  -b BACK_END  -j TREX_JSON_FILE  [-s BACK_END_FROM]  [-w OVERWRITE]
       trexio (-h | --help)
 
@@ -17,9 +17,10 @@ Options:
       -o, --output=OUTPUT_FILE      Name of the output file.
       -b, --back_end=BACK_END       [hdf5 | text | auto]  The TREXIO back end.  [default: hdf5]
       -s, --back_end_from=BACK_END  [hdf5 | text | auto]  The input TREXIO back end.  [default: auto]
+      -m, --multiplicity=MULTIPLICITY  Spin multiplicity for the Crystal converter.
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
-      -t, --type=TYPE               [gaussian | gamess | pyscf | orca | fcidump | molden | cartesian ] File format.
+      -t, --type=TYPE               [gaussian | gamess | pyscf | orca | crystal | fcidump | molden | cartesian ] File format.
       -x, --motype=MO_TYPE          Type of the molecular orbitals. For example, GAMESS has RHF, MCSCF, GUGA, and Natural as possible MO types.
       -y, --spin_order=TYPE         [block | interleave] How to organize spin orbitals when converting to FCIDUMP [default: block]
 """
@@ -73,6 +74,9 @@ def main(filename=None, args=None):
     else:
         back_end_from = trexio.TREXIO_AUTO
 
+    spin = None
+    if args["--multiplicity"]:
+        spin = int(args["--multiplicity"])
 
     if args["check-basis"]:
         trexio_file = trexio.File(filename, 'r', back_end=back_end)
@@ -92,7 +96,7 @@ def main(filename=None, args=None):
 
     elif args["convert-from"]:
         from .converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"])
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, spin=spin, motype=args["--motype"])
 
     elif args["convert-to"]:
         from .converters.convert_to import run
