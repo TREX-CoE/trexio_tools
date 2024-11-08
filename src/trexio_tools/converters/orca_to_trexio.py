@@ -5,6 +5,7 @@ def orca_to_trexio(
 ):
     # load python packages
     import os
+    import glob
     import json
     import numpy as np
     import scipy.special
@@ -30,7 +31,9 @@ def orca_to_trexio(
 
     import os
     try:
-        os.remove(filename)
+        # Remove the file if it already exists
+        if glob.glob(filename):
+            os.remove(filename)
     except:
         print(f"File {filename} does not exist.")
 
