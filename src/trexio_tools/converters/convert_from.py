@@ -9,6 +9,7 @@ from trexio_tools.group_tools import determinant as trexio_det
 
 from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
 from .orca_to_trexio import orca_to_trexio as run_orca
+from .crystal_to_trexio import crystal_to_trexio as run_crystal
 
 try:
     import trexio
@@ -756,7 +757,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     trexio.write_mo_coefficient(trexio_file, MoMatrix)
 
 
-def run(trexio_filename, filename, filetype, back_end, motype=None):
+def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None):
 
     if os.path.exists(trexio_filename):
         print(f"TREXIO file {trexio_filename} already exists and will be removed before conversion.")
@@ -778,9 +779,10 @@ def run(trexio_filename, filename, filetype, back_end, motype=None):
     elif filetype.lower() == "orca":
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
         run_orca(filename=trexio_filename, orca_json=filename, back_end=back_end_str)
-    elif filetype.lower() == "fcidump":
-        raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
-        #run_fcidump(trexio_file, filename)
+    elif filetype.lower() == "crystal":
+        if spin is None: raise ValueError("You forgot to provide spin for the CRYSTAL->TREXIO converter.")
+        back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
+        run_crystal(trexio_filename=trexio_filename, crystal_output=filename, back_end=back_end_str, spin=spin)
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
     else:
