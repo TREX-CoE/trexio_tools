@@ -11,10 +11,7 @@ from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
 from .orca_to_trexio import orca_to_trexio as run_orca
 from .crystal_to_trexio import crystal_to_trexio as run_crystal
 
-try:
-    import trexio
-except ImportError as exc:
-    raise ImportError("trexio Python package is not installed.") from exc
+import trexio
 
 try:
     from resultsFile import getFile, a0, get_lm

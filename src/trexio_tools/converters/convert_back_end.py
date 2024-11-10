@@ -88,10 +88,7 @@ def run_converter(filename_from, filename_to, back_end_to, back_end_from=None, o
     """The high-level converter function."""
 
     import os
-    try:
-        import trexio
-    except ImportError as exc:
-        raise ImportError("trexio Python package is not installed.") from exc
+    import trexio
 
     try:
         # For proper python package
@@ -114,6 +111,9 @@ def run_converter(filename_from, filename_to, back_end_to, back_end_from=None, o
                 os.system(f'rm -rf -- {filename_to}')
         else:
             raise ValueError(f'Output file {filename_to} already exists. Consider using the `-w` argument.')
+
+    if back_end_from is None:
+        back_end_from = trexio.TREXIO_AUTO
 
     with trexio.File(filename_from, 'r', back_end_from) as trexio_file_from:
         with trexio.File(filename_to, 'w', back_end_to) as trexio_file_to:

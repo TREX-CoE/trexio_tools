@@ -9,11 +9,7 @@ from functools import reduce
 from . import cart_sphe as cart_sphe
 import numpy as np
 
-try:
-    import trexio
-except:
-    print("Error: The TREXIO Python library is not installed")
-    sys.exit(1)
+import trexio
 
 """
 Converter from trexio to fcidump
@@ -606,11 +602,8 @@ def run(trexio_filename, filename, filetype, spin_order):
         run_spherical(trexio_file, filename)
 #    elif filetype.lower() == "normalized_aos":
 #        run_normalized_aos(trexio_file, filename)
-#    elif filetype.lower() == "gamess":
-#        run_resultsFile(trexio_file, filename)
     elif filetype.lower() == "fcidump":
         run_fcidump(trexio_file, filename, spin_order)
-#    elif filetype.lower() == "molden":
     else:
         raise NotImplementedError(f"Conversion from TREXIO to {filetype} is not supported.")
 
