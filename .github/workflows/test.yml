@@ -45,6 +45,9 @@ jobs:
           trexio convert-to -t cartesian -o trexio_orca_h2o.h5 trexio_orca_h2o_sph.h5
           trexio convert-to -t cartesian -o trexio_pyscf_h2o.h5 trexio_pyscf_h2o_sph.h5
           echo "==  Done conversion  =="
+          # dummy checks for overwriting
+          trexio convert-from -t gaussian  -i data/chbrclf.log -b hdf5  trexio_gaussi.h5 || echo "Failure as it should"
+          trexio convert-from -t gaussian  -i data/chbrclf.log -b hdf5 -w True  trexio_gaussi.h5 && echo "Success as it should"
           echo "=== Check TREXIO file converted from GAMESS ==="
           trexio check-mos -n 50 trexio_gamess.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
