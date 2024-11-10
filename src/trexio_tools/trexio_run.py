@@ -34,9 +34,20 @@ def remove_trexio_file(filename:str, overwrite:bool) -> None:
     """Remove the TREXIO file/directory if it exists."""
     if os.path.exists(filename):
         if overwrite:
+            # dummy check
             if '*' in filename:
                 raise ValueError(f'TREXIO filename {filename} contains * symbol. Are you sure?')
-            os.system(f'rm -rf -- {filename} ')
+            # check that the file is actually TREXIO file
+            try:
+                is_trexio = False
+                with trexio.File(filename, 'r', trexio.TREXIO_AUTO) as tfile:
+                    if trexio.has_metadata_package_version(tfile):
+                        is_trexio = True
+                        
+                if is_trexio: os.system(f'rm -rf -- {filename}')
+                
+            except:
+                raise Exception(f'Output file {filename} exists but it is not a TREXIO file. Are you sure?')
         else:
             raise Exception(f'Output file {filename} already exists but overwrite option is not provided. Consider using the `-w` CLI argument.')
 
