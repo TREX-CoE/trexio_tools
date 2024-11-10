@@ -6,7 +6,7 @@ Usage:
       trexio check-basis      [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio check-mos        [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio convert-to       -t TYPE -o OUTPUT_FILE [-y SPIN_ORDER]  TREXIO_FILE
-      trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END]  [-x MO_TYPE]  [-m MULTIPLICITY]  TREXIO_FILE
+      trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END]  [-x MO_TYPE]  [-m MULTIPLICITY]  [-w OVERWRITE]  TREXIO_FILE
       trexio convert-backend  -i INPUT_FILE  -o OUTPUT_FILE  -b BACK_END  -j TREX_JSON_FILE  [-s BACK_END_FROM]  [-w OVERWRITE]
       trexio (-h | --help)
 
@@ -19,7 +19,7 @@ Options:
       -s, --back_end_from=BACK_END  [hdf5 | text | auto]  The input TREXIO back end.  [default: auto]
       -m, --multiplicity=MULTIPLICITY  Spin multiplicity for the Crystal converter.
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
-      -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
+      -w, --overwrite=OVERWRITE     Overwrite the output TREXIO file if it already exists.  [default: True]
       -t, --type=TYPE               [gaussian | gamess | pyscf | orca | crystal | fcidump | molden | cartesian ] File format.
       -x, --motype=MO_TYPE          Type of the molecular orbitals. For example, GAMESS has RHF, MCSCF, GUGA, and Natural as possible MO types.
       -y, --spin_order=TYPE         [block | interleave] How to organize spin orbitals when converting to FCIDUMP [default: block]
@@ -30,24 +30,35 @@ import trexio
 import os
 
 
-def main(filename=None, args=None):
+def remove_trexio_file(filename:str, overwrite:bool) -> None:
+    """Remove the TREXIO file/directory if it exists."""
+    if os.path.exists(filename):
+        if overwrite:
+            if '*' in filename:
+                raise ValueError(f'TREXIO filename {filename} contains * symbol. Are you sure?')
+            os.system(f'rm -rf -- {filename} ')
+        else:
+            raise Exception(f'Output file {filename} already exists but overwrite option is not provided. Consider using the `-w` CLI argument.')
+
+    return
+
+
+def main(filename=None, args=None) -> None:
     """Main entry point"""
 
     if filename is None and args is None:
         args = docopt(__doc__)
         filename = args["TREXIO_FILE"]
 
-    if args["--n_points"]:
-       n_points = int(args["--n_points"])
-    else:
-       n_points = 81
+    n_points = int(args["--n_points"]) if args["--n_points"] else 81
+
+    overwrite = not str(args["--overwrite"]).lower() in ['false', '0']
 
     if args["convert-backend"]:
-        if str(args["--overwrite"]).lower() in ['false', '0']:
-            overwrite = False
-        else:
-            overwrite = True
-            print(f'File {args["--output"]} will be overwritten.')
+        remove_trexio_file(args["--output"], overwrite)
+
+    if args["convert-from"]:
+        remove_trexio_file(args["TREXIO_FILE"], overwrite)
 
     if args["--back_end"]:
         if str(args["--back_end"]).lower() == "hdf5":
@@ -74,9 +85,7 @@ def main(filename=None, args=None):
     else:
         back_end_from = trexio.TREXIO_AUTO
 
-    spin = None
-    if args["--multiplicity"]:
-        spin = int(args["--multiplicity"])
+    spin = int(args["--multiplicity"]) if args["--multiplicity"] else None
 
     if args["check-basis"]:
         trexio_file = trexio.File(filename, 'r', back_end=back_end)
@@ -109,7 +118,6 @@ def main(filename=None, args=None):
             args["--output"],
             back_end_to=back_end,
             back_end_from=back_end_from,
-            overwrite=overwrite,
             json_filename=args["--json"]
             )
 

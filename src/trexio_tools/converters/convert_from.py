@@ -759,13 +759,6 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
 
 def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None):
 
-    if os.path.exists(trexio_filename):
-        print(f"TREXIO file {trexio_filename} already exists and will be removed before conversion.")
-        if back_end == trexio.TREXIO_HDF5:
-            os.remove(trexio_filename)
-        else:
-            raise NotImplementedError(f"Please remove the {trexio_filename} directory manually.")
-
     if "pyscf" not in filetype.lower():
         trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
 
