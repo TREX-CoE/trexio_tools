@@ -5,28 +5,24 @@ def to_determinant_list(orbital_list: list, int64_num: int) -> list:
     Convert a list of occupied orbitals from the `orbital_list`
     into a list of Slater determinants (in their bit string representation).
 
-    Orbitals in the `orbital_list` should be 1-based, namely the lowest orbital has index 1, not 0.
+    Orbitals in the `orbital_list` should be 0-based, namely the lowest orbital has index 0, not 1.
 
     int64_num is the number of 64-bit integers needed to represent a Slater determinant bit string.
     It depends on the number of molecular orbitals as follows: int64_num = int((mo_num-1)/64) + 1
     """
 
     if not isinstance(orbital_list, list):
-        raise TypeError(
-                f"orbital_list should be a list, not {type(orbital_list)}"
-                )
-
-    if 0 in orbital_list:
-        raise ValueError(
-                "Indices in orbital_list should be 1-based, namely orbital #0 should have index 1 etc."
-                )
+        raise TypeError(f"orbital_list should be a list, not {type(orbital_list)}")
 
     det_list = []
     bitfield = 0
     shift    = 0
 
+    # since orbital indices are 0-based but the code below works for 1-based --> increment the input indices by +1
+    orb_list_upshifted = [ orb+1 for orb in orbital_list]
+
     # orbital list has to be sorted in increasing order for the bitfields to be set correctly
-    orb_list_sorted = sorted(orbital_list)
+    orb_list_sorted = sorted(orb_list_upshifted)
 
     for orb in orb_list_sorted:
 
