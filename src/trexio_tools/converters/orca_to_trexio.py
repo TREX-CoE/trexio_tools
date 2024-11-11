@@ -28,12 +28,6 @@ def orca_to_trexio(
     with open(orca_json, 'r') as f:
         data = json.load(f)
 
-    import os
-    try:
-        os.remove(filename)
-    except:
-        print(f"File {filename} does not exist.")
-
     # trexio back end handling
     if back_end.lower() == "hdf5":
         trexio_back_end = trexio.TREXIO_HDF5
