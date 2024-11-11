@@ -406,9 +406,9 @@ def run_resultsFile(trexio_file, filename, motype=None):
         det_list = []
         for i in range(determinant_num):
             det_tmp      = []
-            orb_list_up  = [ orb+1 for orb in res.determinants[i].get("alpha") ]
+            orb_list_up  = [ orb for orb in res.determinants[i].get("alpha") ]
             det_tmp     += trexio_det.to_determinant_list(orb_list_up, int64_num)
-            orb_list_dn  = [ orb+1 for orb in res.determinants[i].get("beta") ]
+            orb_list_dn  = [ orb for orb in res.determinants[i].get("beta") ]
             det_tmp     += trexio_det.to_determinant_list(orb_list_dn, int64_num)
 
             det_list.append(det_tmp)
