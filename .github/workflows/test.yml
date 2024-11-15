@@ -35,31 +35,35 @@ jobs:
         run: |
           # benchmark the converters from external codes
           echo "==  Starting conversion  =="
-          trexio convert-from -t gaussian  -i data/chbrclf.log          -b hdf5  trexio_gaussi.hdf5
-          trexio convert-from -t gamess    -i data/GAMESS_CAS.log       -b hdf5  trexio_gamess.hdf5
-          trexio convert-from -t gamess    -i data/multistate_gamess.log -b hdf5  multistate_gamess.hdf5
-          trexio convert-from -t pyscf     -i data/water.chk            -b hdf5  trexio_pyscf_h2o_sph.hdf5
-          trexio convert-from -t pyscf     -i data/diamond_single_k.chk -b hdf5  trexio_pyscf_1k.hdf5
-          trexio convert-from -t pyscf     -i data/diamond_k_grid.chk   -b hdf5  trexio_pyscf_Nk.hdf5
-          trexio convert-from -t orca      -i data/h2o.json             trexio_orca_h2o_sph.hdf5
-          trexio convert-to -t cartesian -o trexio_orca_h2o.hdf5 trexio_orca_h2o_sph.hdf5
-          trexio convert-to -t cartesian -o trexio_pyscf_h2o.hdf5 trexio_pyscf_h2o_sph.hdf5
+          trexio convert-from -t gaussian  -i data/chbrclf.log          -b hdf5  trexio_gaussi.h5
+          trexio convert-from -t gamess    -i data/GAMESS_CAS.log       -b hdf5  trexio_gamess.h5
+          trexio convert-from -t gamess    -i data/multistate_gamess.log -b hdf5  multistate_gamess.h5
+          trexio convert-from -t pyscf     -i data/water.chk            -b hdf5  trexio_pyscf_h2o_sph.h5
+          trexio convert-from -t pyscf     -i data/diamond_single_k.chk -b hdf5  trexio_pyscf_1k.h5
+          trexio convert-from -t pyscf     -i data/diamond_k_grid.chk   -b hdf5  trexio_pyscf_Nk.h5
+          trexio convert-from -t orca      -i data/h2o.json             -b hdf5  trexio_orca_h2o_sph.h5
+          trexio convert-to -t cartesian -o trexio_orca_h2o.h5 trexio_orca_h2o_sph.h5
+          trexio convert-to -t cartesian -o trexio_pyscf_h2o.h5 trexio_pyscf_h2o_sph.h5
           echo "==  Done conversion  =="
-          echo "=== Check TREXIO file 1 converted from GAMESS ==="
-          trexio check-mos -n 50 trexio_gamess_state_0.hdf5 > mos-res
+          echo "=== Check TREXIO file converted from GAMESS ==="
+          trexio check-mos -n 50 trexio_gamess.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
-          echo "=== Check TREXIO file 2 converted from GAMESS ==="
-          trexio check-mos -n 50 multistate_gamess_state_0.hdf5 > mos-res
+          echo "=== Check TREXIO file converted from GAMESS multistate calculation (State 1 of 2) ==="
+          trexio check-mos -n 50 multistate_gamess_state_0.h5 > mos-res
+          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
+          echo "=== Check TREXIO file converted from GAMESS multistate calculation (State 2 of 2) ==="
+          trexio check-mos -n 50 multistate_gamess_state_1.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
           echo "=== Check TREXIO file converted from PySCF ==="
-          trexio check-mos -n 50 trexio_pyscf_h2o.hdf5 > mos-res
+          trexio check-mos -n 50 trexio_pyscf_h2o.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
           echo "=== Check TREXIO file converted from ORCA ==="
-          trexio check-mos -n 50 trexio_orca_h2o.hdf5 > mos-res
+          trexio check-mos -n 50 trexio_orca_h2o.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
           # benchmark helper converters
-          trexio convert-to -t molden -o trexio_molden.hdf5 trexio_gamess_state_0.hdf5
+          trexio convert-to -t molden -o trexio_molden.h5 trexio_gamess.h5

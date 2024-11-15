@@ -6,7 +6,7 @@ Usage:
       trexio check-basis      [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio check-mos        [-n N_POINTS]  [-b BACK_END]  TREXIO_FILE
       trexio convert-to       -t TYPE -o OUTPUT_FILE [-y SPIN_ORDER]  TREXIO_FILE
-      trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END]  [-x MO_TYPE]  TREXIO_FILE
+      trexio convert-from     -t TYPE -i INPUT_FILE  [-b BACK_END] [-S STATE_SUFFIX ] [-x MO_TYPE] TREXIO_FILE
       trexio convert-backend  -i INPUT_FILE  -o OUTPUT_FILE  -b BACK_END  -j TREX_JSON_FILE  [-s BACK_END_FROM]  [-w OVERWRITE]
       trexio (-h | --help)
 
@@ -17,6 +17,7 @@ Options:
       -o, --output=OUTPUT_FILE      Name of the output file.
       -b, --back_end=BACK_END       [hdf5 | text | auto]  The TREXIO back end.  [default: hdf5]
       -s, --back_end_from=BACK_END  [hdf5 | text | auto]  The input TREXIO back end.  [default: auto]
+      -S, --state_suffix=STATE_SUFFIX  Suffix for the generated TREXIO file for a multistate calculation conversion.  [default: state]
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite=OVERWRITE     Overwrite flag for the conversion of back ends.  [default: True]
       -t, --type=TYPE               [gaussian | gamess | pyscf | orca | fcidump | molden | cartesian ] File format.
@@ -92,7 +93,7 @@ def main(filename=None, args=None):
 
     elif args["convert-from"]:
         from .converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"])
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, motype=args["--motype"], state_suffix=args["--state_suffix"])
 
     elif args["convert-to"]:
         from .converters.convert_to import run
