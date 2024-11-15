@@ -9,11 +9,9 @@ from trexio_tools.group_tools import determinant as trexio_det
 
 from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
 from .orca_to_trexio import orca_to_trexio as run_orca
+from .crystal_to_trexio import crystal_to_trexio as run_crystal
 
-try:
-    import trexio
-except ImportError as exc:
-    raise ImportError("trexio Python package is not installed.") from exc
+import trexio
 
 try:
     from resultsFile import getFile, a0, get_lm
@@ -432,9 +430,9 @@ def run_resultsFile(trexio_file, filename, motype=None):
         det_list = []
         for i in range(determinant_num):
             det_tmp      = []
-            orb_list_up  = [ orb+1 for orb in res.determinants[i].get("alpha") ]
+            orb_list_up  = [ orb for orb in res.determinants[i].get("alpha") ]
             det_tmp     += trexio_det.to_determinant_list(orb_list_up, int64_num)
-            orb_list_dn  = [ orb+1 for orb in res.determinants[i].get("beta") ]
+            orb_list_dn  = [ orb for orb in res.determinants[i].get("beta") ]
             det_tmp     += trexio_det.to_determinant_list(orb_list_dn, int64_num)
 
             det_list.append(det_tmp)
@@ -777,7 +775,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     trexio.write_mo_coefficient(trexio_file, MoMatrix)
 
 
-def run(trexio_filename, filename, filetype, back_end, motype=None, state_suffix=None):
+def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, state_suffix=None):
 
     # Do the cleanup if the file already exists
     file_cleanup(trexio_filename, back_end)
@@ -821,9 +819,10 @@ def run(trexio_filename, filename, filetype, back_end, motype=None, state_suffix
     elif filetype.lower() == "orca":
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
         run_orca(filename=trexio_filename, orca_json=filename, back_end=back_end_str)
-    elif filetype.lower() == "fcidump":
-        raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
-        #run_fcidump(trexio_file, filename)
+    elif filetype.lower() == "crystal":
+        if spin is None: raise ValueError("You forgot to provide spin for the CRYSTAL->TREXIO converter.")
+        back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
+        run_crystal(trexio_filename=trexio_filename, crystal_output=filename, back_end=back_end_str, spin=spin)
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
     else:
