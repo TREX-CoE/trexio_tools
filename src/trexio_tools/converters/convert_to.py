@@ -438,6 +438,12 @@ def run_cart_phe(inp, filename, to_cartesian):
 
     ao_num_in  = trexio.read_ao_num(inp)
 
+    normalization = np.array( [ 1. ] * ao_num_in )
+    if trexio.has_ao_normalization(inp):
+      normalization = trexio.read_ao_normalization(inp)
+
+    for i,f in enumerate(normalization):
+      cart_normalization[i] *= f
 
     if to_cartesian == 0:
         print("Transformation from cartesian to spherical is not implemented")
@@ -465,10 +471,6 @@ def run_cart_phe(inp, filename, to_cartesian):
     trexio.write_ao_cartesian(out, to_cartesian)
     trexio.write_ao_num(out, ao_num_out)
     trexio.write_ao_shell(out, shell)
-
-    normalization = np.array( [ 1. ] * ao_num_in )
-    if trexio.has_ao_normalization(inp):
-      normalization = trexio.read_ao_normalization(inp)
 
     trexio.write_ao_normalization(out, cart_normalization)
 
