@@ -497,7 +497,9 @@ def run_cart_phe(inp, filename, to_cartesian):
     mix radial and angular coordinates. Thus, r_power needs to be adapted to cancel
     out the radial dependence of the polynomials.
     """
-    r_power = trexio.read_basis_r_power(inp)
+
+    r_power = [0.0 for _ in shell_ang_mom ]
+
     r_power_sign = -1
     if to_cartesian == 0:
         r_power_sign = +1
