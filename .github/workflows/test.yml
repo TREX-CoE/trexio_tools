@@ -37,6 +37,7 @@ jobs:
           echo "==  Starting conversion  =="
           trexio convert-from -t gaussian  -i data/chbrclf.log          -b hdf5  trexio_gaussi.h5
           trexio convert-from -t gamess    -i data/GAMESS_CAS.log       -b hdf5  trexio_gamess.h5
+          trexio convert-from -t gamess    -i data/multistate_gamess.log -b hdf5  multistate_gamess.h5
           trexio convert-from -t pyscf     -i data/water.chk            -b hdf5  trexio_pyscf_h2o_sph.h5
           trexio convert-from -t pyscf     -i data/diamond_single_k.chk -b hdf5  trexio_pyscf_1k.h5
           trexio convert-from -t pyscf     -i data/diamond_k_grid.chk   -b hdf5  trexio_pyscf_Nk.h5
@@ -50,6 +51,14 @@ jobs:
           trexio convert-from -t gaussian  -i data/chbrclf.log -b hdf5 -w True  trexio_gaussi.h5 && echo "Success as it should"
           echo "=== Check TREXIO file converted from GAMESS ==="
           trexio check-mos -n 50 trexio_gamess.h5 > mos-res
+          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
+          echo "=== Check TREXIO file converted from GAMESS multistate calculation (State 1 of 2) ==="
+          trexio check-mos -n 50 multistate_gamess_state_0.h5 > mos-res
+          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
+          echo "=== Check TREXIO file converted from GAMESS multistate calculation (State 2 of 2) ==="
+          trexio check-mos -n 50 multistate_gamess_state_1.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
           echo "=== Check TREXIO file converted from PySCF ==="
