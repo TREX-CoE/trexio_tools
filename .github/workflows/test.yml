@@ -62,6 +62,6 @@ jobs:
           trexio check-mos data/methane_sphe.hdf5  | tail -1 | cut -d ':' -f 2 | tee error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.01'
           echo "=== Check normalization after transformation into cartesian file ==="
-          trexio convert-to -t data/cartesian methane_sphe.hdf5 -o methane_cart.hdf5
+          trexio convert-to -t cartesian data/methane_sphe.hdf5 -o methane_cart.hdf5
           trexio check-mos methane_cart.hdf5  | tail -1 | cut -d ':' -f 2 | tee error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.01'
