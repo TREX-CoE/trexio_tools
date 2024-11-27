@@ -515,53 +515,30 @@ def run_cart_phe(inp, filename, to_cartesian):
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-             X[i,:] /= normalization[i]
       Y = X @ R.T
       trexio.write_mo_coefficient(out, Y)
 
     # Update 1e Integrals
     if trexio.has_ao_1e_int_overlap(inp):
       X = trexio.read_ao_1e_int_overlap(inp)
-      for i in range(R.shape[1]):
-            X[:,i] /= normalization[i]
-      for i in range(R.shape[1]):
-            X[i,:] /= normalization[i]
       Y = R_norm_inv @ X @ R_norm_inv.T
       trexio.write_ao_1e_int_overlap(out, Y)
 
 
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-            X[i,:] /= normalization[i]
       trexio.write_ao_1e_int_kinetic(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_potential_n_e(inp):
       X = trexio.read_ao_1e_int_potential_n_e(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-            X[i,:] /= normalization[i]
       trexio.write_ao_1e_int_potential_n_e(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_ecp(inp):
       X = trexio.read_ao_1e_int_ecp(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-            X[i,:] /= normalization[i]
       trexio.write_ao_1e_int_ecp(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_core_hamiltonian(inp):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-            X[i,:] /= normalization[i]
       trexio.write_ao_1e_int_core_hamiltonian(out, R_norm_inv @ X @ R_norm_inv.T)
 
     # Remove 2e integrals: too expensive to transform

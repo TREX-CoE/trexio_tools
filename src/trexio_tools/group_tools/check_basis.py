@@ -14,11 +14,6 @@ try:
         the matrix stored in the file.
         """
 
-        if not trexio.has_ao_1e_int_overlap(trexio_file):
-          raise Exception(
-            "One-electron overlap integrals are missing in the TREXIO file. Required for check-basis."
-            )
-
         trexio_filename = trexio_file.filename
         context = qmckl.context_create()
         qmckl.trexio_read(context, trexio_filename)
@@ -56,7 +51,11 @@ try:
         S = chi.T @ chi * dv
         print()
 
-        S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
+        if trexio.has_ao_1e_int_overlap(trexio_file):
+            S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
+        else:
+            S_ex = np.zeros((ao_num,ao_num))
+
 
         # This produces a lot of output for large molecules, maybe wrap up in ``if debug`` statement ?
         for i in range(ao_num):
