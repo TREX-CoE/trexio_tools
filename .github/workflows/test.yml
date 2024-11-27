@@ -59,9 +59,7 @@ jobs:
           # benchmark helper converters
           trexio convert-to -t molden -o trexio_molden.h5 trexio_gamess.h5
           echo "=== Check normalization in spherical file ==="
-          E=$(trexio check-mos methane_sphe.hdf5  | tail -1 |cut -d ':' -f 2 | xargs)
-          echo "if ($E > 0.01): exit(1)" | python3    # Exit code is 0 if <i|j> = delta_ij, and 1 otherwise
+          E=$(trexio check-mos methane_sphe.hdf5  | tail -1 |cut -d ':' -f 2 | xargs) ; echo "if ($E > 0.01): exit(1)" | python3    # Exit code is 0 if <i|j> = delta_ij, and 1 otherwise
           echo "=== Check normalization after transformation into cartesian file ==="
           trexio convert-to -t cartesian methane_sphe.hdf5 -o methane_cart.hdf5
-          E=$(trexio check-mos methane_cart.hdf5  | tail -1 |cut -d ':' -f 2 | xargs)
-          echo "if ($E > 0.01): exit(1)" | python3    # Exit code is 0 if <i|j> = delta_ij, and 1 otherwise
+          E=$(trexio check-mos methane_cart.hdf5  | tail -1 |cut -d ':' -f 2 | xargs) ; echo "if ($E > 0.01): exit(1)" | python3    # Exit code is 0 if <i|j> = delta_ij, and 1 otherwise
