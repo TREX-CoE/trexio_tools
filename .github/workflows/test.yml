@@ -36,10 +36,10 @@ jobs:
           # benchmark the converters from external codes
           echo "==  Starting conversion  =="
           trexio convert-from -t gaussian  -i data/chbrclf.log          -b hdf5  trexio_gaussi.h5
-          trexio convert-from -t gamess    -i data/GAMESS_CAS.log       -b hdf5  trexio_gamess.h5
+          trexio convert-from -t gamess    -i data/GAMESS_CAS.log       -b hdf5  trexio_gamess.h5  > gamess-converter.log
           trexio convert-from -t pyscf     -i data/water.chk            -b hdf5  trexio_pyscf_h2o_sph.h5
           trexio convert-from -t pyscf     -i data/diamond_single_k.chk -b hdf5  trexio_pyscf_1k.h5
-          trexio convert-from -t pyscf     -i data/diamond_k_grid.chk   -b hdf5  trexio_pyscf_Nk.h5
+          trexio convert-from -t pyscf     -i data/diamond_k_grid.chk   -b hdf5  trexio_pyscf_Nk.h5 > pyscf-periodic-converter.log
           trexio convert-from -t orca      -i data/h2o.json             -b hdf5  trexio_orca_h2o_sph.h5
           trexio convert-to -t cartesian -o trexio_orca_h2o.h5 trexio_orca_h2o_sph.h5
           trexio convert-to -t cartesian -o trexio_pyscf_h2o.h5 trexio_pyscf_h2o_sph.h5
@@ -53,20 +53,22 @@ jobs:
           trexio check-mos -n 100 trexio_pyscf_h2o.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           cat error-res
-          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.1'
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.00018'
           echo "=== Check TREXIO file converted from ORCA ==="
           trexio check-mos -n 100 trexio_orca_h2o.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           cat error-res
-          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.1'
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.08'
           # benchmark helper converters
           trexio convert-to -t molden -o trexio_molden.h5 trexio_gamess.h5
           echo "=== Check normalization in spherical file ==="
           trexio check-mos -n 100 data/methane_sphe.hdf5  > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          cat error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.01'
           echo "=== Check normalization after transformation into cartesian file ==="
           trexio convert-to -t cartesian data/methane_sphe.hdf5 -o methane_cart.hdf5
           trexio check-mos -n 100 methane_cart.hdf5  > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          cat error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.01'
