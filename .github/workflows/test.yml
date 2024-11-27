@@ -45,7 +45,7 @@ jobs:
           trexio convert-to -t cartesian -o trexio_pyscf_h2o.h5 trexio_pyscf_h2o_sph.h5
           echo "==  Done conversion  =="
           echo "=== Check TREXIO file converted from GAMESS ==="
-          trexio check-mos -n 100 trexio_gamess.h5 > mos-res
+          trexio check-mos -n 125 trexio_gamess.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           cat error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.1'
