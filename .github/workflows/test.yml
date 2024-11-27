@@ -59,9 +59,11 @@ jobs:
           # benchmark helper converters
           trexio convert-to -t molden -o trexio_molden.h5 trexio_gamess.h5
           echo "=== Check normalization in spherical file ==="
-          trexio check-mos data/methane_sphe.hdf5  | tail -1 | cut -d ':' -f 2 | tee error-res
+          trexio check-mos data/methane_sphe.hdf5  > error-res
+          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.01'
           echo "=== Check normalization after transformation into cartesian file ==="
           trexio convert-to -t cartesian data/methane_sphe.hdf5 -o methane_cart.hdf5
-          trexio check-mos methane_cart.hdf5  | tail -1 | cut -d ':' -f 2 | tee error-res
+          trexio check-mos methane_cart.hdf5  > error-res
+          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.01'
