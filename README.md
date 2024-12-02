@@ -12,7 +12,9 @@ Set of tools for TREXIO files.
 - numpy (>=1.17.3)
 - resultsFile [for GAMESS/GAU$$IAN conversion]
 - docopt [for CLI]
-- pyscf [only if you use the pyscf->trexio converter]
+- pyscf [only if you use the pyscf->trexio converter] 
+
+**Deprecation note:** the pyscf--->trexio converter in this repository is no longer maintained. Please install the [pyscf-forge](https://github.com/pyscf/pyscf-forge) plugin for the latest and the most complete pyscf<--->trexio interface (including multi-reference wave function I/O).
 
 
 ## Installation
@@ -23,16 +25,7 @@ Set of tools for TREXIO files.
 
 ### Installation from source code
 
-1. Clone the repository
-- `git clone https://github.com/TREX-CoE/trexio_tools.git`
-2. Create an isolated virtual environment, for example using
-- `python3 -m venv trexio_tools`
-3. Activate the previously created environment, for example using
-- `source trexio_tools/bin/activate`
-4. Install the Python packages that are required for `trexio-tools` to work
-- `pip install -r requirements.txt`
-5. Install `trexio-tools` via `pip` (also works in `--editable` mode)
-- `pip install .` 
+`pip install git+https://github.com/TREX-CoE/trexio_tools`
 
 
 ## Instructions for users
