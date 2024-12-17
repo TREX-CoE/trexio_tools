@@ -55,9 +55,11 @@ def run_resultsFile(trexio_file, filename, motype=None):
     trexio.write_metadata_code_num(trexio_file, 1)
     trexio.write_metadata_code(trexio_file,
                [str(res).split('.')[-1].split()[0].replace("File","")] )
-    trexio.write_metadata_author_num(trexio_file, 1)
-    trexio.write_metadata_author(trexio_file, [res.author])
-    trexio.write_metadata_description(trexio_file, res.title)
+    if res.author is not None:
+        trexio.write_metadata_author_num(trexio_file, 1)
+        trexio.write_metadata_author(trexio_file, [res.author])
+    if res.title is not None:
+        trexio.write_metadata_description(trexio_file, res.title)
 
     # Electrons
     # ---------

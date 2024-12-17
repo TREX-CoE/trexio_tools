@@ -434,6 +434,12 @@ def run_cart_phe(inp, filename, to_cartesian):
 
     ao_num_in  = trexio.read_ao_num(inp)
 
+    normalization = np.array( [ 1. ] * ao_num_in )
+    if trexio.has_ao_normalization(inp):
+      normalization = trexio.read_ao_normalization(inp)
+
+    for i,f in enumerate(normalization):
+      cart_normalization[i] *= f
 
     if to_cartesian == 0:
         print("Transformation from cartesian to spherical is not implemented")
@@ -462,10 +468,6 @@ def run_cart_phe(inp, filename, to_cartesian):
     trexio.write_ao_num(out, ao_num_out)
     trexio.write_ao_shell(out, shell)
 
-    normalization = np.array( [ 1. ] * ao_num_in )
-    if trexio.has_ao_normalization(inp):
-      normalization = trexio.read_ao_normalization(inp)
-
     trexio.write_ao_normalization(out, cart_normalization)
 
     """
@@ -493,7 +495,9 @@ def run_cart_phe(inp, filename, to_cartesian):
     mix radial and angular coordinates. Thus, r_power needs to be adapted to cancel
     out the radial dependence of the polynomials.
     """
-    r_power = trexio.read_basis_r_power(inp)
+
+    r_power = [0.0 for _ in shell_ang_mom ]
+
     r_power_sign = -1
     if to_cartesian == 0:
         r_power_sign = +1
@@ -507,53 +511,30 @@ def run_cart_phe(inp, filename, to_cartesian):
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-             X[i,:] /= normalization[i]
       Y = X @ R.T
       trexio.write_mo_coefficient(out, Y)
 
     # Update 1e Integrals
     if trexio.has_ao_1e_int_overlap(inp):
       X = trexio.read_ao_1e_int_overlap(inp)
-      for i in range(R.shape[1]):
-            X[:,i] /= normalization[i]
-      for i in range(R.shape[1]):
-            X[i,:] /= normalization[i]
       Y = R_norm_inv @ X @ R_norm_inv.T
       trexio.write_ao_1e_int_overlap(out, Y)
 
 
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-            X[i,:] /= normalization[i]
       trexio.write_ao_1e_int_kinetic(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_potential_n_e(inp):
       X = trexio.read_ao_1e_int_potential_n_e(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-            X[i,:] /= normalization[i]
       trexio.write_ao_1e_int_potential_n_e(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_ecp(inp):
       X = trexio.read_ao_1e_int_ecp(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-            X[i,:] /= normalization[i]
       trexio.write_ao_1e_int_ecp(out, R_norm_inv @ X @ R_norm_inv.T)
 
     if trexio.has_ao_1e_int_core_hamiltonian(inp):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
-      for i in range(R.shape[1]):
-         if normalization[i] != 1.:
-            X[:,i] /= normalization[i]
-            X[i,:] /= normalization[i]
       trexio.write_ao_1e_int_core_hamiltonian(out, R_norm_inv @ X @ R_norm_inv.T)
 
     # Remove 2e integrals: too expensive to transform
