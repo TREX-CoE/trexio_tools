@@ -13,6 +13,8 @@ from .crystal_to_trexio import crystal_to_trexio as run_crystal
 
 import trexio
 
+from ..trexio_run import remove_trexio_file
+
 try:
     from resultsFile import getFile, a0, get_lm
     import resultsFile
@@ -31,13 +33,13 @@ def f_sort(x):
   else:
       return x
 
-def file_cleanup(trexio_filename, back_end):
-    if os.path.exists(trexio_filename):
-        print(f"TREXIO file {trexio_filename} already exists and will be removed before conversion.")
-        if back_end == trexio.TREXIO_HDF5:
-            os.remove(trexio_filename)
-        else:
-            raise NotImplementedError(f"Please remove the {trexio_filename} directory manually.")
+#def file_cleanup(trexio_filename, back_end):
+#    if os.path.exists(trexio_filename):
+#        print(f"TREXIO file {trexio_filename} already exists and will be removed before conversion.")
+#        if back_end == trexio.TREXIO_HDF5:
+#            os.remove(trexio_filename)
+#        else:
+#            raise NotImplementedError(f"Please remove the {trexio_filename} directory manually.")
 
 def run_resultsFile(trexio_file, filename_info, motype=None):
 
@@ -796,10 +798,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     trexio.write_mo_coefficient(trexio_file, MoMatrix)
 
 
-def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, state_suffix=None):
-
-    # Do the cleanup if the file already exists
-    file_cleanup(trexio_filename, back_end)
+def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, state_suffix=None, overwrite=False):
 
     # Get the basename of the TREXIO file
     try:
@@ -839,7 +838,7 @@ def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, s
             # Create a separate TREXIO file for each state
             for s in range(1,res.num_states):
                 trexio_filename = f"{trexio_basename}_{state_suffix}_{s}{trexio_extension}"
-                file_cleanup(trexio_filename, back_end)
+                remove_trexio_file(trexio_filename, overwrite)
                 trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
                 trexio_file.set_state(s)
                 filename_info['state'] = s
