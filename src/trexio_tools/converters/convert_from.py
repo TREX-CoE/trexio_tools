@@ -19,6 +19,7 @@ try:
 except ImportError as exc:
     raise ImportError("resultsFile Python package is not installed.") from exc
 
+
 # Re-order AOs (xx,xy,xz,yy,yz,zz) or (d+0,+1,-1,-2,+2,-2,...)
 def f_sort(x):
   if '+' in x or '-' in x:
@@ -38,7 +39,13 @@ def file_cleanup(trexio_filename, back_end):
         else:
             raise NotImplementedError(f"Please remove the {trexio_filename} directory manually.")
 
-def run_resultsFile(trexio_file, filename, motype=None):
+def run_resultsFile(trexio_file, filename_info, motype=None):
+
+    filename = filename_info['filename']
+    trexio_basename = filename_info['trexio_basename']
+    state_suffix = filename_info['state_suffix']
+    trexio_extension = filename_info['trexio_extension']
+    state_id = filename_info['state']
 
     try:
         res = getFile(filename)
@@ -399,10 +406,22 @@ def run_resultsFile(trexio_file, filename, motype=None):
 
     # State group
     # ---------
+    if state_id != trexio_file.get_state():
+       print("Warning: State ID mismatch between the file and the TREXIO file.")
+
     state_id = trexio_file.get_state()
     trexio.write_state_num(trexio_file,res.num_states)
-    trexio.write_state_current_label(trexio_file, "State "+ str(state_id) + " of " + str(res.num_states-1))
-    trexio.write_state_label(trexio_file, [f"state{i}" for i in range(res.num_states)])
+    try:
+      trexio.write_state_energy(trexio_file,res.energy[0])
+    except:
+      pass
+    trexio.write_state_current_label(trexio_file, f"State {state_id}")
+    trexio.write_state_label(trexio_file, [f"State {i}" for i in range(res.num_states)])
+
+    # Get the basename of the TREXIO file
+    file_names = [ f"{trexio_basename}_{state_suffix}_{s}{trexio_extension}" for s in range(res.num_states) ]
+    file_names[0] = f"{trexio_basename}{trexio_extension}"
+    trexio.write_state_file_name(trexio_file, file_names)
 
     # CSF group
     # ---------
@@ -784,16 +803,25 @@ def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, s
 
     # Get the basename of the TREXIO file
     try:
-        trexio_basename = os.path.splitext(os.path.basename(trexio_filename))[0]
+        trexio_basename, trexio_extension = os.path.splitext(os.path.basename(trexio_filename))
     except Exception as e:
-        print(f"An error occurred while processing the TREXIO filename: {e}")
+        trexio_basename = os.path.basename(trexio_filename)
+        trexio_extension = ""
 
+
+    filename_info = {}
+    filename_info['filename'] = filename
+    filename_info['trexio_basename'] = trexio_basename
+    filename_info['state_suffix'] = state_suffix
+    filename_info['trexio_extension'] = trexio_extension
+    filename_info['state'] = 0
 
     if "pyscf" not in filetype.lower() and "gamess" not in filetype.lower():
         trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
 
     if filetype.lower() == "gaussian":
-        run_resultsFile(trexio_file, filename, motype)
+        run_resultsFile(trexio_file, filename_info, motype)
+
     elif filetype.lower() == "gamess":
         # Handle the case where the number of states is greater than 1
         try:
@@ -801,31 +829,37 @@ def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, s
         except Exception:
             print(f"An error occurred while parsing the file using resultsFile : {Exception}")
 
+        # Open the TREXIO file for writing
+        trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
+        run_resultsFile(trexio_file, filename_info, motype)
+
         # Check the number of states in the quantum chemical calculation file first
         if res.num_states > 1:
             print(f"Number of states in the quantum chemical calculation file     {res.num_states}")
             # Create a separate TREXIO file for each state
-            for s in range(res.num_states):
-                trexio_filename = f"{trexio_basename}_{state_suffix}_{s}.h5"
+            for s in range(1,res.num_states):
+                trexio_filename = f"{trexio_basename}_{state_suffix}_{s}{trexio_extension}"
                 file_cleanup(trexio_filename, back_end)
                 trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
                 trexio_file.set_state(s)
-                run_resultsFile(trexio_file, filename, motype)
-        else:
-            # Open the TREXIO file for writing
-            trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
-            run_resultsFile(trexio_file, filename, motype)
+                filename_info['state'] = s
+                run_resultsFile(trexio_file, filename_info, motype)
+
     elif filetype.lower() == "pyscf":
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
         run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename, back_end=back_end_str)
+
     elif filetype.lower() == "orca":
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
         run_orca(filename=trexio_filename, orca_json=filename, back_end=back_end_str)
+
     elif filetype.lower() == "crystal":
         if spin is None: raise ValueError("You forgot to provide spin for the CRYSTAL->TREXIO converter.")
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
         run_crystal(trexio_filename=trexio_filename, crystal_output=filename, back_end=back_end_str, spin=spin)
+
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
+
     else:
         raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")

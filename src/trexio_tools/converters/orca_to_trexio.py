@@ -5,7 +5,6 @@ def orca_to_trexio(
 ):
     # load python packages
     import os
-    import glob
     import json
     import numpy as np
     import scipy.special
@@ -28,14 +27,6 @@ def orca_to_trexio(
 
     with open(orca_json, 'r') as f:
         data = json.load(f)
-
-    import os
-    try:
-        # Remove the file if it already exists
-        if glob.glob(filename):
-            os.remove(filename)
-    except:
-        print(f"File {filename} does not exist.")
 
     # trexio back end handling
     if back_end.lower() == "hdf5":
