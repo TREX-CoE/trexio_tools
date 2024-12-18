@@ -55,7 +55,7 @@ jobs:
           cat error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.12'
           echo "=== Check TREXIO file converted from GAMESS multistate calculation (State 1 of 2) ==="
-          trexio check-mos -n 50 multistate_gamess_state_0.h5 > mos-res
+          trexio check-mos -n 50 multistate_gamess.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
           echo "=== Check TREXIO file converted from GAMESS multistate calculation (State 2 of 2) ==="
