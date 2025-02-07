@@ -470,41 +470,43 @@ def run_cart_phe(inp, filename, to_cartesian):
 
     trexio.write_ao_normalization(out, cart_normalization)
 
-    """
-    Although d_z^2 is the reference for both sphe and cart,
-    the actual definition of said orbital is different -> shell_factor must be adapted
-    """
-    if trexio.has_basis_shell_factor(inp) and trexio.has_basis_shell_ang_mom(inp):
-        shell_fac = trexio.read_basis_shell_factor(inp)
-        l = trexio.read_basis_shell_ang_mom(inp)
+    basis_type = trexio.read_basis_type(inp)
+    if basis_type.lower() == "numerical":
+        """
+        Although d_z^2 is the reference for both sphe and cart,
+        the actual definition of said orbital is different -> shell_factor must be adapted
+        """
+        if trexio.has_basis_shell_factor(inp) and trexio.has_basis_shell_ang_mom(inp):
+            shell_fac = trexio.read_basis_shell_factor(inp)
+            l = trexio.read_basis_shell_ang_mom(inp)
 
-        for i in range(len(shell_fac)):
-            if l[i] == 2 or l[i] == 3:
-                shell_fac[i] *= 2
-            elif l[i] == 4 or l[i] == 5:
-                shell_fac[i] *= 8
-            elif l[i] == 4 or l[i] == 5:
-                shell_fac[i] *= 8
-            elif l[i] == 6 or l[i] == 7:
-                shell_fac[i] *= 16
-        trexio.write_basis_shell_factor(out, shell_fac)
+            for i in range(len(shell_fac)):
+                if l[i] == 2 or l[i] == 3:
+                    shell_fac[i] *= 2
+                elif l[i] == 4 or l[i] == 5:
+                    shell_fac[i] *= 8
+                elif l[i] == 4 or l[i] == 5:
+                    shell_fac[i] *= 8
+                elif l[i] == 6 or l[i] == 7:
+                    shell_fac[i] *= 16
+            trexio.write_basis_shell_factor(out, shell_fac)
 
-    """
-    If spherical harmonics are used for the angular part, radial and angular
-    coordinates are completely seperated. The cartesian polynomials, however,
-    mix radial and angular coordinates. Thus, r_power needs to be adapted to cancel
-    out the radial dependence of the polynomials.
-    """
+        """
+        If spherical harmonics are used for the angular part, radial and angular
+        coordinates are completely seperated. The cartesian polynomials, however,
+        mix radial and angular coordinates. Thus, r_power needs to be adapted to cancel
+        out the radial dependence of the polynomials.
+        """
 
-    r_power = [0.0 for _ in shell_ang_mom ]
+        r_power = [0.0 for _ in shell_ang_mom ]
 
-    r_power_sign = -1
-    if to_cartesian == 0:
-        r_power_sign = +1
-    for i, ang_mom in enumerate(shell_ang_mom):
-        r_power[i] = ang_mom * r_power_sign
+        r_power_sign = -1
+        if to_cartesian == 0:
+            r_power_sign = +1
+        for i, ang_mom in enumerate(shell_ang_mom):
+            r_power[i] = ang_mom * r_power_sign
 
-    trexio.write_basis_r_power(out, r_power)
+        trexio.write_basis_r_power(out, r_power)
 
     R_norm_inv = np.array(R)
 

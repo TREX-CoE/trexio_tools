@@ -38,6 +38,8 @@ def value(ao,r):
     basis_num      =  basis["shell_num"]
     prim_num       =  basis["prim_num"]
     shell_ang_mom  =  basis["shell_ang_mom"]
+    shell_factor   =  basis["shell_factor"]
+    shell_index    =  [ i for i in basis["shell_index"] ]
 
     # to reconstruct for compatibility with TREXIO < v.2.0.0
     basis_old         = ao["basis_old"]
@@ -53,7 +55,7 @@ def value(ao,r):
 
     # Compute all primitives and powers
     prims = np.zeros(prim_num)
-    pows  = [ None for i in range(basis_num) ]
+    pows  = [ 0. for i in range(basis_num) ]
 
     for i_nucl in range(nucleus_num):
 
@@ -61,18 +63,16 @@ def value(ao,r):
        i_prim = shell_prim_index[i_shell]
        istart = i_prim
 
+       dr = r - coord[i_nucl]
+       r2 = dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2]
+
        try:
          i_shell_end = nucleus_index[i_nucl+1]
          i_prim = shell_prim_index[i_shell_end]
          iend = i_prim
        except IndexError:
-         iend = prim_num+1
+         iend = prim_num
          i_shell_end = basis_num
-
-       dr = r - coord[i_nucl]
-       r2 = dr[0]*dr[0] + dr[1]*dr[1] + dr[2]*dr[2]
-       expo_r = exponent[istart:iend] * r2
-       prims[istart:iend] = coefficient[istart:iend] * np.exp(-expo_r)
 
        old = None
        for i in range(i_shell,i_shell_end):
@@ -81,6 +81,10 @@ def value(ao,r):
             x = np.array([ np.power(dr, p) for p in powers[old] ])
             x = np.prod(x,axis=1)
          pows[i] = x
+
+       for iprim in range(istart,iend):
+         f = shell_factor[ shell_index[iprim] ]
+         prims[iprim] = coefficient[iprim] * np.exp(-exponent[iprim]*r2) * f
 
     # Compute contractions
     rr = np.zeros(basis_num)
