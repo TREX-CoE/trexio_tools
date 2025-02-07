@@ -175,7 +175,7 @@ if __name__ == '__main__':
         type=bool,
         nargs=1,
         default=True,
-        help='Overwrite flag. Default: True.'
+        help='Overwrite flag. Default: False.'
         )
 
     args = parser.parse_args()
