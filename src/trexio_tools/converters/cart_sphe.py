@@ -6,6 +6,7 @@
 import numpy as np
 
 def cart_sphe(n):
+  """ Matrices have dimension ( N_cartesian, N_sperical ) """
   if n == 0:
        result = np.array([
     [1.0],

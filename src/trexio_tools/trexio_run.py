@@ -21,7 +21,7 @@ Options:
       -m, --multiplicity=MULTIPLICITY  Spin multiplicity for the Crystal converter.
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite               Overwrite the output TREXIO file if it already exists.  [default: True]
-      -t, --type=TYPE               [gaussian | gamess | pyscf | orca | crystal | fcidump | molden | cartesian ] File format.
+      -t, --type=TYPE               [gaussian | gamess | pyscf | orca | crystal | fcidump | molden | cartesian | spherical ] File format.
       -x, --motype=MO_TYPE          Type of the molecular orbitals. For example, GAMESS has RHF, MCSCF, GUGA, and Natural as possible MO types.
       -y, --spin_order=TYPE         [block | interleave] How to organize spin orbitals when converting to FCIDUMP [default: block]
 """
@@ -44,9 +44,9 @@ def remove_trexio_file(filename:str, overwrite:bool) -> None:
                 with trexio.File(filename, 'r', trexio.TREXIO_AUTO) as tfile:
                     if trexio.has_metadata_package_version(tfile):
                         is_trexio = True
-                        
+
                 if is_trexio: os.system(f'rm -rf -- {filename}')
-                
+
             except:
                 raise Exception(f'Output file {filename} exists but it is not a TREXIO file. Are you sure?')
         else:
@@ -117,7 +117,7 @@ def main(filename=None, args=None) -> None:
 
     elif args["convert-from"]:
         from .converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, spin=spin, motype=args["--motype"], state_suffix=args["--state_suffix"], 
+        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, spin=spin, motype=args["--motype"], state_suffix=args["--state_suffix"],
             overwrite=args["--overwrite"])
 
     elif args["convert-to"]:

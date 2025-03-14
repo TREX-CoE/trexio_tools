@@ -415,10 +415,10 @@ def run_cart_phe(inp, filename, to_cartesian):
       count_sphe += y
       q, s = count_cart, count_sphe
       accu.append( (l, p,q, r,s) )
-      if to_cartesian != 0:
+      if to_cartesian == 1:
           n = x
           i += y
-      else:
+      elif to_cartesian == 0:
           n = y
           i += x
       for _ in range(n):
@@ -430,8 +430,6 @@ def run_cart_phe(inp, filename, to_cartesian):
       R[p:q,r:s] = cart_sphe.data[l]
       cart_normalization[p:q] = cart_sphe.normalization[l]
 
-    S = np.eye(count_sphe)
-
     ao_num_in  = trexio.read_ao_num(inp)
 
     normalization = np.array( [ 1. ] * ao_num_in )
@@ -441,29 +439,32 @@ def run_cart_phe(inp, filename, to_cartesian):
     for i,f in enumerate(normalization):
       cart_normalization[i] *= f
 
-    if to_cartesian == 0:
-        print("Transformation from cartesian to spherical is not implemented")
-        return
+    if to_cartesian == 1:  # sphe -> cart
+        S = np.zeros((count_cart, count_cart))
+        S = R.T @ R
+        S_inv = np.linalg.inv(S)
 
-#        # See http://users.df.uba.ar/dmitnik/estructura3/bases/biblio/transformationGaussianSpherical.pdf
-#        # If S is the overlap of cartesian functions, R @ S @ R.T = I, so R^{-1} = S @ R.T
-#        if trexio.has_ao_1e_int_overlap(inp):
-#            X = trexio.read_ao_1e_int_overlap(inp)
-#        else:
-#            print("Transformation from Cartesian to Spherical requires AO overlap matrix.")
-#            return -1
-#
-#        S = np.zeros((count_cart, count_cart))
-#        for (l, p,q, r,s) in accu:
-#            S[p:q,p:q] = X[p:q,p:q]
-#
-#        R = R.T @ S
+        ao_num_out = count_cart
+        R0 = R @ S_inv
+        R1 = R
+        R = R1
+
+    elif to_cartesian == 0:   # cart -> sphe
+        S = np.zeros((count_cart, count_cart))
+        S = R @ R.T
+        S_inv = np.linalg.pinv(S)
+
+        ao_num_out = count_sphe
+        R0 = R.T
+        R1 = R.T @ S_inv
+        R = R1
+        cart_normalization = np.array([1. for _ in range(count_sphe)])
+
 
     elif to_cartesian == -1:
         R = np.eye(ao_num_in)
 
     # Update AOs
-    ao_num_out = R.shape[0]
     trexio.write_ao_cartesian(out, to_cartesian)
     trexio.write_ao_num(out, ao_num_out)
     trexio.write_ao_shell(out, shell)
@@ -508,41 +509,96 @@ def run_cart_phe(inp, filename, to_cartesian):
 
         trexio.write_basis_r_power(out, r_power)
 
-    R_norm_inv = np.array(R)
-
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
-      Y = X @ R.T
+      Y = X @ R0.T
       trexio.write_mo_coefficient(out, Y)
 
     # Update 1e Integrals
     if trexio.has_ao_1e_int_overlap(inp):
       X = trexio.read_ao_1e_int_overlap(inp)
-      Y = R_norm_inv @ X @ R_norm_inv.T
+      Y = R @ X @ R.T
       trexio.write_ao_1e_int_overlap(out, Y)
 
 
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
-      trexio.write_ao_1e_int_kinetic(out, R_norm_inv @ X @ R_norm_inv.T)
+      trexio.write_ao_1e_int_kinetic(out, R @ X @ R.T)
 
     if trexio.has_ao_1e_int_potential_n_e(inp):
       X = trexio.read_ao_1e_int_potential_n_e(inp)
-      trexio.write_ao_1e_int_potential_n_e(out, R_norm_inv @ X @ R_norm_inv.T)
+      trexio.write_ao_1e_int_potential_n_e(out, R @ X @ R.T)
 
     if trexio.has_ao_1e_int_ecp(inp):
       X = trexio.read_ao_1e_int_ecp(inp)
-      trexio.write_ao_1e_int_ecp(out, R_norm_inv @ X @ R_norm_inv.T)
+      trexio.write_ao_1e_int_ecp(out, R @ X @ R.T)
 
     if trexio.has_ao_1e_int_core_hamiltonian(inp):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
-      trexio.write_ao_1e_int_core_hamiltonian(out, R_norm_inv @ X @ R_norm_inv.T)
+      trexio.write_ao_1e_int_core_hamiltonian(out, R @ X @ R.T)
 
-    # Remove 2e integrals: too expensive to transform
-    if trexio.has_ao_2e_int(inp):
-      print("Warning: Two-electron integrals are not converted")
-      trexio.delete_ao_2e_int(out)
+    if trexio.has_ao_2e_int(inp) and False:
+      m = ao_num_in
+      n = ao_num_out
+      size_max = trexio.read_ao_2e_int_eri_size(inp)
+
+      offset = 0
+      icount = size_max+1
+      feof = False
+      print("Reading integrals...")
+      W = np.zeros( (m,m,m,m) )
+      while not feof:
+          buffer_index, buffer_values, icount, feof = trexio.read_ao_2e_int_eri(inp, offset, icount)
+          print (icount, feof)
+          offset += icount
+          for p in range(icount):
+              i, j, k, l = buffer_index[p]
+              print (i,j,k,l)
+              W[i,j,k,l] = buffer_values[p]
+              W[k,j,i,l] = buffer_values[p]
+              W[i,l,k,j] = buffer_values[p]
+              W[k,l,i,j] = buffer_values[p]
+              W[j,i,l,k] = buffer_values[p]
+              W[j,k,l,i] = buffer_values[p]
+              W[l,i,j,k] = buffer_values[p]
+              W[l,k,j,i] = buffer_values[p]
+      print("Transformation #1")
+      T = W.reshape( (m, m*m*m) )
+      U = T.T @ R.T
+      print("Transformation #2")
+      W = U.reshape( (m, m*m*n) )
+      T = W.T @ R.T
+      print("Transformation #3")
+      U = T.reshape( (m, m*n*n) )
+      W = U.T @ R.T
+      print("Transformation #4")
+      T = W.reshape( (m, n*n*n) )
+      U = T.T @ R.T
+      W = U.reshape( (n,n,n,n) )
+
+      buffer_index = []
+      buffer_values = []
+      print (m, " -> ", n )
+      for l in range(n):
+        for k in range(n):
+          for j in range(l,n):
+            for i in range(k,n):
+                if i==j and k<l:
+                    continue
+                if i<j:
+                    continue
+                x = W[i,j,k,l]
+                if abs(x) < 1.e-12:
+                    continue
+                buffer_index += [i,j,k,l]
+                buffer_values += [ x ]
+
+      offset = 0
+      icount =  len(buffer_values)
+      trexio.write_ao_2e_int_eri(out, offset, icount, buffer_index, buffer_values)
+
+
 
 
 def run_normalized_aos(t, filename):
@@ -575,6 +631,7 @@ def run_spherical(t, filename):
 
 def run(trexio_filename, filename, filetype, spin_order):
 
+    print (filetype)
     trexio_file = trexio.File(trexio_filename,mode='r',back_end=trexio.TREXIO_AUTO)
 
     if filetype.lower() == "molden":
