@@ -562,20 +562,22 @@ def run_cart_phe(inp, filename, to_cartesian):
       print("Reading integrals...")
       W = np.zeros( (m,m,m,m) )
       while not feof:
+          icount = m*m*m*m
           buffer_index, buffer_values, icount, feof = trexio.read_ao_2e_int_eri(inp, offset, icount)
-          print (icount, feof)
           offset += icount
-          for p in range(icount):
-              i, j, k, l = buffer_index[p]
-#              print (i,j,k,l)
-              W[i,j,k,l] = buffer_values[p]
-              W[k,j,i,l] = buffer_values[p]
-              W[i,l,k,j] = buffer_values[p]
-              W[k,l,i,j] = buffer_values[p]
-              W[j,i,l,k] = buffer_values[p]
-              W[j,k,l,i] = buffer_values[p]
-              W[l,i,j,k] = buffer_values[p]
-              W[l,k,j,i] = buffer_values[p]
+          i = buffer_index.T[0]  # i,j,k,l are arrays here, for faster access
+          j = buffer_index.T[1]
+          k = buffer_index.T[2]
+          l = buffer_index.T[3]
+          W[i,j,k,l] = buffer_values
+          W[k,j,i,l] = buffer_values
+          W[i,l,k,j] = buffer_values
+          W[k,l,i,j] = buffer_values
+          W[j,i,l,k] = buffer_values
+          W[j,k,l,i] = buffer_values
+          W[l,i,j,k] = buffer_values
+          W[l,k,j,i] = buffer_values
+
       print("Transformation #1")
       T = W.reshape( (m, m*m*m) )
       U = T.T @ R.T
