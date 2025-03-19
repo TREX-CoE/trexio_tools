@@ -272,7 +272,7 @@ def run_molden(t, filename):
         if trexio.has_basis_r_power(t):
             basis_r_power = trexio.read_basis_r_power(t)
         else:
-            basis_r_power = [0.0 for _ in range(basis_shell_num) ]
+            basis_r_power = [0.0 for _ in range(shell_num) ]
 
         contr = [ { "exponent"      : [],
                     "coefficient"   : [],
@@ -440,7 +440,6 @@ def run_cart_phe(inp, filename, to_cartesian):
       cart_normalization[i] *= f
 
     if to_cartesian == 1:  # sphe -> cart
-        S = np.zeros((count_cart, count_cart))
         S = R.T @ R
         S_inv = np.linalg.inv(S)
 
@@ -450,7 +449,6 @@ def run_cart_phe(inp, filename, to_cartesian):
         R = R1
 
     elif to_cartesian == 0:   # cart -> sphe
-        S = np.zeros((count_cart, count_cart))
         S = R @ R.T
         S_inv = np.linalg.pinv(S)
 
@@ -458,6 +456,7 @@ def run_cart_phe(inp, filename, to_cartesian):
         R0 = R.T
         R1 = R.T @ S_inv
         R = R1
+
         cart_normalization = np.array([1. for _ in range(count_sphe)])
 
 
@@ -509,19 +508,33 @@ def run_cart_phe(inp, filename, to_cartesian):
 
         trexio.write_basis_r_power(out, r_power)
 
+    # Update Overlap
+    if trexio.has_ao_1e_int_overlap(inp):
+      X = trexio.read_ao_1e_int_overlap(inp)
+      S = R @ X @ R.T
+      trexio.write_ao_1e_int_overlap(out, S)
+
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
-      Y = X @ R0.T
-      trexio.write_mo_coefficient(out, Y)
+      C = X @ R0.T
+      if to_cartesian == 0 and trexio.has_ao_1e_int_overlap(inp):
+          # Re-orthonormalize C if needed
+          C0 = C
+          S0 = S
+          S = C0 @ S @ C0.T
+          u,d,vt = np.linalg.svd(S)
+          for i,x in enumerate(d):
+              if abs(x/d[0]) > 1.e-15:
+                 d[i] = 1./np.sqrt(x)
+              else:
+                 d[i] = 0.
+          d = np.diag(d)
+          S_inv = u @ d @ vt
+          C =  S_inv @ C0
+      trexio.write_mo_coefficient(out, C)
 
     # Update 1e Integrals
-    if trexio.has_ao_1e_int_overlap(inp):
-      X = trexio.read_ao_1e_int_overlap(inp)
-      Y = R @ X @ R.T
-      trexio.write_ao_1e_int_overlap(out, Y)
-
-
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
       trexio.write_ao_1e_int_kinetic(out, R @ X @ R.T)
@@ -538,7 +551,7 @@ def run_cart_phe(inp, filename, to_cartesian):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
       trexio.write_ao_1e_int_core_hamiltonian(out, R @ X @ R.T)
 
-    if trexio.has_ao_2e_int(inp) and False:
+    if trexio.has_ao_2e_int(inp):
       m = ao_num_in
       n = ao_num_out
       size_max = trexio.read_ao_2e_int_eri_size(inp)
@@ -554,7 +567,7 @@ def run_cart_phe(inp, filename, to_cartesian):
           offset += icount
           for p in range(icount):
               i, j, k, l = buffer_index[p]
-              print (i,j,k,l)
+#              print (i,j,k,l)
               W[i,j,k,l] = buffer_values[p]
               W[k,j,i,l] = buffer_values[p]
               W[i,l,k,j] = buffer_values[p]
@@ -594,6 +607,7 @@ def run_cart_phe(inp, filename, to_cartesian):
                 buffer_index += [i,j,k,l]
                 buffer_values += [ x ]
 
+      trexio.delete_ao_2e_int(out)
       offset = 0
       icount =  len(buffer_values)
       trexio.write_ao_2e_int_eri(out, offset, icount, buffer_index, buffer_values)
