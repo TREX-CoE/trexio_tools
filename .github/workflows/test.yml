@@ -62,7 +62,7 @@ jobs:
           trexio check-mos -n 100 trexio_orca_h2o.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           cat error-res
-          python -c 'with open("error-res") as f: error = f.readline().strip(); print(float(error))'
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.08'
           # benchmark helper converters
           trexio convert-to -t molden -o trexio_molden.h5 trexio_gamess.h5
           echo "=== Check normalization in spherical file ==="
