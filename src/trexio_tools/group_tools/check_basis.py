@@ -61,7 +61,7 @@ def run(trexio_file, n_points):
         chi = np.reshape( chi, (point_num,ao_num) )
         S = chi.T @ chi * dv
 
-    except ImportError:
+    except ModuleNotFoundError:
 
         chi = []
         for xyz in point:

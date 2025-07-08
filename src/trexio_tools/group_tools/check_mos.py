@@ -54,7 +54,7 @@ def run(trexio_file, n_points):
         qmckl.set_point(context, 'N', point_num, np.reshape(point, (point_num*3)))
         chi = qmckl.get_mo_basis_mo_value(context, point_num*mo_num)
 
-    except ImportError:
+    except ModuleNotFoundError:
 
         chi = []
         for xyz in point:
