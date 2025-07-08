@@ -454,9 +454,9 @@ def run_resultsFile(trexio_file, filename_info, motype=None):
         for i in range(determinant_num):
             det_tmp      = []
             orb_list_up  = [ orb for orb in res.determinants[i].get("alpha") ]
-            det_tmp     += trexio_det.to_determinant_list(orb_list_up, int64_num)
+            det_tmp     += trexio.to_bitfield_list(int64_num,orb_list_up)
             orb_list_dn  = [ orb for orb in res.determinants[i].get("beta") ]
-            det_tmp     += trexio_det.to_determinant_list(orb_list_dn, int64_num)
+            det_tmp     += trexio.to_bitfield_list(int64_num,orb_list_dn)
 
             det_list.append(det_tmp)
 
