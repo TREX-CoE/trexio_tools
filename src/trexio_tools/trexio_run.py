@@ -70,7 +70,7 @@ def main(filename=None, args=None) -> None:
         remove_trexio_file(args["--output"], overwrite)
 
     if args["convert-from"]:
-        remove_trexio_file(args["TREXIO_FILE"], overwrite)
+        remove_trexio_file(filename, overwrite)
 
     if args["--back_end"]:
         if str(args["--back_end"]).lower() == "hdf5":
@@ -117,12 +117,12 @@ def main(filename=None, args=None) -> None:
 
     elif args["convert-from"]:
         from .converters.convert_from import run
-        run(args["TREXIO_FILE"], args["--input"], args["--type"], back_end=back_end, spin=spin, motype=args["--motype"], state_suffix=args["--state_suffix"],
+        run(filename, args["--input"], args["--type"], back_end=back_end, spin=spin, motype=args["--motype"], state_suffix=args["--state_suffix"],
             overwrite=args["--overwrite"])
 
     elif args["convert-to"]:
         from .converters.convert_to import run
-        run(args["TREXIO_FILE"], args["--output"], args["--type"], args["--spin_order"])
+        run(filename, args["--output"], args["--type"], args["--spin_order"])
 
     elif args["convert-backend"]:
         from .converters.convert_back_end import run
