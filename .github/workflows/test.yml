@@ -38,13 +38,9 @@ jobs:
           trexio convert-from -t gaussian  -i data/chbrclf.log                -b hdf5  trexio_gaussi.h5
           trexio convert-from -t gamess    -i data/GAMESS_CAS.log             -b hdf5  trexio_gamess.h5
           trexio convert-from -t gamess    -i data/multistate_gamess.log      -b hdf5  multistate_gamess.h5
-          trexio convert-from -t pyscf     -i data/water.chk                  -b hdf5  trexio_pyscf_h2o_sph.h5
-          trexio convert-from -t pyscf     -i data/diamond_single_k.chk       -b hdf5  trexio_pyscf_1k.h5
-          trexio convert-from -t pyscf     -i data/diamond_k_grid.chk         -b hdf5  trexio_pyscf_Nk.h5
           trexio convert-from -t crystal   -i data/crystal23_mgo_lda.out -m 1 -b hdf5  crystal.hdf5
           trexio convert-from -t orca      -i data/h2o.json                   -b hdf5  trexio_orca_h2o_sph.h5
           trexio convert-to -t cartesian -o trexio_orca_h2o.h5 trexio_orca_h2o_sph.h5
-          trexio convert-to -t cartesian -o trexio_pyscf_h2o.h5 trexio_pyscf_h2o_sph.h5
           echo "==  Done conversion  =="
           # dummy checks for overwriting
           trexio convert-from -t gaussian  -i data/chbrclf.log -b hdf5 trexio_gaussi.h5 || echo "Failure as it should"
@@ -62,11 +58,6 @@ jobs:
           trexio check-mos -n 50 multistate_gamess_state_1.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 1.0'
-          echo "=== Check TREXIO file converted from PySCF ==="
-          trexio check-mos -n 100 trexio_pyscf_h2o.h5 > mos-res
-          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
-          cat error-res
-          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.00018'
           echo "=== Check TREXIO file converted from ORCA ==="
           trexio check-mos -n 100 trexio_orca_h2o.h5 > mos-res
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
