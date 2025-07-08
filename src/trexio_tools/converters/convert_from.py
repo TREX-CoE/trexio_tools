@@ -5,7 +5,6 @@ Convert output file from a given code/format into TREXIO
 
 import os
 from trexio_tools.group_tools import basis as trexio_basis
-from trexio_tools.group_tools import determinant as trexio_det
 
 from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
 from .orca_to_trexio import orca_to_trexio as run_orca
