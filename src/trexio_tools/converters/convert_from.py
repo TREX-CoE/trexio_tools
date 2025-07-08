@@ -451,13 +451,11 @@ def run_resultsFile(trexio_file, filename_info, motype=None):
         # construct the determinant_list of integer bitfields from resultsFile determinants reprsentation
         det_list = []
         for i in range(determinant_num):
-            det_tmp      = []
             orb_list_up  = [ orb for orb in res.determinants[i].get("alpha") ]
-            det_tmp     += trexio.to_bitfield_list(int64_num,orb_list_up)
             orb_list_dn  = [ orb for orb in res.determinants[i].get("beta") ]
-            det_tmp     += trexio.to_bitfield_list(int64_num,orb_list_dn)
-
+            det_tmp      = [ trexio.to_bitfield_list(int64_num,orb_list_up), trexio.to_bitfield_list(int64_num,orb_list_dn) ]
             det_list.append(det_tmp)
+
 
         # write the CI determinants
         offset_file = 0
