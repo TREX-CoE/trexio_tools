@@ -464,6 +464,8 @@ def run_cart_phe(inp, filename, to_cartesian):
     elif to_cartesian == -1:
         R = np.eye(ao_num_in)
 
+    # Set ao_normalization to 1. by updating the MOs
+
     # Update AOs
     trexio.write_ao_cartesian(out, to_cartesian)
     trexio.write_ao_num(out, ao_num_out)

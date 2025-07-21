@@ -48,7 +48,6 @@ def to_determinant_list(orbital_list: list, int64_num: int) -> list:
         raise Exception(f'Number of bitfields {bitfield_num} cannot be more than the int64_num {int64_num}.')
     if bitfield_num < int64_num:
         for _ in range(int64_num - bitfield_num):
-            print("Appending an empty bitfield.")
             det_list.append(0)
 
     return det_list
