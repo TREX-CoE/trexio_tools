@@ -514,7 +514,7 @@ def run_cart_phe(inp, filename, to_cartesian):
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
-      Y = X @ R0.T
+      Y = X @ R.T
       trexio.write_mo_coefficient(out, Y)
 
     # Update 1e Integrals
