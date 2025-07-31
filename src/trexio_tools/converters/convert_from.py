@@ -5,7 +5,6 @@ Convert output file from a given code/format into TREXIO
 
 import os
 from trexio_tools.group_tools import basis as trexio_basis
-from trexio_tools.group_tools import determinant as trexio_det
 
 from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
 from .orca_to_trexio import orca_to_trexio as run_orca
@@ -452,13 +451,11 @@ def run_resultsFile(trexio_file, filename_info, motype=None):
         # construct the determinant_list of integer bitfields from resultsFile determinants reprsentation
         det_list = []
         for i in range(determinant_num):
-            det_tmp      = []
             orb_list_up  = [ orb for orb in res.determinants[i].get("alpha") ]
-            det_tmp     += trexio_det.to_determinant_list(orb_list_up, int64_num)
             orb_list_dn  = [ orb for orb in res.determinants[i].get("beta") ]
-            det_tmp     += trexio_det.to_determinant_list(orb_list_dn, int64_num)
-
+            det_tmp      = [ trexio.to_bitfield_list(int64_num,orb_list_up), trexio.to_bitfield_list(int64_num,orb_list_dn) ]
             det_list.append(det_tmp)
+
 
         # write the CI determinants
         offset_file = 0
