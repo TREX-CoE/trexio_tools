@@ -456,7 +456,6 @@ def run_cart_phe(inp, filename, to_cartesian):
         R0 = R.T
         R1 = R.T @ S_inv
         R = R1
-
         cart_normalization = np.array([1. for _ in range(count_sphe)])
 
 
@@ -510,33 +509,19 @@ def run_cart_phe(inp, filename, to_cartesian):
 
         trexio.write_basis_r_power(out, r_power)
 
-    # Update Overlap
-    if trexio.has_ao_1e_int_overlap(inp):
-      X = trexio.read_ao_1e_int_overlap(inp)
-      S = R @ X @ R.T
-      trexio.write_ao_1e_int_overlap(out, S)
-
     # Update MOs
     if trexio.has_mo_coefficient(inp):
       X = trexio.read_mo_coefficient(inp)
-      C = X @ R.T
-      if to_cartesian == 0 and trexio.has_ao_1e_int_overlap(inp):
-          # Re-orthonormalize C if needed
-          C0 = C
-          S0 = S
-          S = C0 @ S @ C0.T
-          u,d,vt = np.linalg.svd(S)
-          for i,x in enumerate(d):
-              if abs(x/d[0]) > 1.e-15:
-                 d[i] = 1./np.sqrt(x)
-              else:
-                 d[i] = 0.
-          d = np.diag(d)
-          S_inv = u @ d @ vt
-          C =  S_inv @ C0
-      trexio.write_mo_coefficient(out, C)
+      Y = X @ R.T
+      trexio.write_mo_coefficient(out, Y)
 
     # Update 1e Integrals
+    if trexio.has_ao_1e_int_overlap(inp):
+      X = trexio.read_ao_1e_int_overlap(inp)
+      Y = R @ X @ R.T
+      trexio.write_ao_1e_int_overlap(out, Y)
+
+
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
       trexio.write_ao_1e_int_kinetic(out, R @ X @ R.T)
