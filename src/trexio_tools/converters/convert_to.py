@@ -394,8 +394,8 @@ def run_molden(t, filename):
 
 
 def run_cart_phe(inp, filename, to_cartesian):
-    out = trexio.File(filename, 'u', inp.back_end)
 
+    out = trexio.File(filename, 'u', inp.back_end)
     shell_ang_mom = trexio.read_basis_shell_ang_mom(inp)
 
     # Build transformation matrix
