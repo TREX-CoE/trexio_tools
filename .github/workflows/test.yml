@@ -76,3 +76,19 @@ jobs:
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           cat error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.0017'
+          echo "=== Round-trip: ORCA water cart -> sphe -> check overlap orthonormality ==="
+          trexio convert-to -t spherical -o trexio_orca_h2o_roundtrip.h5 trexio_orca_h2o.h5
+          python -c '
+import trexio, numpy as np
+t = trexio.File("trexio_orca_h2o_roundtrip.h5", "r", trexio.TREXIO_HDF5)
+C = trexio.read_mo_coefficient(t)
+S = trexio.read_ao_1e_int_overlap(t)
+del t
+M = C @ S @ C.T
+error = np.max(np.abs(M - np.eye(len(C))))
+print(f"MO orthonormality error: {error:.2e}")
+assert error < 1e-10, f"Round-trip MO orthonormality error too large: {error}"
+          '
+          echo "=== Run unit tests ==="
+          pip install pytest scipy
+          python -m pytest tests/ -v

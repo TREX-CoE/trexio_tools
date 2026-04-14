@@ -444,24 +444,25 @@ def run_cart_phe(inp, filename, to_cartesian):
         S_inv = np.linalg.inv(S)
 
         ao_num_out = count_cart
-        R0 = R @ S_inv
-        R1 = R
+        R0 = R @ S_inv   # R0 is used for integral transforms
+        R1 = R            # R1 is used for MO transforms
         R = R1
+        R_int = R0
 
     elif to_cartesian == 0:   # cart -> sphe
-        S = R @ R.T
-        S_inv = np.linalg.pinv(S)
+        RtR = R.T @ R
+        RtR_inv = np.linalg.inv(RtR)
 
         ao_num_out = count_sphe
-        R0 = R.T
-        R1 = R.T @ S_inv
-        R = R1
+        R_int = R.T          # R^T for integral transforms: O_sphe = R^T @ O_cart @ R
+        R = RtR_inv @ R.T    # R^+ = (R^T R)^{-1} R^T for MO transforms via R.T
 
         cart_normalization = np.array([1. for _ in range(count_sphe)])
 
 
     elif to_cartesian == -1:
         R = np.eye(ao_num_in)
+        R_int = R
 
     # Set ao_normalization to 1. by updating the MOs
 
@@ -485,8 +486,6 @@ def run_cart_phe(inp, filename, to_cartesian):
             for i in range(len(shell_fac)):
                 if l[i] == 2 or l[i] == 3:
                     shell_fac[i] *= 2
-                elif l[i] == 4 or l[i] == 5:
-                    shell_fac[i] *= 8
                 elif l[i] == 4 or l[i] == 5:
                     shell_fac[i] *= 8
                 elif l[i] == 6 or l[i] == 7:
@@ -513,7 +512,7 @@ def run_cart_phe(inp, filename, to_cartesian):
     # Update Overlap
     if trexio.has_ao_1e_int_overlap(inp):
       X = trexio.read_ao_1e_int_overlap(inp)
-      S = R @ X @ R.T
+      S = R_int @ X @ R_int.T
       trexio.write_ao_1e_int_overlap(out, S)
 
     # Update MOs
@@ -539,19 +538,19 @@ def run_cart_phe(inp, filename, to_cartesian):
     # Update 1e Integrals
     if trexio.has_ao_1e_int_kinetic(inp):
       X = trexio.read_ao_1e_int_kinetic(inp)
-      trexio.write_ao_1e_int_kinetic(out, R @ X @ R.T)
+      trexio.write_ao_1e_int_kinetic(out, R_int @ X @ R_int.T)
 
     if trexio.has_ao_1e_int_potential_n_e(inp):
       X = trexio.read_ao_1e_int_potential_n_e(inp)
-      trexio.write_ao_1e_int_potential_n_e(out, R @ X @ R.T)
+      trexio.write_ao_1e_int_potential_n_e(out, R_int @ X @ R_int.T)
 
     if trexio.has_ao_1e_int_ecp(inp):
       X = trexio.read_ao_1e_int_ecp(inp)
-      trexio.write_ao_1e_int_ecp(out, R @ X @ R.T)
+      trexio.write_ao_1e_int_ecp(out, R_int @ X @ R_int.T)
 
     if trexio.has_ao_1e_int_core_hamiltonian(inp):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
-      trexio.write_ao_1e_int_core_hamiltonian(out, R @ X @ R.T)
+      trexio.write_ao_1e_int_core_hamiltonian(out, R_int @ X @ R_int.T)
 
     if trexio.has_ao_2e_int(inp):
       m = ao_num_in
@@ -582,16 +581,16 @@ def run_cart_phe(inp, filename, to_cartesian):
 
       print("Transformation #1")
       T = W.reshape( (m, m*m*m) )
-      U = T.T @ R.T
+      U = T.T @ R_int.T
       print("Transformation #2")
       W = U.reshape( (m, m*m*n) )
-      T = W.T @ R.T
+      T = W.T @ R_int.T
       print("Transformation #3")
       U = T.reshape( (m, m*n*n) )
-      W = U.T @ R.T
+      W = U.T @ R_int.T
       print("Transformation #4")
       T = W.reshape( (m, n*n*n) )
-      U = T.T @ R.T
+      U = T.T @ R_int.T
       W = U.reshape( (n,n,n,n) )
 
       buffer_index = []
