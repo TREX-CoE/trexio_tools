@@ -437,8 +437,12 @@ def run_cart_phe(inp, filename, to_cartesian):
       normalization = trexio.read_ao_normalization(inp)
 
     # Apply input normalization using the shell mapping from accu.
-    # Each shell in accu maps spherical AO range [r:s] to Cartesian AO range [p:q].
-    # All spherical AOs within a shell share the same normalization.
+    # In accu, [p:q] is the Cartesian AO range and [r:s] is the spherical AO range.
+    # When to_cartesian == 1 (sphe -> cart), the input normalization is indexed
+    # by spherical AO; we use the first value in each shell since all spherical
+    # AOs within a shell share the same normalization.
+    # When to_cartesian == 0 (cart -> sphe), the input normalization is indexed
+    # by Cartesian AO; we use the first value in the Cartesian range.
     for (l, p, q, r, s) in accu:
       if to_cartesian == 1:
         sphe_norm = normalization[r]
