@@ -488,8 +488,6 @@ def run_cart_phe(inp, filename, to_cartesian):
                     shell_fac[i] *= 2
                 elif l[i] == 4 or l[i] == 5:
                     shell_fac[i] *= 8
-                elif l[i] == 4 or l[i] == 5:
-                    shell_fac[i] *= 8
                 elif l[i] == 6 or l[i] == 7:
                     shell_fac[i] *= 16
             trexio.write_basis_shell_factor(out, shell_fac)
