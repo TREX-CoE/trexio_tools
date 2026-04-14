@@ -1,6 +1,7 @@
 # TREXIO files
 *.dir/
 *.h5
+*.hdf5
 
 kp_info.dat
 
