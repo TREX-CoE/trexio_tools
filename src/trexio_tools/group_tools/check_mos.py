@@ -18,7 +18,7 @@ def run(trexio_file, n_points):
     ao = mo["ao"]
     basis = ao["basis"]
     nucleus = basis["nucleus"]
-    assert basis["type"] == "Gaussian"
+    assert basis["type"] in [ "Gaussian", "Slater" ]
 
     rmin = np.array( list([ np.min(nucleus["coord"][:,a]) for a in range(3) ]) )
     rmax = np.array( list([ np.max(nucleus["coord"][:,a]) for a in range(3) ]) )

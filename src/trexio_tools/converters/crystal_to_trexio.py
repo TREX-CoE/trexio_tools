@@ -314,6 +314,7 @@ def crystal_to_trexio(
         trexio.write_cell_a(trexio_file, a)
         trexio.write_cell_b(trexio_file, b)
         trexio.write_cell_c(trexio_file, c)
+        trexio.write_pbc_k_point_num(trexio_file, 1)
         trexio.write_pbc_k_point(trexio_file, k_vec)
 
         # structure info.

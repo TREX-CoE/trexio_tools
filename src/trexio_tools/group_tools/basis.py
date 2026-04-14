@@ -14,7 +14,7 @@ def read(trexio_file):
     r["nucleus_index"]      =  trexio.read_basis_nucleus_index(trexio_file)
     r["shell_ang_mom"]      =  trexio.read_basis_shell_ang_mom(trexio_file)
     r["shell_factor"]       =  trexio.read_basis_shell_factor(trexio_file)
-    if r["type"] == "Gaussian":
+    if r["type"] in [ "Gaussian", "Slater" ]:
         r["shell_index"]    =  trexio.read_basis_shell_index(trexio_file)
         r["prim_num"]       =  trexio.read_basis_prim_num(trexio_file)
         r["exponent"]       =  trexio.read_basis_exponent(trexio_file)
