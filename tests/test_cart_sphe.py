@@ -116,7 +116,7 @@ class TestTransformationMatrices:
             """Exact integral of x^a y^b z^c over the unit sphere."""
             if a % 2 != 0 or b % 2 != 0 or c % 2 != 0:
                 return 0.0
-            return (4 * np.pi * gamma((a+1)/2) * gamma((b+1)/2) * gamma((c+1)/2)
+            return ((4 * np.pi * gamma((a+1)/2) * gamma((b+1)/2) * gamma((c+1)/2))
                     / gamma((a+b+c+3)/2))
 
         R = cart_sphe.data[l]
@@ -161,16 +161,16 @@ class TestTransformationMatrices:
         because the forward and inverse transforms are consistent.
         """
         try:
-            try:
-                from scipy.special import sph_harm
-                def _sph_harm(m, l, phi, theta):
-                    return sph_harm(m, l, phi, theta)
-            except ImportError:
-                from scipy.special import sph_harm_y
-                def _sph_harm(m, l, phi, theta):
-                    return sph_harm_y(l, m, theta, phi)
+            from scipy.special import sph_harm as _sph_harm_raw
+            def _sph_harm(m, l, phi, theta):
+                return _sph_harm_raw(m, l, phi, theta)
         except ImportError:
-            pytest.skip("scipy not installed")
+            try:
+                from scipy.special import sph_harm_y as _sph_harm_y
+                def _sph_harm(m, l, phi, theta):
+                    return _sph_harm_y(l, m, theta, phi)
+            except ImportError:
+                pytest.skip("scipy not installed")
 
         np.random.seed(123 + l)
         n_points = 200

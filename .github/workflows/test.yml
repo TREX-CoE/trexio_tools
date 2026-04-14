@@ -83,6 +83,7 @@ import trexio, numpy as np
 t = trexio.File("trexio_orca_h2o_roundtrip.h5", "r", trexio.TREXIO_HDF5)
 C = trexio.read_mo_coefficient(t)
 S = trexio.read_ao_1e_int_overlap(t)
+del t
 M = C @ S @ C.T
 error = np.max(np.abs(M - np.eye(len(C))))
 print(f"MO orthonormality error: {error:.2e}")
