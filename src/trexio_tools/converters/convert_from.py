@@ -6,7 +6,6 @@ Convert output file from a given code/format into TREXIO
 import os
 from trexio_tools.group_tools import basis as trexio_basis
 
-from .pyscf_to_trexio import pyscf_to_trexio as run_pyscf
 from .orca_to_trexio import orca_to_trexio as run_orca
 from .crystal_to_trexio import crystal_to_trexio as run_crystal
 
@@ -812,7 +811,7 @@ def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, s
     filename_info['trexio_extension'] = trexio_extension
     filename_info['state'] = 0
 
-    if "pyscf" not in filetype.lower() and "gamess" not in filetype.lower():
+    if "gamess" not in filetype.lower():
         trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
 
     if filetype.lower() == "gaussian":
@@ -840,10 +839,6 @@ def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, s
                 trexio_file.set_state(s)
                 filename_info['state'] = s
                 run_resultsFile(trexio_file, filename_info, motype)
-
-    elif filetype.lower() == "pyscf":
-        back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
-        run_pyscf(trexio_filename=trexio_filename, pyscf_checkfile=filename, back_end=back_end_str)
 
     elif filetype.lower() == "orca":
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
