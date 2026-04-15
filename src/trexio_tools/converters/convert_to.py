@@ -272,7 +272,7 @@ def run_molden(t, filename):
         if trexio.has_basis_r_power(t):
             basis_r_power = trexio.read_basis_r_power(t)
         else:
-            basis_r_power = [0.0 for _ in range(basis_shell_num) ]
+            basis_r_power = [0.0 for _ in range(shell_num) ]
 
         contr = [ { "exponent"      : [],
                     "coefficient"   : [],
@@ -452,7 +452,6 @@ def run_cart_phe(inp, filename, to_cartesian):
         cart_normalization[p:q] *= cart_norm
 
     if to_cartesian == 1:  # sphe -> cart
-        S = np.zeros((count_cart, count_cart))
         S = R.T @ R
         S_inv = np.linalg.inv(S)
 
@@ -462,7 +461,6 @@ def run_cart_phe(inp, filename, to_cartesian):
         R = R1
 
     elif to_cartesian == 0:   # cart -> sphe
-        S = np.zeros((count_cart, count_cart))
         S = R @ R.T
         S_inv = np.linalg.pinv(S)
 
@@ -498,8 +496,6 @@ def run_cart_phe(inp, filename, to_cartesian):
             for i in range(len(shell_fac)):
                 if l[i] == 2 or l[i] == 3:
                     shell_fac[i] *= 2
-                elif l[i] == 4 or l[i] == 5:
-                    shell_fac[i] *= 8
                 elif l[i] == 4 or l[i] == 5:
                     shell_fac[i] *= 8
                 elif l[i] == 6 or l[i] == 7:
@@ -552,7 +548,7 @@ def run_cart_phe(inp, filename, to_cartesian):
       X = trexio.read_ao_1e_int_core_hamiltonian(inp)
       trexio.write_ao_1e_int_core_hamiltonian(out, R @ X @ R.T)
 
-    if trexio.has_ao_2e_int(inp) and False:
+    if trexio.has_ao_2e_int(inp):
       m = ao_num_in
       n = ao_num_out
       size_max = trexio.read_ao_2e_int_eri_size(inp)
@@ -563,20 +559,22 @@ def run_cart_phe(inp, filename, to_cartesian):
       print("Reading integrals...")
       W = np.zeros( (m,m,m,m) )
       while not feof:
+          icount = m*m*m*m
           buffer_index, buffer_values, icount, feof = trexio.read_ao_2e_int_eri(inp, offset, icount)
-          print (icount, feof)
           offset += icount
-          for p in range(icount):
-              i, j, k, l = buffer_index[p]
-              print (i,j,k,l)
-              W[i,j,k,l] = buffer_values[p]
-              W[k,j,i,l] = buffer_values[p]
-              W[i,l,k,j] = buffer_values[p]
-              W[k,l,i,j] = buffer_values[p]
-              W[j,i,l,k] = buffer_values[p]
-              W[j,k,l,i] = buffer_values[p]
-              W[l,i,j,k] = buffer_values[p]
-              W[l,k,j,i] = buffer_values[p]
+          i = buffer_index.T[0]  # i,j,k,l are arrays here, for faster access
+          j = buffer_index.T[1]
+          k = buffer_index.T[2]
+          l = buffer_index.T[3]
+          W[i,j,k,l] = buffer_values
+          W[k,j,i,l] = buffer_values
+          W[i,l,k,j] = buffer_values
+          W[k,l,i,j] = buffer_values
+          W[j,i,l,k] = buffer_values
+          W[j,k,l,i] = buffer_values
+          W[l,i,j,k] = buffer_values
+          W[l,k,j,i] = buffer_values
+
       print("Transformation #1")
       T = W.reshape( (m, m*m*m) )
       U = T.T @ R.T
@@ -608,6 +606,7 @@ def run_cart_phe(inp, filename, to_cartesian):
                 buffer_index += [i,j,k,l]
                 buffer_values += [ x ]
 
+      trexio.delete_ao_2e_int(out)
       offset = 0
       icount =  len(buffer_values)
       trexio.write_ao_2e_int_eri(out, offset, icount, buffer_index, buffer_values)
