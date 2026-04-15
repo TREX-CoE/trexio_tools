@@ -21,7 +21,7 @@ Options:
       -m, --multiplicity=MULTIPLICITY  Spin multiplicity for the Crystal converter.
       -j, --json=TREX_JSON_FILE     TREX configuration file (in JSON format).
       -w, --overwrite               Overwrite the output TREXIO file if it already exists.  [default: True]
-      -t, --type=TYPE               [gaussian | gamess | pyscf | orca | crystal | fcidump | molden | cartesian | spherical ] File format.
+      -t, --type=TYPE               [gaussian | gamess | orca | crystal | fcidump | molden | cartesian | spherical ] File format.
       -x, --motype=MO_TYPE          Type of the molecular orbitals. For example, GAMESS has RHF, MCSCF, GUGA, and Natural as possible MO types.
       -y, --spin_order=TYPE         [block | interleave] How to organize spin orbitals when converting to FCIDUMP [default: block]
 """
