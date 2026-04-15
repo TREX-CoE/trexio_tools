@@ -12,9 +12,7 @@ Set of tools for TREXIO files.
 - numpy (>=1.17.3)
 - resultsFile [for GAMESS/GAU$$IAN conversion]
 - docopt [for CLI]
-- pyscf [only if you use the pyscf->trexio converter] 
-
-**Deprecation note:** the pyscf--->trexio converter in this repository is no longer maintained. Please install the [pyscf-forge](https://github.com/pyscf/pyscf-forge) plugin for the latest and the most complete pyscf<--->trexio interface (including multi-reference wave function I/O).
+**Note:** the pyscf<--->trexio converter has been moved to [pyscf-forge](https://github.com/pyscf/pyscf-forge). Please install the pyscf-forge plugin for the pyscf<--->trexio interface (including multi-reference wave function I/O).
 
 
 ## Installation
