@@ -8,6 +8,7 @@ from trexio_tools.group_tools import basis as trexio_basis
 
 from .orca_to_trexio import orca_to_trexio as run_orca
 from .crystal_to_trexio import crystal_to_trexio as run_crystal
+from .vlx_to_trexio import vlx_to_trexio as run_vlx
 
 import trexio
 
@@ -16,14 +17,25 @@ from ..trexio_run import remove_trexio_file
 try:
     from resultsFile import getFile, a0, get_lm
     import resultsFile
-except ImportError as exc:
-    raise ImportError("resultsFile Python package is not installed.") from exc
+except ImportError:
+    getFile = None
+    a0 = None
+    get_lm = None
+    resultsFile = None
+
+
+def _require_resultsfile():
+    if resultsFile is None or getFile is None or a0 is None or get_lm is None:
+        raise ImportError("resultsFile Python package is not installed.")
+
+    return getFile, a0, get_lm, resultsFile
 
 
 # Re-order AOs (xx,xy,xz,yy,yz,zz) or (d+0,+1,-1,-2,+2,-2,...)
 def f_sort(x):
   if '+' in x or '-' in x:
-      l, m = get_lm(x)
+      _, _, get_lm_local, _ = _require_resultsfile()
+      l, m = get_lm_local(x)
       if m>=0:
           return 2*m
       else:
@@ -40,6 +52,7 @@ def f_sort(x):
 #            raise NotImplementedError(f"Please remove the {trexio_filename} directory manually.")
 
 def run_resultsFile(trexio_file, filename_info, motype=None):
+    getFile_local, a0_local, _, _ = _require_resultsfile()
 
     filename = filename_info['filename']
     trexio_basename = filename_info['trexio_basename']
@@ -48,7 +61,7 @@ def run_resultsFile(trexio_file, filename_info, motype=None):
     state_id = filename_info['state']
 
     try:
-        res = getFile(filename)
+        res = getFile_local(filename)
     except:
         raise
     else:
@@ -84,7 +97,7 @@ def run_resultsFile(trexio_file, filename_info, motype=None):
     for a in res.geometry:
         charge.append(a.charge)
         if res.units != 'BOHR':
-            coord.append([a.coord[0] / a0, a.coord[1] / a0, a.coord[2] / a0])
+            coord.append([a.coord[0] / a0_local, a.coord[1] / a0_local, a.coord[2] / a0_local])
         else:
             coord.append([a.coord[0], a.coord[1], a.coord[2]])
 
@@ -150,7 +163,8 @@ def run_resultsFile(trexio_file, filename_info, motype=None):
             elif b.sym == "x":
                 shell_ang_mom.append(1)
             elif "0" in b.sym:
-                l, _ = get_lm(b.sym)
+                _, _, get_lm_local, _ = _require_resultsfile()
+                l, _ = get_lm_local(b.sym)
                 shell_ang_mom.append(l)
             curr_shell_idx = len(exponent)
             shell_prim_index.append(curr_shell_idx)
@@ -472,6 +486,7 @@ def run_resultsFile(trexio_file, filename_info, motype=None):
     return
 
 def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, ao_norm=0):
+    _, a0_local, _, resultsFile_local = _require_resultsfile()
     import numpy as np
 
     with open(filename, 'r') as f:
@@ -593,7 +608,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
         charge.append(float(a[1]))
         label.append(a[0])
         if unit != 'au':
-            coord.append([a[2] / a0, a[3] / a0, a[4] / a0])
+            coord.append([a[2] / a0_local, a[3] / a0_local, a[4] / a0_local])
         else:
             coord.append([a[2], a[3], a[4]])
 
@@ -646,14 +661,14 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
            elif ang_mom == "f": shell_ang_mom.append(3)
            elif ang_mom == "g": shell_ang_mom.append(4)
            if   ang_mom != "s": ang_mom = "x"*shell_ang_mom[-1]
-           contraction = resultsFile.contraction()
+           contraction = resultsFile_local.contraction()
        else:
            prim_id += 1
            e, c = float(buffer[0]), float(buffer[1])
            shell_prim_index.append(prim_id)
            exponent.append(e)
            coefficient.append(c)
-           gauss = resultsFile.gaussian()
+           gauss = resultsFile_local.gaussian()
            gauss.center = coord[iatom]
            gauss.expo = e
            gauss.sym  =ang_mom
@@ -719,14 +734,14 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
 
     norm = []
     for l in range(5):
-       g = resultsFile.gaussian()
-       gauss.center = (0.,0.,0.)
-       gauss.expo = 1.0
-       gauss.sym = conv[l][0]
-       ref = gauss.norm
-       norm.append([])
-       for m in conv[l]:
-            g = resultsFile.gaussian()
+        gauss = resultsFile_local.gaussian()
+        gauss.center = (0.,0.,0.)
+        gauss.expo = 1.0
+        gauss.sym = conv[l][0]
+        ref = gauss.norm
+        norm.append([])
+        for m in conv[l]:
+            gauss = resultsFile_local.gaussian()
             gauss.center = (0.,0.,0.)
             gauss.expo = 1.0
             gauss.sym = m
@@ -818,11 +833,13 @@ def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, s
         run_resultsFile(trexio_file, filename_info, motype)
 
     elif filetype.lower() == "gamess":
+        getFile_local, _, _, _ = _require_resultsfile()
         # Handle the case where the number of states is greater than 1
         try:
-            res = getFile(filename)
-        except Exception:
-            print(f"An error occurred while parsing the file using resultsFile : {Exception}")
+            res = getFile_local(filename)
+        except Exception as exc:
+            print(f"An error occurred while parsing the file using resultsFile : {exc}")
+            raise
 
         # Open the TREXIO file for writing
         trexio_file = trexio.File(trexio_filename, mode='w', back_end=back_end)
@@ -848,6 +865,10 @@ def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, s
         if spin is None: raise ValueError("You forgot to provide spin for the CRYSTAL->TREXIO converter.")
         back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
         run_crystal(trexio_filename=trexio_filename, crystal_output=filename, back_end=back_end_str, spin=spin)
+
+    elif filetype.lower() == "vlx":
+        back_end_str = "text" if back_end==trexio.TREXIO_TEXT else "hdf5"
+        run_vlx(vlx_h5=filename, filename=trexio_filename, back_end=back_end_str)
 
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
