@@ -51,6 +51,388 @@ def f_sort(x):
 #        else:
 #            raise NotImplementedError(f"Please remove the {trexio_filename} directory manually.")
 
+
+# --- Gaussian formatted checkpoint (.fchk) helpers --------------------------
+
+# Element symbols indexed by atomic number (index 0 is a placeholder).
+PERIODIC_TABLE = [
+    "X",
+    "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne",
+    "Na", "Mg", "Al", "Si", "P",  "S",  "Cl", "Ar", "K",  "Ca",
+    "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+    "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr",
+    "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn",
+    "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
+    "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb",
+    "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+    "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
+    "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm",
+    "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds",
+    "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og",
+]
+
+# Number of values printed per line for each FCHK array type, used to skip over
+# data blocks while scanning the file.
+_FCHK_PER_LINE = {"I": 6, "R": 5, "C": 5, "L": 72, "H": 9}
+
+
+def _double_factorial(n: int) -> float:
+    """Double factorial (n)!! with the convention (-1)!! = 0!! = 1."""
+    result = 1.0
+    while n > 1:
+        result *= n
+        n -= 2
+    return result
+
+
+def _prim_ref_norm(l: int, alpha: float) -> float:
+    """Normalization of a primitive cartesian Gaussian for the reference
+    component (l, 0, 0), i.e. <g|g> = 1."""
+    import math
+    return (2.0 * alpha / math.pi) ** 0.75 * \
+           math.sqrt((4.0 * alpha) ** l / _double_factorial(2 * l - 1))
+
+
+def _ref_overlap(l: int, ai: float, aj: float) -> float:
+    """Overlap of two *unnormalized* reference (l, 0, 0) primitives with
+    exponents ai and aj, sharing the same center."""
+    import math
+    p = ai + aj
+    return _double_factorial(2 * l - 1) * (math.pi / p) ** 1.5 / (2.0 * p) ** l
+
+
+def _component_norm(label: str) -> float:
+    """Normalization of an AO component relative to the reference (l, 0, 0)
+    cartesian component. Pure-spherical components (labels carrying a magnetic
+    quantum number such as ``d+1``) are already normalized, hence return 1."""
+    import math
+    if '+' in label or '-' in label:
+        return 1.0
+    a, b, c = label.count('x'), label.count('y'), label.count('z')
+    l = a + b + c
+    denom = _double_factorial(2 * a - 1) * \
+            _double_factorial(2 * b - 1) * \
+            _double_factorial(2 * c - 1)
+    return math.sqrt(_double_factorial(2 * l - 1) / denom)
+
+
+def _ao_sort_key(label: str):
+    """Sort key mapping an AO component to its position in the TREXIO ordering.
+
+    Cartesian monomials are ordered alphabetically (xx, xy, xz, yy, yz, zz),
+    which matches the canonical TREXIO cartesian ordering. Spherical components
+    are ordered by magnetic quantum number as 0, +1, -1, +2, -2, ...
+    """
+    if '+' in label or '-' in label:
+        m = int(label[1:])
+        return 2 * m if m >= 0 else -2 * m + 1
+    return label
+
+
+def _parse_fchk(filename: str) -> dict:
+    """Parse a Gaussian formatted checkpoint file into a dictionary.
+
+    Scalar fields map to a single int/float; array fields (``N=``) map to a list
+    of int/float. Character and logical blocks are skipped but consumed so that
+    the surrounding scalar/array fields keep parsing correctly.
+    """
+    with open(filename, 'r') as fh:
+        lines = fh.readlines()
+
+    if len(lines) < 2:
+        raise TypeError(f"{filename} is not a valid Gaussian fchk file.")
+
+    data = {
+        '_title': lines[0].strip(),
+        '_calc':  lines[1].rstrip('\n'),
+    }
+
+    i, n = 2, len(lines)
+    while i < n:
+        line = lines[i].rstrip('\n')
+        i += 1
+        # A field line carries the type letter in column 44 (0-based 43).
+        if len(line) < 44:
+            continue
+        name = line[:40].strip()
+        rest = line[40:].split()
+        if len(rest) < 2 or rest[0] not in _FCHK_PER_LINE:
+            continue
+        dtype = rest[0]
+
+        if len(rest) >= 3 and rest[1] == 'N=':
+            # Array field: read the following data lines.
+            try:
+                count = int(rest[2])
+            except ValueError:
+                continue
+            per_line = _FCHK_PER_LINE[dtype]
+            nlines = (count + per_line - 1) // per_line if count > 0 else 0
+            block = lines[i:i + nlines]
+            i += nlines
+            if dtype == 'I':
+                toks = ' '.join(block).split()
+                data[name] = [int(t) for t in toks[:count]]
+            elif dtype == 'R':
+                toks = ' '.join(block).split()
+                data[name] = [float(t.replace('D', 'E').replace('d', 'e'))
+                              for t in toks[:count]]
+            # Character/logical blocks are consumed above but not stored.
+        else:
+            # Scalar field.
+            try:
+                if dtype == 'I':
+                    data[name] = int(rest[1])
+                elif dtype == 'R':
+                    data[name] = float(rest[1].replace('D', 'E'))
+            except ValueError:
+                continue
+
+    return data
+
+
+def run_fchk(trexio_file, filename, normalized_basis=True):
+    """Convert a Gaussian formatted checkpoint (.fchk) file into TREXIO.
+
+    Supports RHF/ROHF (restricted) and UHF (unrestricted) checkpoints with
+    Gaussian (s, p, sp, d, f, g) shells in either cartesian (6D/10F) or pure
+    spherical (5D/7F) representations. SP shells are split into separate s and p
+    shells as required by the TREXIO format.
+    """
+    import numpy as np
+
+    fchk = _parse_fchk(filename)
+
+    def require(key):
+        if key not in fchk:
+            raise KeyError(f"Missing '{key}' field in the fchk file {filename}.")
+        return fchk[key]
+
+    # Metadata
+    # --------
+
+    trexio.write_metadata_code_num(trexio_file, 1)
+    trexio.write_metadata_code(trexio_file, ["Gaussian"])
+    trexio.write_metadata_author_num(trexio_file, 1)
+    trexio.write_metadata_author(trexio_file, [os.environ.get("USER", "unknown")])
+    trexio.write_metadata_description(trexio_file, fchk['_title'])
+
+    # Electrons
+    # ---------
+
+    up_num = require('Number of alpha electrons')
+    dn_num = require('Number of beta electrons')
+    trexio.write_electron_up_num(trexio_file, up_num)
+    trexio.write_electron_dn_num(trexio_file, dn_num)
+
+    # Nuclei
+    # ------
+
+    atomic_numbers = require('Atomic numbers')
+    nucleus_num = require('Number of atoms')
+    flat_coord = require('Current cartesian coordinates')  # always in bohr
+    coord = [flat_coord[3 * a: 3 * a + 3] for a in range(nucleus_num)]
+
+    if 'Nuclear charges' in fchk:
+        charge = [float(z) for z in fchk['Nuclear charges']]
+    else:
+        charge = [float(z) for z in atomic_numbers]
+
+    label = [PERIODIC_TABLE[z] if 0 < z < len(PERIODIC_TABLE) else "X"
+             for z in atomic_numbers]
+
+    trexio.write_nucleus_num(trexio_file, nucleus_num)
+    trexio.write_nucleus_coord(trexio_file, coord)
+    trexio.write_nucleus_charge(trexio_file, charge)
+    trexio.write_nucleus_label(trexio_file, label)
+
+    # Basis
+    # -----
+
+    shell_types = require('Shell types')
+    prim_per_shell = require('Number of primitives per shell')
+    shell_atom_map = require('Shell to atom map')          # 1-based atom index
+    exps = require('Primitive exponents')
+    coefs = require('Contraction coefficients')
+    sp_coefs = fchk.get('P(S=P) Contraction coefficients')
+
+    # Determine whether d and higher shells are cartesian or spherical. In an
+    # fchk a positive shell type is cartesian, a negative one (other than the
+    # SP code -1) is pure spherical; s, p and sp shells do not discriminate.
+    has_cart = any(t >= 2 for t in shell_types)
+    has_sphe = any(t <= -2 for t in shell_types)
+    if has_cart and has_sphe:
+        raise NotImplementedError(
+            "Mixed cartesian and spherical shells are not supported by TREXIO.")
+    cartesian = not has_sphe
+
+    nucleus_index = []   # nucleus per (split) shell
+    shell_ang_mom = []   # angular momentum per (split) shell
+    shell_index = []     # shell per primitive
+    exponent = []        # exponent per primitive
+    coefficient = []     # contraction coefficient per primitive
+    prim_factor = []     # primitive normalization factor
+    shell_factor = []    # shell normalization factor
+
+    def emit_shell(l, atom, these_exps, these_coefs):
+        """Append one TREXIO shell (and its primitives) of momentum l."""
+        shell_id = len(shell_ang_mom)
+        shell_ang_mom.append(l)
+        nucleus_index.append(atom)
+        for e, c in zip(these_exps, these_coefs):
+            shell_index.append(shell_id)
+            exponent.append(e)
+            coefficient.append(c)
+            prim_factor.append(_prim_ref_norm(l, e))
+        # Shell normalization so that the reference component integrates to 1.
+        # With prim_factor[p] = N_p the stored primitives are normalized, hence
+        # the self-overlap of the contraction is sum_ij c_i c_j N_i N_j S^u_ij.
+        if normalized_basis:
+            accum = 0.0
+            norms = [_prim_ref_norm(l, e) for e in these_exps]
+            for i, ci in enumerate(these_coefs):
+                for j, cj in enumerate(these_coefs):
+                    accum += (ci * cj * norms[i] * norms[j]
+                              * _ref_overlap(l, these_exps[i], these_exps[j]))
+            shell_factor.append(1.0 / np.sqrt(accum))
+        else:
+            shell_factor.append(1.0)
+
+    cursor = 0
+    for s, t in enumerate(shell_types):
+        nprim = prim_per_shell[s]
+        atom = shell_atom_map[s] - 1
+        sl = slice(cursor, cursor + nprim)
+        if t == -1:
+            # SP (Gaussian 'L') shell: split into an s shell and a p shell.
+            if sp_coefs is None:
+                raise KeyError("SP shell found but P(S=P) coefficients are missing.")
+            emit_shell(0, atom, exps[sl], coefs[sl])
+            emit_shell(1, atom, exps[sl], sp_coefs[sl])
+        else:
+            emit_shell(abs(t), atom, exps[sl], coefs[sl])
+        cursor += nprim
+
+    shell_num = len(shell_ang_mom)
+    prim_num = len(exponent)
+
+    trexio.write_basis_type(trexio_file, "Gaussian")
+    trexio.write_basis_shell_num(trexio_file, shell_num)
+    trexio.write_basis_prim_num(trexio_file, prim_num)
+    trexio.write_basis_nucleus_index(trexio_file, nucleus_index)
+    trexio.write_basis_shell_ang_mom(trexio_file, shell_ang_mom)
+    trexio.write_basis_shell_index(trexio_file, shell_index)
+    trexio.write_basis_shell_factor(trexio_file, shell_factor)
+    # Gaussian basis functions have no r^n prefactor.
+    trexio.write_basis_r_power(trexio_file, [0.0] * shell_num)
+    trexio.write_basis_exponent(trexio_file, exponent)
+    trexio.write_basis_coefficient(trexio_file, coefficient)
+    trexio.write_basis_prim_factor(trexio_file, prim_factor)
+
+    # AOs
+    # ---
+
+    # Within-shell component ordering as written by Gaussian. Cartesian and
+    # spherical share the ordering used by the Molden converter.
+    if cartesian:
+        conv = [['s'], ['x', 'y', 'z'],
+                ['xx', 'yy', 'zz', 'xy', 'xz', 'yz'],
+                ['xxx', 'yyy', 'zzz', 'xyy', 'xxy', 'xxz', 'xzz', 'yzz', 'yyz', 'xyz'],
+                ['xxxx', 'yyyy', 'zzzz', 'xxxy', 'xxxz', 'xyyy', 'yyyz', 'xzzz', 'yzzz',
+                 'xxyy', 'xxzz', 'yyzz', 'xxyz', 'xyyz', 'xyzz']]
+    else:
+        conv = [['s'], ['p+1', 'p-1', 'p+0'],
+                ['d+0', 'd+1', 'd-1', 'd+2', 'd-2'],
+                ['f+0', 'f+1', 'f-1', 'f+2', 'f-2', 'f+3', 'f-3'],
+                ['g+0', 'g+1', 'g-1', 'g+2', 'g-2', 'g+3', 'g-3', 'g+4', 'g-4']]
+
+    ao_shell = []
+    ao_normalization = []
+    ao_ordering = []
+    offset = 0
+    for k, l in enumerate(shell_ang_mom):
+        if l > 4:
+            raise TypeError("Angular momentum l>4 is not supported by the fchk converter.")
+        components = conv[l]
+        ao_shell += [k for _ in components]
+        accu = [(_ao_sort_key(lbl), offset + i, _component_norm(lbl))
+                for i, lbl in enumerate(components)]
+        accu.sort()
+        ao_ordering += [idx for (_, idx, _) in accu]
+        ao_normalization += [nrm for (_, _, nrm) in accu]
+        offset += len(components)
+    ao_num = len(ao_ordering)
+
+    trexio.write_ao_num(trexio_file, ao_num)
+    trexio.write_ao_cartesian(trexio_file, cartesian)
+    trexio.write_ao_shell(trexio_file, ao_shell)
+    trexio.write_ao_normalization(trexio_file, ao_normalization)
+
+    nbasis = fchk.get('Number of basis functions')
+    if nbasis is not None and nbasis != ao_num:
+        raise ValueError(
+            f"Computed {ao_num} AOs but the fchk reports {nbasis} basis functions.")
+
+    # MOs
+    # ---
+
+    alpha_mo = require('Alpha MO coefficients')
+    alpha_ene = fchk.get('Alpha Orbital Energies', [])
+    beta_mo = fchk.get('Beta MO coefficients')
+    unrestricted = beta_mo is not None
+
+    nmo = len(alpha_mo) // ao_num
+
+    def reorder(flat, imo):
+        vector = flat[imo * ao_num:(imo + 1) * ao_num]
+        return [vector[i] for i in ao_ordering]
+
+    mo_coefficient = []
+    mo_spin = []
+    mo_energy = []
+    mo_occupation = []
+
+    for imo in range(nmo):
+        mo_coefficient += reorder(alpha_mo, imo)
+        mo_spin.append(0)
+        mo_energy.append(alpha_ene[imo] if imo < len(alpha_ene) else 0.0)
+        if unrestricted:
+            mo_occupation.append(1.0 if imo < up_num else 0.0)
+        else:
+            mo_occupation.append(2.0 if imo < dn_num
+                                 else (1.0 if imo < up_num else 0.0))
+
+    if unrestricted:
+        beta_ene = fchk.get('Beta Orbital Energies', [])
+        nmo_beta = len(beta_mo) // ao_num
+        for imo in range(nmo_beta):
+            mo_coefficient += reorder(beta_mo, imo)
+            mo_spin.append(1)
+            mo_energy.append(beta_ene[imo] if imo < len(beta_ene) else 0.0)
+            mo_occupation.append(1.0 if imo < dn_num else 0.0)
+
+    mo_class = []
+    for occ in mo_occupation:
+        if occ >= 2.0:
+            mo_class.append("Core")
+        elif occ == 0.0:
+            mo_class.append("Virtual")
+        else:
+            mo_class.append("Active")
+
+    trexio.write_mo_num(trexio_file, len(mo_spin))
+    trexio.write_mo_coefficient(trexio_file, mo_coefficient)
+    trexio.write_mo_spin(trexio_file, mo_spin)
+    trexio.write_mo_occupation(trexio_file, mo_occupation)
+    trexio.write_mo_energy(trexio_file, mo_energy)
+    trexio.write_mo_class(trexio_file, mo_class)
+
+    # Derive the MO type from the method field on the second line, if present.
+    calc_tokens = fchk['_calc'].split()
+    if len(calc_tokens) >= 2:
+        trexio.write_mo_type(trexio_file, calc_tokens[1])
+
+
 def run_resultsFile(trexio_file, filename_info, motype=None):
     getFile_local, a0_local, _, _ = _require_resultsfile()
 
@@ -872,6 +1254,9 @@ def run(trexio_filename, filename, filetype, back_end, spin=None, motype=None, s
 
     elif filetype.lower() == "molden":
         run_molden(trexio_file, filename)
+
+    elif filetype.lower() == "fchk":
+        run_fchk(trexio_file, filename)
 
     else:
         raise NotImplementedError(f"Conversion from {filetype} to TREXIO is not supported.")
