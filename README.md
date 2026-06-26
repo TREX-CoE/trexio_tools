@@ -60,6 +60,21 @@ cartesian TREXIO file, run the additional conversion step below.
 This converts the spherical AOs and MOs from `trexio_orca.hdf5` into cartesian
 coordinates and writes the result to `trexio_orca_cart.hdf5`.
 
+For a Gaussian formatted checkpoint file,
+
+`trexio convert-from -t fchk -i data/h2.fchk -b hdf5 trexio_fchk.hdf5`
+
+converts the geometry, Gaussian basis set, and molecular orbitals from the
+`.fchk` file into the TREXIO file `trexio_fchk.hdf5`. Both restricted (RHF/ROHF)
+and unrestricted (UHF) checkpoints are supported, with either cartesian (6D/10F)
+or pure spherical (5D/7F) shells, up to g angular momentum. SP shells are
+automatically split into the separate s and p shells required by TREXIO. This
+converter has no external dependencies (it does not require `resultsFile`).
+
+Because TREXIO uses a single global cartesian/spherical flag, fchk files that
+mix cartesian and pure shells within one calculation (e.g. Gaussian's `6D 7F`)
+cannot be represented and are rejected with an explicit error.
+
 For VeloxChem,
 
 `trexio convert-from -w -t vlx -i /path/to/biphenyl-scf.h5 -b hdf5 biphenyl-scf-trexio.hdf5`

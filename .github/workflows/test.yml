@@ -41,6 +41,9 @@ jobs:
           trexio convert-from -t crystal   -i data/crystal23_mgo_lda.out -m 1 -b hdf5  crystal.hdf5
           trexio convert-from -t orca      -i data/h2o.json                   -b hdf5  trexio_orca_h2o_sph.h5
           trexio convert-to -t cartesian -o trexio_orca_h2o.h5 trexio_orca_h2o_sph.h5
+          trexio convert-from -t fchk      -i data/h2.fchk                    -b hdf5  trexio_fchk_h2.h5
+          trexio convert-from -t fchk      -i data/h2_spherical.fchk          -b hdf5  trexio_fchk_h2_sph.h5
+          trexio convert-to -t cartesian -o trexio_fchk_h2_cart.h5 trexio_fchk_h2_sph.h5
           echo "==  Done conversion  =="
           # dummy checks for overwriting
           trexio convert-from -t gaussian  -i data/chbrclf.log -b hdf5 trexio_gaussi.h5 || echo "Failure as it should"
@@ -63,6 +66,16 @@ jobs:
           grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
           cat error-res
           python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.08'
+          echo "=== Check TREXIO file converted from Gaussian fchk (cartesian) ==="
+          trexio check-mos -n 50 trexio_fchk_h2.h5 > mos-res
+          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          cat error-res
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.01'
+          echo "=== Check TREXIO file converted from Gaussian fchk (spherical) ==="
+          trexio check-mos -n 50 trexio_fchk_h2_cart.h5 > mos-res
+          grep "Norm of the error" < mos-res | grep -Eo "([0-9]+\.[0-9]*|\.?[0-9]+)([eE][+-][0-9]+)?" > error-res
+          cat error-res
+          python -c 'with open("error-res") as f: error = f.readline().strip(); assert float(error) < 0.1'
           # benchmark helper converters
           trexio convert-to -t molden -o trexio_molden.h5 trexio_gamess.h5
           echo "=== Check normalization in spherical file ==="
