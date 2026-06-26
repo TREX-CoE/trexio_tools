@@ -137,56 +137,58 @@ def _parse_fchk(filename: str) -> dict:
     the surrounding scalar/array fields keep parsing correctly.
     """
     with open(filename, 'r') as fh:
-        lines = fh.readlines()
+        title = fh.readline()
+        calc = fh.readline()
+        if not title or not calc:
+            raise TypeError(f"{filename} is not a valid Gaussian fchk file.")
 
-    if len(lines) < 2:
-        raise TypeError(f"{filename} is not a valid Gaussian fchk file.")
+        data = {
+            '_title': title.strip(),
+            '_calc':  calc.rstrip('\n'),
+        }
 
-    data = {
-        '_title': lines[0].strip(),
-        '_calc':  lines[1].rstrip('\n'),
-    }
-
-    i, n = 2, len(lines)
-    while i < n:
-        line = lines[i].rstrip('\n')
-        i += 1
+        for raw_line in fh:
+            line = raw_line.rstrip('\n')
         # A field line carries the type letter in column 44 (0-based 43).
-        if len(line) < 44:
-            continue
-        name = line[:40].strip()
-        rest = line[40:].split()
-        if len(rest) < 2 or rest[0] not in _FCHK_PER_LINE:
-            continue
-        dtype = rest[0]
+            if len(line) < 44:
+                continue
+            name = line[:40].strip()
+            rest = line[40:].split()
+            if len(rest) < 2 or rest[0] not in _FCHK_PER_LINE:
+                continue
+            dtype = rest[0]
 
-        if len(rest) >= 3 and rest[1] == 'N=':
-            # Array field: read the following data lines.
-            try:
-                count = int(rest[2])
-            except ValueError:
-                continue
-            per_line = _FCHK_PER_LINE[dtype]
-            nlines = (count + per_line - 1) // per_line if count > 0 else 0
-            block = lines[i:i + nlines]
-            i += nlines
-            if dtype == 'I':
-                toks = ' '.join(block).split()
-                data[name] = [int(t) for t in toks[:count]]
-            elif dtype == 'R':
-                toks = ' '.join(block).split()
-                data[name] = [float(t.replace('D', 'E').replace('d', 'e'))
-                              for t in toks[:count]]
-            # Character/logical blocks are consumed above but not stored.
-        else:
-            # Scalar field.
-            try:
+            if len(rest) >= 3 and rest[1] == 'N=':
+                # Array field: read the following data lines.
+                try:
+                    count = int(rest[2])
+                except ValueError:
+                    continue
+                per_line = _FCHK_PER_LINE[dtype]
+                nlines = (count + per_line - 1) // per_line if count > 0 else 0
+                block = []
+                for _ in range(nlines):
+                    data_line = fh.readline()
+                    if not data_line:
+                        break
+                    block.append(data_line)
                 if dtype == 'I':
-                    data[name] = int(rest[1])
+                    toks = ' '.join(block).split()
+                    data[name] = [int(t) for t in toks[:count]]
                 elif dtype == 'R':
-                    data[name] = float(rest[1].replace('D', 'E'))
-            except ValueError:
-                continue
+                    toks = ' '.join(block).split()
+                    data[name] = [float(t.replace('D', 'E').replace('d', 'e'))
+                                  for t in toks[:count]]
+                # Character/logical blocks are consumed above but not stored.
+            else:
+                # Scalar field.
+                try:
+                    if dtype == 'I':
+                        data[name] = int(rest[1])
+                    elif dtype == 'R':
+                        data[name] = float(rest[1].replace('D', 'E'))
+                except ValueError:
+                    continue
 
     return data
 
