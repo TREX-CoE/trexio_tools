@@ -34,6 +34,9 @@ def main(path):
                 basis=pyscf_basis(), cart=True)
     mf = scf.RHF(mol)
     mf.kernel()
+    if not mf.converged:
+        raise RuntimeError("SCF did not converge; refusing to emit an "
+                           "inconsistent fchk fixture.")
 
     S = mol.intor('int1e_ovlp')
     C = mf.mo_coeff                         # (nao, nmo), pyscf cart AO order
@@ -106,4 +109,6 @@ def main(path):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        sys.exit(f"usage: {sys.argv[0]} OUTPUT.fchk")
     main(sys.argv[1])

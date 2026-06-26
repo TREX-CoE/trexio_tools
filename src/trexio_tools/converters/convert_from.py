@@ -136,57 +136,58 @@ def _parse_fchk(filename: str) -> dict:
     of int/float. Character and logical blocks are skipped but consumed so that
     the surrounding scalar/array fields keep parsing correctly.
     """
+    # Stream the file line by line, buffering only the current array block, so
+    # that memory usage stays bounded even for very large checkpoints.
     with open(filename, 'r') as fh:
-        lines = fh.readlines()
+        title = fh.readline()
+        calc = fh.readline()
+        if not title or not calc:
+            raise TypeError(f"{filename} is not a valid Gaussian fchk file.")
 
-    if len(lines) < 2:
-        raise TypeError(f"{filename} is not a valid Gaussian fchk file.")
+        data = {
+            '_title': title.strip(),
+            '_calc':  calc.rstrip('\n'),
+        }
 
-    data = {
-        '_title': lines[0].strip(),
-        '_calc':  lines[1].rstrip('\n'),
-    }
-
-    i, n = 2, len(lines)
-    while i < n:
-        line = lines[i].rstrip('\n')
-        i += 1
-        # A field line carries the type letter in column 44 (0-based 43).
-        if len(line) < 44:
-            continue
-        name = line[:40].strip()
-        rest = line[40:].split()
-        if len(rest) < 2 or rest[0] not in _FCHK_PER_LINE:
-            continue
-        dtype = rest[0]
-
-        if len(rest) >= 3 and rest[1] == 'N=':
-            # Array field: read the following data lines.
-            try:
-                count = int(rest[2])
-            except ValueError:
+        for line in fh:
+            line = line.rstrip('\n')
+            # A field line carries the type letter in column 44 (0-based 43).
+            if len(line) < 44:
                 continue
-            per_line = _FCHK_PER_LINE[dtype]
-            nlines = (count + per_line - 1) // per_line if count > 0 else 0
-            block = lines[i:i + nlines]
-            i += nlines
-            if dtype == 'I':
-                toks = ' '.join(block).split()
-                data[name] = [int(t) for t in toks[:count]]
-            elif dtype == 'R':
-                toks = ' '.join(block).split()
-                data[name] = [float(t.replace('D', 'E').replace('d', 'e'))
-                              for t in toks[:count]]
-            # Character/logical blocks are consumed above but not stored.
-        else:
-            # Scalar field.
-            try:
+            name = line[:40].strip()
+            rest = line[40:].split()
+            if len(rest) < 2 or rest[0] not in _FCHK_PER_LINE:
+                continue
+            dtype = rest[0]
+
+            if len(rest) >= 3 and rest[1] == 'N=':
+                # Array field: read the following data lines.
+                try:
+                    count = int(rest[2])
+                except ValueError:
+                    continue
+                per_line = _FCHK_PER_LINE[dtype]
+                nlines = (count + per_line - 1) // per_line if count > 0 else 0
+                # Consume the block for every dtype so the surrounding fields
+                # keep parsing, but only buffer/store I and R arrays.
+                block = [fh.readline() for _ in range(nlines)]
                 if dtype == 'I':
-                    data[name] = int(rest[1])
+                    toks = ' '.join(block).split()
+                    data[name] = [int(t) for t in toks[:count]]
                 elif dtype == 'R':
-                    data[name] = float(rest[1].replace('D', 'E'))
-            except ValueError:
-                continue
+                    toks = ' '.join(block).split()
+                    data[name] = [float(t.replace('D', 'E').replace('d', 'e'))
+                                  for t in toks[:count]]
+                # Character/logical blocks are consumed above but not stored.
+            else:
+                # Scalar field.
+                try:
+                    if dtype == 'I':
+                        data[name] = int(rest[1])
+                    elif dtype == 'R':
+                        data[name] = float(rest[1].replace('D', 'E').replace('d', 'e'))
+                except ValueError:
+                    continue
 
     return data
 
@@ -313,6 +314,17 @@ def run_fchk(trexio_file, filename, normalized_basis=True):
             emit_shell(abs(t), atom, exps[sl], coefs[sl])
         cursor += nprim
 
+    # Every primitive must have been consumed exactly once; a mismatch means the
+    # primitive/contraction arrays were truncated or parsed inconsistently.
+    if cursor != len(exps):
+        raise ValueError(
+            f"Consumed {cursor} primitives but the fchk lists {len(exps)} "
+            "primitive exponents; the basis section is inconsistent.")
+    if len(coefs) != len(exps) or (sp_coefs is not None and len(sp_coefs) != len(exps)):
+        raise ValueError(
+            "Primitive exponent and contraction-coefficient arrays have "
+            "mismatched lengths in the fchk file.")
+
     shell_num = len(shell_ang_mom)
     prim_num = len(exponent)
 
@@ -381,6 +393,10 @@ def run_fchk(trexio_file, filename, normalized_basis=True):
     beta_mo = fchk.get('Beta MO coefficients')
     unrestricted = beta_mo is not None
 
+    if len(alpha_mo) % ao_num != 0:
+        raise ValueError(
+            f"Alpha MO coefficient count ({len(alpha_mo)}) is not a multiple of "
+            f"the number of AOs ({ao_num}); the fchk file looks corrupted.")
     nmo = len(alpha_mo) // ao_num
 
     def reorder(flat, imo):
@@ -404,6 +420,10 @@ def run_fchk(trexio_file, filename, normalized_basis=True):
 
     if unrestricted:
         beta_ene = fchk.get('Beta Orbital Energies', [])
+        if len(beta_mo) % ao_num != 0:
+            raise ValueError(
+                f"Beta MO coefficient count ({len(beta_mo)}) is not a multiple "
+                f"of the number of AOs ({ao_num}); the fchk file looks corrupted.")
         nmo_beta = len(beta_mo) // ao_num
         for imo in range(nmo_beta):
             mo_coefficient += reorder(beta_mo, imo)
