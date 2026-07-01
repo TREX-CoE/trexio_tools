@@ -168,9 +168,12 @@ def _parse_fchk(filename: str) -> dict:
                     continue
                 per_line = _FCHK_PER_LINE[dtype]
                 nlines = (count + per_line - 1) // per_line if count > 0 else 0
-                # Consume the block for every dtype so the surrounding fields
-                # keep parsing, but only buffer/store I and R arrays.
-                block = [fh.readline() for _ in range(nlines)]
+                block = []
+                for _ in range(nlines):
+                    data_line = fh.readline()
+                    if not data_line:
+                        break
+                    block.append(data_line)
                 if dtype == 'I':
                     toks = ' '.join(block).split()
                     data[name] = [int(t) for t in toks[:count]]
@@ -324,7 +327,6 @@ def run_fchk(trexio_file, filename, normalized_basis=True):
         raise ValueError(
             "Primitive exponent and contraction-coefficient arrays have "
             "mismatched lengths in the fchk file.")
-
     shell_num = len(shell_ang_mom)
     prim_num = len(exponent)
 
