@@ -136,6 +136,8 @@ def _parse_fchk(filename: str) -> dict:
     of int/float. Character and logical blocks are skipped but consumed so that
     the surrounding scalar/array fields keep parsing correctly.
     """
+    # Stream the file line by line, buffering only the current array block, so
+    # that memory usage stays bounded even for very large checkpoints.
     with open(filename, 'r') as fh:
         title = fh.readline()
         calc = fh.readline()
@@ -147,9 +149,9 @@ def _parse_fchk(filename: str) -> dict:
             '_calc':  calc.rstrip('\n'),
         }
 
-        for raw_line in fh:
-            line = raw_line.rstrip('\n')
-        # A field line carries the type letter in column 44 (0-based 43).
+        for line in fh:
+            line = line.rstrip('\n')
+            # A field line carries the type letter in column 44 (0-based 43).
             if len(line) < 44:
                 continue
             name = line[:40].strip()
@@ -186,7 +188,7 @@ def _parse_fchk(filename: str) -> dict:
                     if dtype == 'I':
                         data[name] = int(rest[1])
                     elif dtype == 'R':
-                        data[name] = float(rest[1].replace('D', 'E'))
+                        data[name] = float(rest[1].replace('D', 'E').replace('d', 'e'))
                 except ValueError:
                     continue
 
@@ -315,6 +317,16 @@ def run_fchk(trexio_file, filename, normalized_basis=True):
             emit_shell(abs(t), atom, exps[sl], coefs[sl])
         cursor += nprim
 
+    # Every primitive must have been consumed exactly once; a mismatch means the
+    # primitive/contraction arrays were truncated or parsed inconsistently.
+    if cursor != len(exps):
+        raise ValueError(
+            f"Consumed {cursor} primitives but the fchk lists {len(exps)} "
+            "primitive exponents; the basis section is inconsistent.")
+    if len(coefs) != len(exps) or (sp_coefs is not None and len(sp_coefs) != len(exps)):
+        raise ValueError(
+            "Primitive exponent and contraction-coefficient arrays have "
+            "mismatched lengths in the fchk file.")
     shell_num = len(shell_ang_mom)
     prim_num = len(exponent)
 
@@ -383,6 +395,10 @@ def run_fchk(trexio_file, filename, normalized_basis=True):
     beta_mo = fchk.get('Beta MO coefficients')
     unrestricted = beta_mo is not None
 
+    if len(alpha_mo) % ao_num != 0:
+        raise ValueError(
+            f"Alpha MO coefficient count ({len(alpha_mo)}) is not a multiple of "
+            f"the number of AOs ({ao_num}); the fchk file looks corrupted.")
     nmo = len(alpha_mo) // ao_num
 
     def reorder(flat, imo):
@@ -406,6 +422,10 @@ def run_fchk(trexio_file, filename, normalized_basis=True):
 
     if unrestricted:
         beta_ene = fchk.get('Beta Orbital Energies', [])
+        if len(beta_mo) % ao_num != 0:
+            raise ValueError(
+                f"Beta MO coefficient count ({len(beta_mo)}) is not a multiple "
+                f"of the number of AOs ({ao_num}); the fchk file looks corrupted.")
         nmo_beta = len(beta_mo) // ao_num
         for imo in range(nmo_beta):
             mo_coefficient += reorder(beta_mo, imo)
