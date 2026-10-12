@@ -215,7 +215,7 @@ def run_resultsFile(trexio_file, filename_info, motype=None):
     trexio.write_basis_prim_factor(trexio_file,prim_factor)
 
     # For Gaussian basis sets, basis_r_power is zero
-    basis_r_power = [0.0 for _ in range(shell_num) ]
+    basis_r_power = [0] * shell_num
     trexio.write_basis_r_power(trexio_file,basis_r_power)
 
     # AO
@@ -692,7 +692,7 @@ def run_molden(trexio_file, filename, normalized_basis=True, multiplicity=None, 
     trexio.write_basis_shell_factor(trexio_file,shell_factor)
 
     # For Gaussian basis sets, basis_r_power is zero
-    basis_r_power = [0.0 for _ in range(basis_shell_num) ]
+    basis_r_power = [0] * basis_shell_num
     trexio.write_basis_r_power(trexio_file,basis_r_power)
 
     # write parameters of the primitives
