@@ -5,6 +5,7 @@ import numpy as np
 from . import nucleus as trexio_nucleus
 from . import basis as trexio_basis
 from . import ao as trexio_ao
+from .becke_grid import becke_grid
 
 def run(trexio_file, n_points):
     """
@@ -22,26 +23,13 @@ def run(trexio_file, n_points):
     nucleus = basis["nucleus"]
     assert basis["type"] in [ "Gaussian", "Numerical", "Slater" ]
 
-    rmin = np.array( list([ np.min(nucleus["coord"][:,a]) for a in range(3) ]) )
-    rmax = np.array( list([ np.max(nucleus["coord"][:,a]) for a in range(3) ]) )
-
-    shift = np.array([8.,8.,8.])
-    linspace = [ None for i in range(3) ]
-    step = [ None for i in range(3) ]
-    for a in range(3):
-      linspace[a], step[a] = np.linspace(rmin[a]-shift[a], rmax[a]+shift[a], num=n_points, retstep=True)
-
-    print("Integration steps:", step)
-    dv = step[0]*step[1]*step[2]
     ao_num = ao["num"]
 
-    point = []
-    for x in linspace[0]:
-      for y in linspace[1]:
-        for z in linspace[2]:
-           point += [ [x, y, z] ]
-    point = np.array(point)
+    # Generate Becke integration grid
+    point, weights = becke_grid(nucleus["coord"], nucleus["charge"],
+                                n_radial=n_points, n_angular=15)
     point_num = len(point)
+    print("Number of grid points:", point_num)
 
     if trexio.has_ao_1e_int_overlap(trexio_file):
         S_ex = trexio.read_ao_1e_int_overlap(trexio_file)
@@ -59,7 +47,7 @@ def run(trexio_file, n_points):
         qmckl.set_point(context, 'N', point_num, np.reshape(point, (point_num*3)))
         chi = qmckl.get_ao_basis_ao_value(context, point_num*ao_num)
         chi = np.reshape( chi, (point_num,ao_num) )
-        S = chi.T @ chi * dv
+        S = chi.T @ (chi * weights[:, np.newaxis])
 
     except ModuleNotFoundError:
 
@@ -68,7 +56,7 @@ def run(trexio_file, n_points):
           chi += [ trexio_ao.value(ao, np.array(xyz)) ]
 
     chi = np.reshape( chi, (point_num,ao_num) )
-    S = chi.T @ chi * dv
+    S = chi.T @ (chi * weights[:, np.newaxis])
 
     print()
 
